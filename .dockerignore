@@ -1,0 +1,9 @@
+.git
+.cursor
+.vscode
+ckc_class_app/.dart_tool
+ckc_class_app/build
+ckc_class_app/android/.gradle
+ckc_class_app/ios/Pods
+ckc_class_app/macos/Pods
+backend/upload/cloudinary_local.php

@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:excel/excel.dart' as ex;
-import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,17 +11,7 @@ import 'ket_noi_api_service.dart';
 class NhapExcelService {
   final ApiService _apiService = ApiService();
 
-  String get _apiBaseUrl {
-    if (kIsWeb) {
-      return 'http://localhost/backend';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2/backend';
-    }
-
-    return 'http://localhost/backend';
-  }
+  String get _apiBaseUrl => _apiService.baseUrl;
 
   static const List<NhapExcelLoai> loaiNhapList = [
     NhapExcelLoai(

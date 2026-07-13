@@ -2,7 +2,15 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+
   static String get _baseUrl {
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl;
+    }
+
     // Chạy Flutter Web trên cùng máy với XAMPP
     if (kIsWeb) {
       return 'http://localhost/backend';
@@ -19,6 +27,11 @@ class ApiService {
 
 
   String get baseUrl => _baseUrl;
+
+  String get origin {
+    final uri = Uri.parse(_baseUrl);
+    return '${uri.scheme}://${uri.authority}';
+  }
 
   late final Dio _dio;
 

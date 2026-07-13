@@ -3,7 +3,6 @@ import 'package:ckc_class_app/screen/giang_vien/ket_qua_quiz_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/chi_tiet_bai_tap_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/tao_quiz_giang_vien.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,16 +10,13 @@ import 'package:provider/provider.dart';
 import '../../model/giang_vien_model.dart';
 import '../../provider/giang_vien_provider.dart';
 import '../../provider/quiz_provider.dart';
+import '../../services/ket_noi_api_service.dart';
 import '../../widget/widget_chung_giangvien.dart';
 
 
-String _gvFileBackendOrigin() {
-  if (kIsWeb) return 'http://localhost';
-  if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2';
-  return 'http://localhost';
-}
+String _gvFileBackendOrigin() => ApiService().origin;
 
-String _gvFileBackendBaseUrl() => '${_gvFileBackendOrigin()}/backend';
+String _gvFileBackendBaseUrl() => ApiService().baseUrl;
 
 String _gvNormalizeFileUrl(String rawPath) {
   final raw = rawPath.trim().replaceAll('\\', '/');
@@ -99,9 +95,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
     return value.toString();
   }
 
-  // Đổi IP/domain nếu backend của bạn không chạy ở 10.0.2.2.
-  static const _uploadBaiTapUrl =
-      'http://10.0.2.2/backend/giang_vien/upload_bai_tap_file.php';
+  String get _uploadBaiTapUrl =>
+      '${ApiService().baseUrl}/giang_vien/upload_bai_tap_file.php';
 
   @override
   void initState() {

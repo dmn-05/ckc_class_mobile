@@ -10,13 +10,7 @@ import 'ket_noi_api_service.dart';
 class XuatExcelService {
   final ApiService _api = ApiService();
 
-  static String get _baseUrl {
-    if (kIsWeb) return 'http://localhost/backend';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2/backend';
-    }
-    return 'http://localhost/backend';
-  }
+  String get _baseUrl => _api.baseUrl;
 
   Map<String, dynamic> _body(Response response) {
     final data = response.data;
