@@ -84,4 +84,4 @@ Script start.sh not found
 Railpack could not determine how to build the app.
 ```
 
-Nguyen nhan la root repo co ca Flutter va PHP thuan, Railway/Railpack khong tu doan duoc app can build. `Dockerfile` moi o root repo giai quyet viec nay bang cach chay Apache + PHP va copy `backend/` vao `/var/www/html/backend`.
+Nguyen nhan la root repo co ca Flutter va PHP thuan, Railway/Railpack khong tu doan duoc app can build. `Dockerfile` moi o root repo giai quyet viec nay bang cach chay PHP built-in server tren port Railway cap va copy `backend/` vao `/var/www/html/backend`.
