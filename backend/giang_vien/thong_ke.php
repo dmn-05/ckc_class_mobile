@@ -51,7 +51,7 @@ try {
     $tongSinhVien = (int)scalar_query($conn, "SELECT COUNT(DISTINCT svlhp.sinh_vien_id)
         FROM sinh_vien_lop_hoc_phan svlhp
         JOIN lop_hoc_phan lhp ON svlhp.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND svlhp.trang_thai='dang_hoc'", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND svlhp.trang_thai='dang_hoc'", $giangVienId, $hasMap);
 
     $tongBaiTap = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM bai_tap bt
@@ -62,7 +62,7 @@ try {
         FROM bai_nop bn
         JOIN bai_tap bt ON bn.bai_tap_id=bt.id
         JOIN lop_hoc_phan lhp ON bt.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND bn.trang_thai IN ('da_nop','nop_muon')", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND bn.trang_thai IN ('da_nop','nop_muon')", $giangVienId, $hasMap);
 
     $tongTaiLieu = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM tai_lieu tl
@@ -77,7 +77,7 @@ try {
     $binhLuanMoi = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM binh_luan bl
         JOIN lop_hoc_phan lhp ON bl.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND bl.trang_thai='hien_thi' AND bl.ngay_tao >= DATE_SUB(NOW(), INTERVAL 7 DAY)", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND bl.trang_thai='hien_thi' AND bl.ngay_tao >= DATE_SUB(NOW(), INTERVAL 7 DAY)", $giangVienId, $hasMap);
 
     $diemTrungBinh = scalar_query($conn, "SELECT ROUND(AVG(bn.diem), 2)
         FROM bai_nop bn

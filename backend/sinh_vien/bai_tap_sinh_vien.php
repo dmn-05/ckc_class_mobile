@@ -10,6 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 require_once __DIR__ . "/../upload/cloudinary_helper.php";
 
 $contentType = $_SERVER["CONTENT_TYPE"] ?? $_SERVER["HTTP_CONTENT_TYPE"] ?? "";
@@ -61,11 +62,16 @@ function db_has_column(PDO $conn, string $table, string $column): bool {
 }
 
 function trang_thai_db_sang_mobile($value) {
-    return $value === 'hien_thi' ? 'dang_mo' : $value;
+    return match (trim((string)$value)) {
+        'dang_mo' => 'hien_thi',
+        'da_dong' => 'an',
+        'hien_thi', 'an' => trim((string)$value),
+        default => 'hien_thi',
+    };
 }
 
 function trang_thai_mo($value): bool {
-    return in_array($value, ['dang_mo', 'hien_thi'], true);
+    return in_array(trim((string)$value), ['hien_thi', 'dang_mo'], true);
 }
 
 function ten_file_host($name): string {
@@ -141,6 +147,10 @@ if ($sinhVienId <= 0) {
 }
 
 try {
+    if ($action === 'nop_bai') {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_bai_tap($conn, (int)($data['bai_tap_id'] ?? 0)));
+    }
+
     ensure_assignment_file_schema($conn);
 
     // ─── DANH SÁCH BÀI TẬP CỦA MỘT LỚP ─────────────────────
@@ -239,7 +249,8 @@ try {
                 "duong_dan_file" => $r["duong_dan_file"],
                 "yeu_cau_nop_file" => (int)($r["yeu_cau_nop_file"] ?? 1),
                 "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"],
-                "so_file_toi_da" => max(1, (int)($r["so_file_toi_da"] ?? 1)),
+                // CSDL bai_nop hiện chỉ lưu được một file cho mỗi sinh viên/bài tập.
+                "so_file_toi_da" => 1,
                 "dung_luong_toi_da_mb" => max(1, (int)($r["dung_luong_toi_da_mb"] ?? 25)),
                 "cho_phep_nop_lai" => (int)($r["cho_phep_nop_lai"] ?? 1),
                 "cho_phep_nop_muon" => (int)($r["cho_phep_nop_muon"] ?? 1),
@@ -288,7 +299,7 @@ try {
                     kq.thoi_gian_nop_bai AS thoi_gian_nop_quiz,
                     (SELECT COUNT(*) FROM cau_hoi ch WHERE ch.bai_kiem_tra_id = bkt.id) AS so_cau_hoi
                 FROM bai_kiem_tra bkt
-                JOIN sinh_vien_lop_hoc_phan svlhp ON svlhp.lop_hoc_phan_id = bkt.lop_hoc_phan_id AND svlhp.sinh_vien_id = :svq AND svlhp.trang_thai = 'dang_hoc'
+                JOIN sinh_vien_lop_hoc_phan svlhp ON svlhp.lop_hoc_phan_id = bkt.lop_hoc_phan_id AND svlhp.sinh_vien_id = :svq AND svlhp.trang_thai <> 'da_huy'
                 LEFT JOIN chu_de cd ON cd.id = bkt.chu_de_id
                 LEFT JOIN nguoi_dung nd ON nd.id = bkt.nguoi_tao_id
                 LEFT JOIN ket_qua_kiem_tra kq ON kq.bai_kiem_tra_id = bkt.id AND kq.sinh_vien_id = :svq2 AND kq.trang_thai <> 'dang_lam'
@@ -343,7 +354,7 @@ try {
                         'lop_hoc_phan_id' => (int)$qz['lop_hoc_phan_id'],
                         'chu_de_id' => $qz['chu_de_id'] !== null ? (int)$qz['chu_de_id'] : null,
                         'ten_chu_de' => $qz['ten_chu_de'] ?: 'Bài kiểm tra',
-                        'trang_thai' => 'dang_mo',
+                        'trang_thai' => 'hien_thi',
                         'ngay_tao' => $qz['ngay_tao'],
                         'ten_nguoi_tao' => $qz['ten_nguoi_tao'],
                         'bai_nop_id' => null,
@@ -375,7 +386,8 @@ try {
             LEFT JOIN mon_hoc mh ON lhp.mon_hoc_id = mh.id
             WHERE svlhp.sinh_vien_id = ?
               AND svlhp.trang_thai = 'dang_hoc'
-              AND bt.trang_thai IN ('dang_mo','hien_thi')
+              AND lhp.trang_thai = 'dang_mo'
+              AND bt.trang_thai = 'hien_thi'
               AND (bt.thoi_gian_gui IS NULL OR bt.thoi_gian_gui <= NOW())
               AND COALESCE(bt.loai_bai_tap, 'nop_file') = 'nop_file'
               AND COALESCE(bt.yeu_cau_nop_file, 1) = 1

@@ -72,10 +72,11 @@ try {
         respond("error", "Tài khoản đang bị khóa, không thể đặt lại mật khẩu");
     }
 
-    // Theo yêu cầu: mật khẩu mới được đặt lại bằng đúng số CCCD.
-    // Hệ thống hiện vẫn hỗ trợ mật khẩu thường trong dang_nhap.php.
+    // Mật khẩu gốc vẫn là số CCCD, nhưng chỉ lưu bản mã hóa trong CSDL.
+    $matKhauHash = password_hash($cccd, PASSWORD_DEFAULT);
+    if ($matKhauHash === false) respond("error", "Không thể mã hóa mật khẩu mới");
     $up = $conn->prepare("UPDATE nguoi_dung SET mat_khau = ?, ngay_cap_nhat = NOW() WHERE id = ?");
-    $up->execute([$cccd, (int)$row["nguoi_dung_id"]]);
+    $up->execute([$matKhauHash, (int)$row["nguoi_dung_id"]]);
 
     respond("success", "Đặt lại mật khẩu thành công. Mật khẩu mới là số CCCD của bạn.");
 } catch (Throwable $e) {

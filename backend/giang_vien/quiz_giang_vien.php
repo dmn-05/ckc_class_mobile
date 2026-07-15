@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = trim((string)($data["action"] ?? ""));
@@ -245,6 +246,14 @@ function same_question_content(PDO $conn, int $examId, array $questions): bool {
 }
 
 try {
+    if ($action === 'tao_quiz') {
+        ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
+    } elseif (in_array($action, ['sua_quiz', 'xoa_quiz'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_quiz($conn, (int)($data['bai_tap_id'] ?? 0)));
+    } elseif ($action === 'cham_tu_luan') {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_ket_qua_quiz($conn, (int)($data['bai_lam_quiz_id'] ?? 0)));
+    }
+
     ensure_quiz_schema($conn);
 
     if ($action === 'tao_quiz') {

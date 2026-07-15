@@ -29,16 +29,12 @@ function traLoiLoi(int $code, string $message, ?string $detail = null): void
     exit();
 }
 
-function hopLeKhoaHoc(string $khoaHoc): bool
+function hopLeNamHoc(string $namHoc): bool
 {
-    if (!preg_match('/^[0-9]{4}-[0-9]{4}$/', $khoaHoc)) {
-        return false;
-    }
-
-    $namBatDau = (int) substr($khoaHoc, 0, 4);
-    $namKetThuc = (int) substr($khoaHoc, 5, 4);
-
-    return $namKetThuc - $namBatDau === 3;
+    if (!preg_match('/^[0-9]{4}-[0-9]{4}$/', $namHoc)) return false;
+    $a = (int)substr($namHoc, 0, 4);
+    $b = (int)substr($namHoc, 5, 4);
+    return $a >= 2000 && $a <= (int)date("Y") + 2 && $b - $a === 1;
 }
 
 $rawInput = file_get_contents("php://input");
@@ -49,7 +45,6 @@ $monHocId = 0;
 $giangVienId = 0;
 $hocKy = "";
 $namHoc = "";
-$khoaHoc = "";
 $trangThai = "";
 
 if (is_array($data)) {
@@ -57,7 +52,7 @@ if (is_array($data)) {
     $monHocId = (int) ($data["mon_hoc_id"] ?? 0);
     $giangVienId = (int) ($data["giang_vien_id"] ?? 0);
     $hocKy = trim($data["hoc_ky"] ?? "");
-    $khoaHoc = trim($data["khoa_hoc"] ?? "");
+    $namHoc = trim($data["nam_hoc"] ?? "");
     $trangThai = trim($data["trang_thai"] ?? "");
 } else {
     $tuKhoa = trim($_POST["tu_khoa"] ?? ($_GET["tu_khoa"] ?? ""));
@@ -65,7 +60,6 @@ if (is_array($data)) {
     $giangVienId = (int) ($_POST["giang_vien_id"] ?? ($_GET["giang_vien_id"] ?? 0));
     $hocKy = trim($_POST["hoc_ky"] ?? ($_GET["hoc_ky"] ?? ""));
     $namHoc = trim($_POST["nam_hoc"] ?? ($_GET["nam_hoc"] ?? ""));
-    $khoaHoc = trim($_POST["khoa_hoc"] ?? ($_GET["khoa_hoc"] ?? ""));
     $trangThai = trim($_POST["trang_thai"] ?? ($_GET["trang_thai"] ?? ""));
 }
 
@@ -76,12 +70,8 @@ if (!in_array($hocKy, $hocKyHopLe, true)) {
     traLoiLoi(400, "Học kỳ không hợp lệ");
 }
 
-if ($khoaHoc !== "" && !hopLeKhoaHoc($khoaHoc)) {
-    traLoiLoi(400, "Khóa học không hợp lệ. Ví dụ đúng: 2024-2027");
-}
-
-if ($namHoc !== "" && !preg_match('/^[0-9]{4}-[0-9]{4}$/', $namHoc)) {
-    traLoiLoi(400, "Năm học không hợp lệ. Ví dụ đúng: 2024-2025");
+if ($namHoc !== "" && !hopLeNamHoc($namHoc)) {
+    traLoiLoi(400, "Năm học không hợp lệ. Ví dụ đúng: 2025-2026");
 }
 
 if (!in_array($trangThai, $trangThaiHopLe, true)) {
@@ -97,7 +87,6 @@ try {
                 lhp.giang_vien_id,
                 lhp.hoc_ky,
                 lhp.nam_hoc,
-                lhp.khoa_hoc,
                 lhp.si_so_toi_da,
                 lhp.trang_thai,
                 lhp.ngay_tao,
@@ -143,7 +132,6 @@ try {
             lhp.ma_lop_hoc_phan LIKE :tu_khoa_ma_lhp
             OR lhp.ten_lop LIKE :tu_khoa_ten_lop
             OR lhp.nam_hoc LIKE :tu_khoa_nam_hoc
-            OR lhp.khoa_hoc LIKE :tu_khoa_khoa_hoc
             OR mh.ma_mon LIKE :tu_khoa_ma_mon
             OR mh.ten_mon LIKE :tu_khoa_ten_mon
             OR nd.ho_ten LIKE :tu_khoa_gv
@@ -155,7 +143,6 @@ try {
         $params[":tu_khoa_ma_lhp"] = "%" . $tuKhoa . "%";
         $params[":tu_khoa_ten_lop"] = "%" . $tuKhoa . "%";
         $params[":tu_khoa_nam_hoc"] = "%" . $tuKhoa . "%";
-        $params[":tu_khoa_khoa_hoc"] = "%" . $tuKhoa . "%";
         $params[":tu_khoa_ma_mon"] = "%" . $tuKhoa . "%";
         $params[":tu_khoa_ten_mon"] = "%" . $tuKhoa . "%";
         $params[":tu_khoa_gv"] = "%" . $tuKhoa . "%";
@@ -174,9 +161,9 @@ try {
         $params[":giang_vien_id"] = $giangVienId;
     }
 
-    if ($khoaHoc !== "") {
-        $sql .= " AND lhp.khoa_hoc = :khoa_hoc";
-        $params[":khoa_hoc"] = $khoaHoc;
+    if ($namHoc !== "") {
+        $sql .= " AND lhp.nam_hoc = :nam_hoc";
+        $params[":nam_hoc"] = $namHoc;
     }
 
     if ($hocKy !== "") {
@@ -198,7 +185,6 @@ try {
                 lhp.giang_vien_id,
                 lhp.hoc_ky,
                 lhp.nam_hoc,
-                lhp.khoa_hoc,
                 lhp.si_so_toi_da,
                 lhp.trang_thai,
                 lhp.ngay_tao,
@@ -243,7 +229,6 @@ try {
             "giang_vien_id" => $row["giang_vien_id"] !== null ? (int) $row["giang_vien_id"] : null,
             "hoc_ky" => $row["hoc_ky"],
             "nam_hoc" => $row["nam_hoc"],
-            "khoa_hoc" => $row["khoa_hoc"],
             "si_so_toi_da" => $row["si_so_toi_da"] !== null ? (int) $row["si_so_toi_da"] : null,
             "trang_thai" => $row["trang_thai"],
             "ngay_tao" => $row["ngay_tao"],

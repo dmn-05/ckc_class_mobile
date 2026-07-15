@@ -47,33 +47,13 @@ function db_has_table(PDO $conn, string $table): bool
     return (int)$stmt->fetchColumn() > 0;
 }
 
-function hopLeKhoaHoc(string $khoaHoc): bool
+function hopLeNamHoc(string $namHoc): bool
 {
-    if (!preg_match('/^[0-9]{4}-[0-9]{4}$/', $khoaHoc)) {
-        return false;
-    }
-
-    $namBatDau = (int) substr($khoaHoc, 0, 4);
-    $namKetThuc = (int) substr($khoaHoc, 5, 4);
-
-    return $namKetThuc - $namBatDau === 3;
-}
-
-function tinhNamHocTheoKhoaHocVaHocKy(string $khoaHoc, string $hocKy): string
-{
-    $namBatDau = (int) substr($khoaHoc, 0, 4);
-
-    $offset = match ($hocKy) {
-        "HK1", "HK2" => 0,
-        "HK3", "HK4" => 1,
-        "HK5", "HK6" => 2,
-        default => 0,
-    };
-
-    $nam1 = $namBatDau + $offset;
-    $nam2 = $nam1 + 1;
-
-    return $nam1 . "-" . $nam2;
+    if (!preg_match('/^[0-9]{4}-[0-9]{4}$/', $namHoc)) return false;
+    $namBatDau = (int)substr($namHoc, 0, 4);
+    $namKetThuc = (int)substr($namHoc, 5, 4);
+    $namHienTai = (int)date("Y");
+    return $namBatDau >= 2000 && $namBatDau <= $namHienTai + 2 && $namKetThuc - $namBatDau === 1;
 }
 
 function tenHocKyNgan(string $hocKy): string
@@ -91,11 +71,14 @@ function tenHocKyNgan(string $hocKy): string
 
 function taoTenLopHocPhan(?array $lopHanhChinh, array $monHoc, string $hocKy, string $namHoc): string
 {
+    $tenMon = trim((string)($monHoc["ten_mon"] ?? $monHoc["ma_mon"] ?? "Môn học"));
+
     if ($lopHanhChinh !== null) {
-        return trim(($lopHanhChinh["ten_lop"] ?? "") . " - " . ($monHoc["ten_mon"] ?? ""));
+        $maLop = trim((string)($lopHanhChinh["ma_lop"] ?? ""));
+        return trim($maLop . " - " . $tenMon . " - " . $hocKy . " - " . $namHoc);
     }
 
-    return trim("HKP " . tenHocKyNgan($hocKy) . " " . $namHoc);
+    return trim("HKP - " . $tenMon . " - " . $hocKy . " - " . $namHoc);
 }
 
 $rawInput = file_get_contents("php://input");
@@ -104,10 +87,12 @@ if (!is_array($data)) {
     $data = $_POST;
 }
 
+$maLopHocPhanYeuCau = trim((string)($data["ma_lop_hoc_phan"] ?? ""));
+$tenLopYeuCau = trim((string)($data["ten_lop"] ?? ""));
 $monHocId = (int) ($data["mon_hoc_id"] ?? 0);
 $giangVienId = (int) ($data["giang_vien_id"] ?? 0);
 $hocKy = trim($data["hoc_ky"] ?? "HK1");
-$khoaHoc = trim($data["khoa_hoc"] ?? "");
+$namHoc = trim($data["nam_hoc"] ?? "");
 $lopId = (int) ($data["lop_id"] ?? 0); // 0 = Học kỳ phụ
 $siSoToiDa = isset($data["si_so_toi_da"]) && $data["si_so_toi_da"] !== ""
     ? (int) $data["si_so_toi_da"]
@@ -129,12 +114,12 @@ if (!in_array($hocKy, $hocKyHopLe, true)) {
     traLoiLoi(400, "Học kỳ không hợp lệ");
 }
 
-if ($khoaHoc === "") {
-    traLoiLoi(400, "Vui lòng chọn khóa học");
+if ($namHoc === "") {
+    traLoiLoi(400, "Vui lòng chọn năm học");
 }
 
-if (!hopLeKhoaHoc($khoaHoc)) {
-    traLoiLoi(400, "Khóa học không hợp lệ. Ví dụ đúng: 2024-2027");
+if (!hopLeNamHoc($namHoc)) {
+    traLoiLoi(400, "Năm học không hợp lệ. Ví dụ đúng: 2025-2026");
 }
 
 if ($siSoToiDa !== null && ($siSoToiDa <= 0 || $siSoToiDa > 500)) {
@@ -194,7 +179,7 @@ try {
 
     $lopHanhChinh = null;
     if ($lopId > 0) {
-        $checkLopSql = "SELECT id, ma_lop, ten_lop, khoa_id, khoa_hoc, trang_thai
+        $checkLopSql = "SELECT id, ma_lop, ten_lop, khoa_id, nam_nhap_hoc, trang_thai
                         FROM lop
                         WHERE id = :lop_id
                         LIMIT 1";
@@ -211,21 +196,20 @@ try {
             traLoiLoi(400, "Chỉ có thể thêm sinh viên từ lớp hành chính đang học");
         }
 
-        $khoaHocCuaLop = trim($lopHanhChinh["khoa_hoc"] ?? "");
-        if ($khoaHocCuaLop === "" || !hopLeKhoaHoc($khoaHocCuaLop)) {
-            traLoiLoi(400, "Lớp hành chính đã chọn chưa có khóa học hợp lệ");
-        }
-
-        // Khi chọn lớp hành chính, khóa học của lớp học phần luôn đồng bộ theo lớp hành chính.
-        $khoaHoc = $khoaHocCuaLop;
     }
 
-    $namHoc = tinhNamHocTheoKhoaHocVaHocKy($khoaHoc, $hocKy);
-    $tenLop = taoTenLopHocPhan($lopHanhChinh, $monHoc, $hocKy, $namHoc);
-    $maLopHocPhan = $tenLop;
+    $tenTuDong = taoTenLopHocPhan($lopHanhChinh, $monHoc, $hocKy, $namHoc);
+    $maLopHocPhan = $maLopHocPhanYeuCau !== "" ? $maLopHocPhanYeuCau : $tenTuDong;
+    $tenLop = $tenLopYeuCau !== "" ? $tenLopYeuCau : $tenTuDong;
 
     if ($maLopHocPhan === "" || $tenLop === "") {
-        traLoiLoi(400, "Không thể tự động tạo tên lớp học phần");
+        traLoiLoi(400, "Không thể tạo mã hoặc tên lớp học phần");
+    }
+
+    $doDaiMa = function_exists('mb_strlen') ? mb_strlen($maLopHocPhan, 'UTF-8') : strlen($maLopHocPhan);
+    $doDaiTen = function_exists('mb_strlen') ? mb_strlen($tenLop, 'UTF-8') : strlen($tenLop);
+    if ($doDaiMa > 150 || $doDaiTen > 150) {
+        traLoiLoi(400, "Mã và tên lớp học phần không được vượt quá 150 ký tự");
     }
 
     $checkDuplicateSql = "SELECT id 
@@ -250,7 +234,6 @@ try {
                 giang_vien_id,
                 hoc_ky,
                 nam_hoc,
-                khoa_hoc,
                 si_so_toi_da,
                 trang_thai
             )
@@ -261,7 +244,6 @@ try {
                 :giang_vien_id,
                 :hoc_ky,
                 :nam_hoc,
-                :khoa_hoc,
                 :si_so_toi_da,
                 :trang_thai
             )";
@@ -273,7 +255,6 @@ try {
     $stmt->bindValue(":giang_vien_id", $giangVienId, PDO::PARAM_INT);
     $stmt->bindValue(":hoc_ky", $hocKy, PDO::PARAM_STR);
     $stmt->bindValue(":nam_hoc", $namHoc, PDO::PARAM_STR);
-    $stmt->bindValue(":khoa_hoc", $khoaHoc, PDO::PARAM_STR);
 
     if ($siSoToiDa === null) {
         $stmt->bindValue(":si_so_toi_da", null, PDO::PARAM_NULL);
@@ -333,7 +314,6 @@ try {
             "giang_vien_id" => $giangVienId,
             "hoc_ky" => $hocKy,
             "nam_hoc" => $namHoc,
-            "khoa_hoc" => $khoaHoc,
             "lop_id_nguon" => $lopId,
             "so_sinh_vien_da_them" => $soSinhVienDaThem,
             "si_so_toi_da" => $siSoToiDa,

@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = trim((string)($data["action"] ?? ""));
@@ -26,18 +27,22 @@ function web_type_to_mobile($v): string {
     };
 }
 function lay_exam_va_quyen(PDO $conn, int $examId, int $sinhVienId, bool $checkOpen = true) {
-    $stmt = $conn->prepare("SELECT bkt.*
+    $stmt = $conn->prepare("SELECT bkt.*,
+            svlhp.trang_thai AS trang_thai_dang_ky,
+            CASE WHEN bkt.thoi_gian_bat_dau IS NOT NULL AND bkt.thoi_gian_bat_dau > NOW() THEN 1 ELSE 0 END AS chua_den_gio,
+            CASE WHEN bkt.thoi_gian_ket_thuc IS NOT NULL AND bkt.thoi_gian_ket_thuc < NOW() THEN 1 ELSE 0 END AS da_het_han
         FROM bai_kiem_tra bkt
         JOIN sinh_vien_lop_hoc_phan svlhp ON svlhp.lop_hoc_phan_id = bkt.lop_hoc_phan_id
-        WHERE bkt.id = ? AND svlhp.sinh_vien_id = ? AND svlhp.trang_thai = 'dang_hoc'
+        WHERE bkt.id = ? AND svlhp.sinh_vien_id = ? AND svlhp.trang_thai <> 'da_huy'
         LIMIT 1");
     $stmt->execute([$examId, $sinhVienId]);
     $exam = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$exam) respond('error', 'Bạn không có quyền làm bài kiểm tra này hoặc bài không tồn tại');
     if ($checkOpen) {
+        if (($exam['trang_thai_dang_ky'] ?? '') !== 'dang_hoc') respond('error', 'Bạn không còn ở trạng thái đang học trong lớp này');
         if ($exam['trang_thai'] !== 'hien_thi') respond('error', 'Bài kiểm tra chưa được mở hoặc đã bị ẩn');
-        if (!empty($exam['thoi_gian_bat_dau']) && strtotime($exam['thoi_gian_bat_dau']) > time()) respond('error', 'Bài kiểm tra chưa đến thời gian làm');
-        if (!empty($exam['thoi_gian_ket_thuc']) && strtotime($exam['thoi_gian_ket_thuc']) < time()) respond('error', 'Bài kiểm tra đã hết hạn');
+        if ((int)$exam['chua_den_gio'] === 1) respond('error', 'Bài kiểm tra chưa đến thời gian làm');
+        if ((int)$exam['da_het_han'] === 1) respond('error', 'Bài kiểm tra đã hết hạn');
     }
     return $exam;
 }
@@ -46,9 +51,65 @@ function latest_attempt(PDO $conn, int $examId, int $sinhVienId) {
     $stmt->execute([$examId, $sinhVienId]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+function attempt_time_info(PDO $conn, array $attempt, array $exam): array {
+    $stmt = $conn->prepare("SELECT
+            GREATEST(0, TIMESTAMPDIFF(SECOND, thoi_gian_bat_dau, NOW())) AS da_dung_giay,
+            CASE
+                WHEN ? IS NULL THEN NULL
+                ELSE TIMESTAMPDIFF(SECOND, NOW(), ?)
+            END AS con_lai_den_han
+        FROM ket_qua_kiem_tra
+        WHERE id = ?
+        LIMIT 1");
+    $hanKetThuc = !empty($exam['thoi_gian_ket_thuc']) ? $exam['thoi_gian_ket_thuc'] : null;
+    $stmt->execute([$hanKetThuc, $hanKetThuc, (int)$attempt['id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $durationSeconds = max(1, (int)$exam['thoi_gian_lam_bai']) * 60;
+    $remaining = $durationSeconds - max(0, (int)($row['da_dung_giay'] ?? 0));
+    if ($row['con_lai_den_han'] !== null) {
+        $remaining = min($remaining, (int)$row['con_lai_den_han']);
+    }
+
+    return [
+        'da_dung_giay' => max(0, (int)($row['da_dung_giay'] ?? 0)),
+        'con_lai_giay' => max(0, $remaining),
+        'con_lai_thuc_te' => $remaining,
+    ];
+}
+function attempt_is_expired(PDO $conn, array $attempt, array $exam): bool {
+    // Cho phép trễ tối đa 15 giây do độ trễ mạng, nhưng thời gian được tính hoàn toàn ở server.
+    $graceSeconds = 15;
+    $timeInfo = attempt_time_info($conn, $attempt, $exam);
+    return (int)$timeInfo['con_lai_thuc_te'] < -$graceSeconds;
+}
+function finalize_expired_attempt(PDO $conn, int $attemptId): void {
+    $stmt = $conn->prepare("UPDATE ket_qua_kiem_tra
+        SET thoi_gian_nop_bai = COALESCE(thoi_gian_nop_bai, NOW()),
+            diem_trac_nghiem = 0,
+            diem_tu_luan = 0,
+            tong_diem = 0,
+            trang_thai = 'da_cham',
+            ngay_cap_nhat = NOW()
+        WHERE id = ? AND trang_thai = 'dang_lam'");
+    $stmt->execute([$attemptId]);
+}
+function require_active_attempt(PDO $conn, array $exam, int $sinhVienId): array {
+    $attempt = latest_attempt($conn, (int)$exam['id'], $sinhVienId);
+    if (!$attempt) respond('error', 'Bạn chưa bắt đầu bài kiểm tra. Vui lòng nhấn Bắt đầu làm quiz');
+    if ($attempt['trang_thai'] !== 'dang_lam') respond('error', 'Bạn đã nộp bài kiểm tra này, vui lòng xem kết quả');
+    if (attempt_is_expired($conn, $attempt, $exam)) {
+        finalize_expired_attempt($conn, (int)$attempt['id']);
+        respond('error', 'Đã hết thời gian làm bài. Bài làm đã được hệ thống kết thúc');
+    }
+    return $attempt;
+}
 function start_attempt(PDO $conn, array $exam, int $sinhVienId) {
     $last = latest_attempt($conn, (int)$exam['id'], $sinhVienId);
-    if ($last && $last['trang_thai'] === 'dang_lam') return $last;
+    if ($last && $last['trang_thai'] === 'dang_lam') {
+        if (!attempt_is_expired($conn, $last, $exam)) return $last;
+        finalize_expired_attempt($conn, (int)$last['id']);
+    }
     $countStmt = $conn->prepare("SELECT COUNT(*) FROM ket_qua_kiem_tra WHERE bai_kiem_tra_id = ? AND sinh_vien_id = ?");
     $countStmt->execute([(int)$exam['id'], $sinhVienId]);
     if ((int)$countStmt->fetchColumn() >= (int)$exam['so_lan_thi_toi_da']) respond('error', 'Bạn đã hết số lần làm bài kiểm tra này');
@@ -94,25 +155,35 @@ function question_payload(PDO $conn, array $exam, bool $includeCorrect = false):
     return $out;
 }
 try {
+    if (in_array($action, ['bat_dau_quiz', 'nop_quiz'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_quiz($conn, (int)($data['bai_tap_id'] ?? 0)));
+    }
+
     if ($sinhVienId <= 0) respond('error', 'ID sinh viên không hợp lệ');
-    if ($action === 'bat_dau_quiz' || $action === 'lay_quiz') {
+    if ($action === 'bat_dau_quiz') {
         $examId = int_val($data, 'bai_tap_id');
         if ($examId <= 0) respond('error', 'ID bài kiểm tra không hợp lệ');
         $exam = lay_exam_va_quyen($conn, $examId, $sinhVienId, true);
         $attempt = start_attempt($conn, $exam, $sinhVienId);
-        if ($action === 'bat_dau_quiz') {
-            respond('success', 'Bắt đầu bài kiểm tra thành công', ['data' => [
-                'bai_lam_quiz_id' => (int)$attempt['id'],
-                'bai_tap_id' => (int)$exam['id'],
-                'bai_kiem_tra_id' => (int)$exam['id'],
-                'tieu_de' => $exam['tieu_de'],
-                'thoi_gian_lam' => (int)$exam['thoi_gian_lam_bai'],
-                'thoi_gian_bat_dau' => $attempt['thoi_gian_bat_dau'],
-                'trang_thai' => $attempt['trang_thai'],
-                'da_nop' => $attempt['trang_thai'] !== 'dang_lam',
-            ]]);
-        }
-        if ($attempt['trang_thai'] !== 'dang_lam') respond('error', 'Bạn đã nộp bài kiểm tra này, vui lòng xem kết quả');
+        respond('success', 'Bắt đầu bài kiểm tra thành công', ['data' => [
+            'bai_lam_quiz_id' => (int)$attempt['id'],
+            'bai_tap_id' => (int)$exam['id'],
+            'bai_kiem_tra_id' => (int)$exam['id'],
+            'tieu_de' => $exam['tieu_de'],
+            'thoi_gian_lam' => (int)$exam['thoi_gian_lam_bai'],
+            'thoi_gian_bat_dau' => $attempt['thoi_gian_bat_dau'],
+            'thoi_gian_con_lai_giay' => attempt_time_info($conn, $attempt, $exam)['con_lai_giay'],
+            'trang_thai' => $attempt['trang_thai'],
+            'da_nop' => false,
+        ]]);
+    }
+    if ($action === 'lay_quiz') {
+        $examId = int_val($data, 'bai_tap_id');
+        if ($examId <= 0) respond('error', 'ID bài kiểm tra không hợp lệ');
+        $exam = lay_exam_va_quyen($conn, $examId, $sinhVienId, false);
+        if ($exam['trang_thai'] !== 'hien_thi') respond('error', 'Bài kiểm tra chưa được mở hoặc đã bị ẩn');
+        $attempt = require_active_attempt($conn, $exam, $sinhVienId);
+        $timeInfo = attempt_time_info($conn, $attempt, $exam);
         respond('success', 'Lấy bài kiểm tra thành công', ['data' => [
             'id' => (int)$exam['id'],
             'bai_tap_id' => (int)$exam['id'],
@@ -122,6 +193,7 @@ try {
             'han_nop' => $exam['thoi_gian_ket_thuc'],
             'thoi_gian_lam' => (int)$exam['thoi_gian_lam_bai'],
             'thoi_gian_bat_dau' => $attempt['thoi_gian_bat_dau'],
+            'thoi_gian_con_lai_giay' => (int)$timeInfo['con_lai_giay'],
             'bai_lam_quiz_id' => (int)$attempt['id'],
             'cho_xem_dap_an' => (int)$exam['hien_dap_an_sau_nop'],
             'cau_hoi' => question_payload($conn, $exam, false),
@@ -129,9 +201,10 @@ try {
     }
     if ($action === 'nop_quiz') {
         $examId = int_val($data, 'bai_tap_id');
-        $exam = lay_exam_va_quyen($conn, $examId, $sinhVienId, true);
-        $attempt = start_attempt($conn, $exam, $sinhVienId);
-        if ($attempt['trang_thai'] !== 'dang_lam') respond('error', 'Bạn đã nộp bài kiểm tra này, không thể nộp lại');
+        if ($examId <= 0) respond('error', 'ID bài kiểm tra không hợp lệ');
+        $exam = lay_exam_va_quyen($conn, $examId, $sinhVienId, false);
+        if ($exam['trang_thai'] !== 'hien_thi') respond('error', 'Bài kiểm tra chưa được mở hoặc đã bị ẩn');
+        $attempt = require_active_attempt($conn, $exam, $sinhVienId);
         $answersRaw = $data['dap_an'] ?? [];
         if (!is_array($answersRaw)) respond('error', 'Dữ liệu đáp án không hợp lệ');
         $answerMap = [];

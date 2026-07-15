@@ -102,16 +102,16 @@ if (!$user) {
 }
 
 $matKhauDb = trim($user["mat_khau"] ?? "");
-
+$thongTinMaHoa = password_get_info($matKhauDb);
+$laMatKhauDangThuong = $thongTinMaHoa["algoName"] === "unknown";
 $matKhauDung = false;
 
-// Trường hợp 1: mật khẩu trong CSDL đang lưu dạng thường, ví dụ 123456
-if (hash_equals($matKhauDb, $password)) {
+// Tạm hỗ trợ dữ liệu cũ đang lưu mật khẩu thường để người dùng vẫn đăng nhập được.
+if ($laMatKhauDangThuong && hash_equals($matKhauDb, $password)) {
     $matKhauDung = true;
 }
 
-// Trường hợp 2: mật khẩu trong CSDL đã mã hóa bằng password_hash
-if (!$matKhauDung && password_get_info($matKhauDb)["algoName"] !== "unknown") {
+if (!$laMatKhauDangThuong) {
     $matKhauDung = password_verify($password, $matKhauDb);
 }
 
@@ -121,6 +121,23 @@ if (!$matKhauDung) {
         "message" => "Sai mật khẩu"
     ], JSON_UNESCAPED_UNICODE);
     exit();
+}
+
+if (($user["trang_thai"] ?? "") === "bi_khoa") {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Tài khoản này đã bị khóa, vui lòng liên hệ Khoa."
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
+// Tự động chuyển mật khẩu cũ dạng thường sang password_hash sau lần đăng nhập đúng.
+if ($laMatKhauDangThuong) {
+    $matKhauHash = password_hash($password, PASSWORD_DEFAULT);
+    if ($matKhauHash !== false) {
+        $up = $conn->prepare("UPDATE nguoi_dung SET mat_khau = :mat_khau, ngay_cap_nhat = NOW() WHERE id = :id");
+        $up->execute([":mat_khau" => $matKhauHash, ":id" => (int)$user["id"]]);
+    }
 }
 
 echo json_encode([

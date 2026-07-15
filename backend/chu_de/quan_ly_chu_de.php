@@ -10,6 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = trim($data["action"] ?? "");
@@ -31,6 +32,12 @@ function str_val($data, $key, $default = "") {
 }
 
 try {
+    if ($action === 'them') {
+        ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
+    } elseif (in_array($action, ['sua', 'xoa'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_chu_de($conn, (int)($data['chu_de_id'] ?? 0)));
+    }
+
     switch ($action) {
 
         case "danh_sach": {

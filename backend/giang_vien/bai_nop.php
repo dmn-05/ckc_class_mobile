@@ -10,6 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = trim($data["action"] ?? "");
@@ -45,6 +46,10 @@ function file_ext_from_name(string $name): string {
 }
 
 try {
+    if ($action === 'cham_diem') {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_bai_nop($conn, (int)($data['id'] ?? 0)));
+    }
+
     ensure_submission_schema($conn);
 
     if ($action === "danh_sach") {

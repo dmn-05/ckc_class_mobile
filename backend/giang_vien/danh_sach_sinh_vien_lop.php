@@ -41,7 +41,8 @@ try {
             JOIN sinh_vien sv ON svlhp.sinh_vien_id = sv.id
             JOIN nguoi_dung nd ON sv.nguoi_dung_id = nd.id
             LEFT JOIN lop l ON sv.lop_id = l.id
-            WHERE svlhp.lop_hoc_phan_id = :lop_id";
+            WHERE svlhp.lop_hoc_phan_id = :lop_id
+              AND svlhp.trang_thai <> 'da_huy'";
 
     $params = [":lop_id" => $lopHocPhanId, ":lop_id2" => $lopHocPhanId, ":lop_id3" => $lopHocPhanId];
 

@@ -7,6 +7,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 require_once __DIR__ . "/../upload/cloudinary_helper.php";
 
 $data   = json_decode(file_get_contents("php://input"), true) ?? [];
@@ -105,6 +106,16 @@ function bai_viet_file_url_expr(): string {
 }
 
 try {
+    if ($action === 'them') {
+        ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
+    } elseif (in_array($action, ['sua', 'xoa'], true)) {
+        $taiLieuIdGuard = (int)($data['id'] ?? 0);
+        $lopGuard = $taiLieuIdGuard < 0
+            ? ckc_lhp_id_from_bai_viet($conn, abs($taiLieuIdGuard))
+            : ckc_lhp_id_from_tai_lieu($conn, $taiLieuIdGuard);
+        ckc_require_lhp_mutable($conn, $lopGuard);
+    }
+
     ensure_tai_lieu_web_schema($conn);
     switch ($action) {
         // ─── DANH SÁCH ───────────────────────────────────────────

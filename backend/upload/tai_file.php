@@ -49,8 +49,32 @@ header('X-Content-Type-Options: nosniff');
 // Cho phép tải file Cloudinary hoặc file local trong backend/uploads.
 if ($scheme === 'http' || $scheme === 'https') {
     $isCloudinary = str_ends_with($host, 'cloudinary.com') || $host === 'res.cloudinary.com';
-    $isLocalBackend = in_array($host, ['localhost', '127.0.0.1', '10.0.2.2'], true) && str_starts_with($path, '/backend/');
-    if (!$isCloudinary && !$isLocalBackend) {
+
+    $allowedBackendHosts = [
+        'localhost',
+        '127.0.0.1',
+        '10.0.2.2',
+        'ckcclassmobile-production.up.railway.app',
+    ];
+
+    $railwayPublicDomain = strtolower(trim((string)(getenv('RAILWAY_PUBLIC_DOMAIN') ?: '')));
+    if ($railwayPublicDomain !== '') {
+        $railwayHost = parse_url(
+            str_contains($railwayPublicDomain, '://')
+                ? $railwayPublicDomain
+                : 'https://' . $railwayPublicDomain,
+            PHP_URL_HOST
+        );
+
+        if (is_string($railwayHost) && $railwayHost !== '') {
+            $allowedBackendHosts[] = strtolower($railwayHost);
+        }
+    }
+
+    $isOwnBackend = in_array($host, array_unique($allowedBackendHosts), true)
+        && str_starts_with($path, '/backend/');
+
+    if (!$isCloudinary && !$isOwnBackend) {
         fail_download('Host file không được phép tải qua proxy', 403);
     }
 

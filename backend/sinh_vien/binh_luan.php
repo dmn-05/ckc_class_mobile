@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = trim($data["action"] ?? "");
@@ -42,15 +43,42 @@ function tao_bai_viet_cho_thong_bao(PDO $conn, int $thongBaoId): array {
     return ['bai_viet_id' => $baiVietId, 'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id']];
 }
 
-function resolve_target(PDO $conn, array $data): array {
+function resolve_target(PDO $conn, array $data, bool $createIfMissing = false): array {
     ensure_thong_bao_schema_bl($conn);
     $thongBaoId = (int)($data['thong_bao_id'] ?? 0);
     $baiVietId = (int)($data['bai_viet_id'] ?? 0);
     $lopHocPhanId = (int)($data['lop_hoc_phan_id'] ?? 0);
 
     if ($thongBaoId > 0) {
-        $r = tao_bai_viet_cho_thong_bao($conn, $thongBaoId);
-        return ['mode' => 'thong_bao', 'bai_viet_id' => $r['bai_viet_id'], 'lop_hoc_phan_id' => $r['lop_hoc_phan_id']];
+        $stmt = $conn->prepare("SELECT bai_viet_id, lop_hoc_phan_id FROM thong_bao WHERE id=? LIMIT 1");
+        $stmt->execute([$thongBaoId]);
+        $tb = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$tb) throw new RuntimeException('Thông báo không tồn tại');
+
+        if (!empty($tb['bai_viet_id'])) {
+            return [
+                'mode' => 'thong_bao',
+                'bai_viet_id' => (int)$tb['bai_viet_id'],
+                'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id'],
+            ];
+        }
+
+        // Chỉ tạo bài viết liên kết khi người dùng thật sự đăng bình luận.
+        // Việc chỉ mở/xem lớp đã lưu tuyệt đối không làm phát sinh dữ liệu mới.
+        if ($createIfMissing) {
+            $r = tao_bai_viet_cho_thong_bao($conn, $thongBaoId);
+            return [
+                'mode' => 'thong_bao',
+                'bai_viet_id' => $r['bai_viet_id'],
+                'lop_hoc_phan_id' => $r['lop_hoc_phan_id'],
+            ];
+        }
+
+        return [
+            'mode' => 'thong_bao',
+            'bai_viet_id' => null,
+            'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id'],
+        ];
     }
 
     if ($baiVietId > 0) {
@@ -64,6 +92,21 @@ function resolve_target(PDO $conn, array $data): array {
 }
 
 try {
+    if ($action === 'dang') {
+        $thongBaoIdGuard = (int)($data['thong_bao_id'] ?? 0);
+        $baiVietIdGuard = (int)($data['bai_viet_id'] ?? 0);
+        $lopGuard = (int)($data['lop_hoc_phan_id'] ?? 0);
+
+        if ($thongBaoIdGuard > 0) {
+            $lopGuard = ckc_lhp_id_from_thong_bao($conn, $thongBaoIdGuard);
+        } elseif ($baiVietIdGuard > 0) {
+            $lopGuard = ckc_lhp_id_from_bai_viet($conn, $baiVietIdGuard);
+        }
+
+        ckc_require_lhp_mutable($conn, $lopGuard);
+    } elseif (in_array($action, ['sua', 'xoa'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_binh_luan($conn, (int)($data['binh_luan_id'] ?? 0)));
+    }
     if ($action === "danh_sach") {
         $target = resolve_target($conn, $data);
         if ($target['mode'] === 'lop') {
@@ -76,6 +119,10 @@ try {
                 WHERE bl.lop_hoc_phan_id = ? AND bl.bai_viet_id IS NULL AND bl.trang_thai = 'hien_thi'
                 ORDER BY bl.ngay_tao ASC");
             $stmt->execute([$target['lop_hoc_phan_id']]);
+        } elseif (empty($target['bai_viet_id'])) {
+            // Thông báo chưa từng có bình luận: chỉ trả danh sách rỗng,
+            // không tự tạo bài viết trong lúc người dùng đang xem.
+            $rows = [];
         } else {
             $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.trang_thai, bl.ngay_tao, bl.ngay_cap_nhat,
                        bl.nguoi_dung_id, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
@@ -85,8 +132,9 @@ try {
                 WHERE bl.bai_viet_id = ? AND bl.trang_thai = 'hien_thi'
                 ORDER BY bl.ngay_tao ASC");
             $stmt->execute([$target['bai_viet_id']]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!isset($rows)) $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $result = array_map(fn($r) => [
             "id" => (int)$r["id"],
             "noi_dung" => $r["noi_dung"],
@@ -100,7 +148,7 @@ try {
     }
 
     if ($action === "dang") {
-        $target = resolve_target($conn, $data);
+        $target = resolve_target($conn, $data, true);
         $noiDung = trim($data["noi_dung"] ?? "");
         if ($nguoiDungId <= 0) respond("error", "ID người dùng không hợp lệ");
         if ($noiDung === "") respond("error", "Nội dung bình luận không được trống");

@@ -171,10 +171,10 @@ try {
         }
         if (!$dung) respond("error", "Mật khẩu hiện tại không đúng");
 
-        // Giữ tương thích với dang_nhap.php hiện tại: lưu mật khẩu thường.
-        // Nếu sau này chuẩn hóa bảo mật, có thể đổi thành password_hash($matKhauMoi, PASSWORD_DEFAULT).
+        $matKhauHash = password_hash($matKhauMoi, PASSWORD_DEFAULT);
+        if ($matKhauHash === false) respond("error", "Không thể mã hóa mật khẩu mới");
         $up = $conn->prepare("UPDATE nguoi_dung SET mat_khau = ?, ngay_cap_nhat = NOW() WHERE id = ?");
-        $up->execute([$matKhauMoi, $id]);
+        $up->execute([$matKhauHash, $id]);
 
         respond("success", "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
     }

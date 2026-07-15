@@ -7,6 +7,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 require_once __DIR__ . "/../upload/cloudinary_helper.php";
 
 $rawInput = file_get_contents("php://input");
@@ -130,6 +131,11 @@ function lay_files_thong_bao(PDO $conn, ?int $baiVietId): array {
 }
 
 try {
+    if ($action === 'them') {
+        ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
+    } elseif (in_array($action, ['sua', 'xoa'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_thong_bao($conn, (int)($data['id'] ?? 0)));
+    }
     ensure_thong_bao_schema($conn);
 
     switch ($action) {

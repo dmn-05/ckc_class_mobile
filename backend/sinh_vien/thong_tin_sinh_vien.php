@@ -27,6 +27,7 @@ try {
             sv.so_dien_thoai,
             sv.cccd,
             sv.dia_chi,
+            sv.khoa_hoc,
             sv.trang_thai AS trang_thai_sinh_vien,
             sv.ngay_tao   AS ngay_tao_sinh_vien,
             sv.ngay_cap_nhat AS ngay_cap_nhat_sinh_vien,
@@ -59,7 +60,12 @@ try {
     }
 
     // Thống kê nhanh
-    $stmt2 = $conn->prepare("SELECT COUNT(*) FROM sinh_vien_lop_hoc_phan WHERE sinh_vien_id = ? AND trang_thai = 'dang_hoc'");
+    $stmt2 = $conn->prepare("SELECT COUNT(*)
+        FROM sinh_vien_lop_hoc_phan svlhp
+        JOIN lop_hoc_phan lhp ON lhp.id = svlhp.lop_hoc_phan_id
+        WHERE svlhp.sinh_vien_id = ?
+          AND svlhp.trang_thai = 'dang_hoc'
+          AND lhp.trang_thai = 'dang_mo'");
     $stmt2->execute([$sinhVienId]);
     $soLopDangHoc = (int)$stmt2->fetchColumn();
 
@@ -85,8 +91,11 @@ try {
     $stmt5 = $conn->prepare("
         SELECT COUNT(*) FROM bai_tap bt
         JOIN sinh_vien_lop_hoc_phan svlhp ON bt.lop_hoc_phan_id = svlhp.lop_hoc_phan_id
+        JOIN lop_hoc_phan lhp ON lhp.id = bt.lop_hoc_phan_id
         WHERE svlhp.sinh_vien_id = ?
-        AND bt.trang_thai = 'dang_mo'
+        AND svlhp.trang_thai = 'dang_hoc'
+        AND lhp.trang_thai = 'dang_mo'
+        AND bt.trang_thai = 'hien_thi'
         AND (bt.thoi_gian_gui IS NULL OR bt.thoi_gian_gui <= NOW())
         AND (bt.han_nop IS NULL OR bt.han_nop > NOW())
         AND bt.id NOT IN (SELECT bai_tap_id FROM bai_nop WHERE sinh_vien_id = ?)
@@ -108,6 +117,7 @@ try {
             "so_dien_thoai"          => $row["so_dien_thoai"],
             "cccd"                   => $row["cccd"],
             "dia_chi"                => $row["dia_chi"],
+            "khoa_hoc"               => $row["khoa_hoc"],
             "trang_thai"             => $row["trang_thai"],
             "trang_thai_sinh_vien"   => $row["trang_thai_sinh_vien"],
             "ngay_tao"               => $row["ngay_tao"],

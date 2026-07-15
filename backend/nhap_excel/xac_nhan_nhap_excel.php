@@ -13,11 +13,15 @@ function ckc_insert_user(PDO $conn, array $r, int $vaiTroId, string $trangThai):
     if (!in_array($trangThai, ['dang_hoat_dong', 'bi_khoa'], true)) {
         $trangThai = 'dang_hoat_dong';
     }
+    $matKhauHash = password_hash((string)$r['mat_khau'], PASSWORD_DEFAULT);
+    if ($matKhauHash === false) {
+        throw new Exception('Không thể mã hóa mật khẩu người dùng');
+    }
     $stmt = $conn->prepare("INSERT INTO nguoi_dung (ho_ten,email,mat_khau,vai_tro_id,trang_thai) VALUES (:ten,:email,:mk,:role,:tt)");
     $stmt->execute([
         ':ten' => $r['ho_ten'],
         ':email' => $r['email'],
-        ':mk' => $r['mat_khau'],
+        ':mk' => $matKhauHash,
         ':role' => $vaiTroId,
         ':tt' => $trangThai,
     ]);
@@ -34,15 +38,16 @@ function ckc_confirm_one(PDO $conn, string $loai, array $r, string $action): str
             $stmt=$conn->prepare("INSERT INTO mon_hoc (ma_mon,ten_mon,tin_chi,khoa_id,bo_mon_id,trang_thai) VALUES (:ma,:ten,:tin,:khoa,:bm,:tt)"); $stmt->execute([':ma'=>$r['ma_mon'],':ten'=>$r['ten_mon'],':tin'=>$r['tin_chi'],':khoa'=>$r['khoa_id'],':bm'=>$r['bo_mon_id'],':tt'=>$r['trang_thai']]); return 'them_moi';
         case 'lop_hanh_chinh':
             $cols=['ma_lop','ten_lop','khoa_id','trang_thai']; $vals=[':ma',':ten',':khoa',':tt']; $params=[':ma'=>$r['ma_lop'],':ten'=>$r['ten_lop'],':khoa'=>$r['khoa_id'],':tt'=>$r['trang_thai']];
-            if(ckc_column_exists($conn,'lop','khoa_hoc')) { $cols[]='khoa_hoc'; $vals[]=':khoa_hoc'; $params[':khoa_hoc']=$r['khoa_hoc']; }
-            if(ckc_column_exists($conn,'lop','nam_nhap_hoc')) { $cols[]='nam_nhap_hoc'; $vals[]=':nam'; $params[':nam']=ckc_nam_bat_dau_khoa($r['khoa_hoc']); }
+            $cols[]='nam_nhap_hoc';
+            $vals[]=':nam_nhap_hoc';
+            $params[':nam_nhap_hoc']=(int)$r['nam_nhap_hoc'];
             $sql="INSERT INTO lop (".implode(',',$cols).") VALUES (".implode(',',$vals).")"; $stmt=$conn->prepare($sql); $stmt->execute($params); return 'them_moi';
         case 'sinh_vien':
         case 'sinh_vien_theo_lop':
             $lopId = (int)($r['lop_id'] ?? 0);
             $lop = ckc_one(
                 $conn,
-                "SELECT id, khoa_id, khoa_hoc, nam_nhap_hoc, trang_thai
+                "SELECT id, khoa_id, nam_nhap_hoc, trang_thai
                  FROM lop
                  WHERE id = :id
                  LIMIT 1",
@@ -98,9 +103,8 @@ function ckc_confirm_one(PDO $conn, string $loai, array $r, string $action): str
             $uid=ckc_insert_user($conn,$r,ckc_role_id($conn,'giang_vien'),$r['trang_thai_tai_khoan']);
             $stmt=$conn->prepare("INSERT INTO giang_vien (nguoi_dung_id,ma_giang_vien,ngay_sinh,gioi_tinh,so_dien_thoai,cccd,dia_chi,bo_mon_id,trang_thai) VALUES (:uid,:ma,:ngay,:gt,:sdt,:cccd,:dc,:bm,:tt)"); $stmt->execute([':uid'=>$uid,':ma'=>$r['ma_giang_vien'],':ngay'=>$r['ngay_sinh'] ?: null,':gt'=>$r['gioi_tinh'] ?: null,':sdt'=>$r['so_dien_thoai'] ?: null,':cccd'=>$r['cccd'] ?: null,':dc'=>$r['dia_chi'] ?: null,':bm'=>$r['bo_mon_id'],':tt'=>$r['trang_thai_giang_vien']]); return 'them_moi';
         case 'lop_hoc_phan':
-            $hasKhoaHoc=ckc_column_exists($conn,'lop_hoc_phan','khoa_hoc');
-            if($hasKhoaHoc){ $stmt=$conn->prepare("INSERT INTO lop_hoc_phan (ma_lop_hoc_phan,ten_lop,mon_hoc_id,giang_vien_id,hoc_ky,nam_hoc,khoa_hoc,si_so_toi_da,trang_thai) VALUES (:ma,:ten,:mon,:gv,:hk,:nam,:kh,:siso,:tt)"); $stmt->execute([':ma'=>$r['ma_lop_hoc_phan'],':ten'=>$r['ten_lop'],':mon'=>$r['mon_hoc_id'],':gv'=>$r['giang_vien_id'],':hk'=>$r['hoc_ky'],':nam'=>$r['nam_hoc'],':kh'=>$r['khoa_hoc'],':siso'=>$r['si_so_toi_da'] ?: null,':tt'=>$r['trang_thai']]); }
-            else { $stmt=$conn->prepare("INSERT INTO lop_hoc_phan (ma_lop_hoc_phan,ten_lop,mon_hoc_id,giang_vien_id,hoc_ky,nam_hoc,si_so_toi_da,trang_thai) VALUES (:ma,:ten,:mon,:gv,:hk,:nam,:siso,:tt)"); $stmt->execute([':ma'=>$r['ma_lop_hoc_phan'],':ten'=>$r['ten_lop'],':mon'=>$r['mon_hoc_id'],':gv'=>$r['giang_vien_id'],':hk'=>$r['hoc_ky'],':nam'=>$r['nam_hoc'],':siso'=>$r['si_so_toi_da'] ?: null,':tt'=>$r['trang_thai']]); }
+            $stmt=$conn->prepare("INSERT INTO lop_hoc_phan (ma_lop_hoc_phan,ten_lop,mon_hoc_id,giang_vien_id,hoc_ky,nam_hoc,si_so_toi_da,trang_thai) VALUES (:ma,:ten,:mon,:gv,:hk,:nam,:siso,:tt)");
+            $stmt->execute([':ma'=>$r['ma_lop_hoc_phan'],':ten'=>$r['ten_lop'],':mon'=>$r['mon_hoc_id'],':gv'=>$r['giang_vien_id'],':hk'=>$r['hoc_ky'],':nam'=>$r['nam_hoc'],':siso'=>$r['si_so_toi_da'] ?: null,':tt'=>$r['trang_thai']]);
             return 'them_moi';
     }
     throw new Exception('Loại nhập không được hỗ trợ');

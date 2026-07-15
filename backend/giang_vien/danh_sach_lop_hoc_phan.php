@@ -17,8 +17,7 @@ $giangVienId = (int)($data["giang_vien_id"] ?? 0);
 $tuKhoa      = trim((string)($data["tu_khoa"] ?? ""));
 $trangThai   = trim((string)($data["trang_thai"] ?? ""));
 $hocKy       = trim((string)($data["hoc_ky"] ?? ""));
-$khoaHoc     = trim((string)($data["khoa_hoc"] ?? ""));
-$namHoc      = trim((string)($data["nam_hoc"] ?? ""));
+$namHoc     = trim((string)($data["nam_hoc"] ?? ""));
 
 function phan_hoi(string $status, string $message, array $extra = []): void
 {
@@ -55,7 +54,6 @@ try {
                 lhp.ten_lop,
                 lhp.hoc_ky,
                 lhp.nam_hoc,
-                COALESCE(NULLIF(lhp.khoa_hoc, ''), NULLIF(lhp.nam_hoc, '')) AS khoa_hoc,
                 lhp.si_so_toi_da,
                 lhp.trang_thai,
                 lhp.ngay_tao,
@@ -68,7 +66,7 @@ try {
                     SELECT COUNT(*)
                     FROM sinh_vien_lop_hoc_phan svlhp
                     WHERE svlhp.lop_hoc_phan_id = lhp.id
-                      AND svlhp.trang_thai = 'dang_hoc'
+                      AND svlhp.trang_thai <> 'da_huy'
                 ) AS so_sinh_vien,
                 (
                     SELECT COUNT(*)
@@ -105,9 +103,8 @@ try {
                     OR mh.ten_mon LIKE :tu_khoa_4
                     OR lhp.hoc_ky LIKE :tu_khoa_5
                     OR lhp.nam_hoc LIKE :tu_khoa_6
-                    OR lhp.khoa_hoc LIKE :tu_khoa_7
                 )";
-        for ($i = 1; $i <= 7; $i++) {
+        for ($i = 1; $i <= 6; $i++) {
             $params[":tu_khoa_$i"] = "%$tuKhoa%";
         }
     }
@@ -122,13 +119,7 @@ try {
         $params[":hoc_ky"] = $hocKy;
     }
 
-    if ($khoaHoc !== "") {
-        $sql .= " AND COALESCE(NULLIF(lhp.khoa_hoc, ''), NULLIF(lhp.nam_hoc, '')) = :khoa_hoc";
-        $params[":khoa_hoc"] = $khoaHoc;
-    }
-
-    // Giữ tham số nam_hoc cũ để không làm hỏng các phiên bản app trước.
-    if ($namHoc !== "") {
+        if ($namHoc !== "") {
         $sql .= " AND lhp.nam_hoc = :nam_hoc";
         $params[":nam_hoc"] = $namHoc;
     }
@@ -153,7 +144,6 @@ try {
             "ten_lop" => $row["ten_lop"],
             "hoc_ky" => $row["hoc_ky"],
             "nam_hoc" => $row["nam_hoc"],
-            "khoa_hoc" => $row["khoa_hoc"],
             "si_so_toi_da" => $row["si_so_toi_da"] !== null
                 ? (int)$row["si_so_toi_da"]
                 : null,

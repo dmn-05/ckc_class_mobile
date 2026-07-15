@@ -38,7 +38,7 @@ $namHoc = trim($data["nam_hoc"] ?? "");
 $siSoToiDaRaw = trim((string)($data["si_so_toi_da"] ?? ""));
 $trangThai = trim($data["trang_thai"] ?? "dang_mo");
 
-$hocKyHopLe = ["HK1", "HK2", "HK3"];
+$hocKyHopLe = ["HK1", "HK2", "HK3", "HK4", "HK5", "HK6"];
 $trangThaiHopLe = ["dang_mo", "da_khoa", "da_ket_thuc"];
 
 if ($giangVienId <= 0) respond("error", "ID giảng viên không hợp lệ", [], 400);
@@ -46,6 +46,9 @@ if ($maLopHocPhan === "") respond("error", "Mã lớp học phần không đư�
 if ($tenLop === "") respond("error", "Tên lớp học phần không được để trống", [], 400);
 if ($monHocId <= 0) respond("error", "Vui lòng chọn môn học", [], 400);
 if (!in_array($hocKy, $hocKyHopLe, true)) respond("error", "Học kỳ không hợp lệ", [], 400);
+if (!preg_match('/^(\d{4})-(\d{4})$/', $namHoc, $namMatch) || ((int)$namMatch[2] - (int)$namMatch[1]) !== 1) {
+    respond("error", "Năm học phải có dạng YYYY-YYYY và hai năm liên tiếp", [], 400);
+}
 if (!in_array($trangThai, $trangThaiHopLe, true)) respond("error", "Trạng thái không hợp lệ", [], 400);
 
 $siSoToiDa = null;
@@ -73,7 +76,7 @@ try {
         (ma_lop_hoc_phan, ten_lop, mon_hoc_id, giang_vien_id, hoc_ky, nam_hoc, si_so_toi_da, trang_thai)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$maLopHocPhan, $tenLop, $monHocId, $giangVienId, $hocKy, $namHoc !== "" ? $namHoc : null, $siSoToiDa, $trangThai]);
+    $stmt->execute([$maLopHocPhan, $tenLop, $monHocId, $giangVienId, $hocKy, $namHoc, $siSoToiDa, $trangThai]);
     $lopHocPhanId = (int)$conn->lastInsertId();
 
     if (db_has_table($conn, 'giang_vien_lop_hoc_phan')) {
@@ -89,7 +92,7 @@ try {
         "mon_hoc_id" => $monHocId,
         "giang_vien_id" => $giangVienId,
         "hoc_ky" => $hocKy,
-        "nam_hoc" => $namHoc !== "" ? $namHoc : null,
+        "nam_hoc" => $namHoc,
         "si_so_toi_da" => $siSoToiDa,
         "trang_thai" => $trangThai,
     ]]);

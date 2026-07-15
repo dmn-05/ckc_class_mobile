@@ -151,7 +151,7 @@ try {
             $lopId = require_id($data, "lop_id", "ID lớp không hợp lệ");
             $sinhVienId = require_id($data, "sinh_vien_id", "ID sinh viên không hợp lệ");
 
-            $lopStmt = $conn->prepare("SELECT id, khoa_id, khoa_hoc, trang_thai FROM lop WHERE id = :id LIMIT 1");
+            $lopStmt = $conn->prepare("SELECT id, khoa_id, nam_nhap_hoc, trang_thai FROM lop WHERE id = :id AND deleted_at IS NULL LIMIT 1");
             $lopStmt->bindValue(":id", $lopId, PDO::PARAM_INT);
             $lopStmt->execute();
             $lop = $lopStmt->fetch(PDO::FETCH_ASSOC);
@@ -160,9 +160,11 @@ try {
             if ($lop["trang_thai"] !== "dang_hoc") {
                 response_json(400, ["status" => "error", "message" => "Chỉ có thể thêm sinh viên vào lớp đang học"]);
             }
-            if (empty($lop["khoa_hoc"])) {
-                response_json(400, ["status" => "error", "message" => "Lớp chưa có khóa học, vui lòng cập nhật lớp trước"]);
+            $namNhapHoc = (int)($lop["nam_nhap_hoc"] ?? 0);
+            if ($namNhapHoc < 2000) {
+                response_json(400, ["status" => "error", "message" => "Lớp chưa có năm nhập học hợp lệ, vui lòng cập nhật lớp trước"]);
             }
+            $khoaHocSinhVien = $namNhapHoc . "-" . ($namNhapHoc + 3);
 
             $svStmt = $conn->prepare("SELECT sv.id, sv.lop_id, sv.trang_thai, nd.trang_thai AS trang_thai_tai_khoan
                                       FROM sinh_vien sv
@@ -192,7 +194,7 @@ try {
                                     WHERE id = :sinh_vien_id");
             $stmt->bindValue(":lop_id", $lopId, PDO::PARAM_INT);
             $stmt->bindValue(":khoa_id", (int)$lop["khoa_id"], PDO::PARAM_INT);
-            $stmt->bindValue(":khoa_hoc", $lop["khoa_hoc"], PDO::PARAM_STR);
+            $stmt->bindValue(":khoa_hoc", $khoaHocSinhVien, PDO::PARAM_STR);
             $stmt->bindValue(":sinh_vien_id", $sinhVienId, PDO::PARAM_INT);
             $stmt->execute();
 

@@ -1,51 +1,66 @@
 <?php
-// Thiết lập múi giờ PHP trước khi xử lý thời gian
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-function ckc_env(array $keys, string $default = ''): string
-{
-    foreach ($keys as $key) {
-        $value = getenv($key);
-        if ($value !== false && $value !== '') {
-            return (string) $value;
-        }
-
-        if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
-            return (string) $_ENV[$key];
-        }
+function env_value(string $name): ?string {
+    $value = getenv($name);
+    if ($value === false) {
+        return null;
     }
 
-    return $default;
+    $value = trim((string)$value);
+    return $value === '' ? null : $value;
 }
 
-// Thông tin kết nối CSDL. Khi deploy Railway, ưu tiên biến MYSQL* của MySQL service.
-$host = ckc_env(['DB_HOST', 'MYSQLHOST'], 'localhost');
-$port = ckc_env(['DB_PORT', 'MYSQLPORT'], '3306');
-$dbname = ckc_env(['DB_DATABASE', 'MYSQLDATABASE'], 'ckc_class_web_mobile');
-$username = ckc_env(['DB_USERNAME', 'MYSQLUSER'], 'root');
-$password = ckc_env(['DB_PASSWORD', 'MYSQLPASSWORD'], '');
+$mysqlUrl = env_value('MYSQL_URL');
+$urlConfig = [];
 
-$databaseUrl = ckc_env(['MYSQL_URL', 'DATABASE_URL']);
-if ($databaseUrl !== '') {
-    $parts = parse_url($databaseUrl);
-    if ($parts !== false) {
-        $host = isset($parts['host']) ? rawurldecode((string) $parts['host']) : $host;
-        $port = isset($parts['port']) ? (string) $parts['port'] : $port;
-        $username = isset($parts['user']) ? rawurldecode((string) $parts['user']) : $username;
-        $password = isset($parts['pass']) ? rawurldecode((string) $parts['pass']) : $password;
-        $pathDb = trim((string) ($parts['path'] ?? ''), '/');
-        $dbname = $pathDb !== '' ? rawurldecode($pathDb) : $dbname;
+if ($mysqlUrl !== null) {
+    $parsed = parse_url($mysqlUrl);
+
+    if (is_array($parsed)) {
+        $urlConfig = [
+            'host' => isset($parsed['host']) ? urldecode((string)$parsed['host']) : null,
+            'port' => isset($parsed['port']) ? (string)$parsed['port'] : null,
+            'name' => isset($parsed['path'])
+                ? ltrim(urldecode((string)$parsed['path']), '/')
+                : null,
+            'user' => isset($parsed['user']) ? urldecode((string)$parsed['user']) : null,
+            'pass' => isset($parsed['pass']) ? urldecode((string)$parsed['pass']) : null,
+        ];
     }
 }
 
-$dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-if ($port !== '') {
-    $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+$host = env_value('MYSQLHOST')
+    ?? env_value('DB_HOST')
+    ?? ($urlConfig['host'] ?? null)
+    ?? 'localhost';
+
+$port = env_value('MYSQLPORT')
+    ?? env_value('DB_PORT')
+    ?? ($urlConfig['port'] ?? null)
+    ?? '3306';
+
+$dbname = env_value('MYSQLDATABASE')
+    ?? env_value('DB_NAME')
+    ?? ($urlConfig['name'] ?? null)
+    ?? 'ckc_class_web_mobile';
+
+$username = env_value('MYSQLUSER')
+    ?? env_value('DB_USER')
+    ?? ($urlConfig['user'] ?? null)
+    ?? 'root';
+
+$envPassword = getenv('MYSQLPASSWORD');
+if ($envPassword === false) {
+    $envPassword = getenv('DB_PASSWORD');
 }
+$password = $envPassword !== false
+    ? (string)$envPassword
+    : (string)($urlConfig['pass'] ?? '');
 
 try {
     $conn = new PDO(
-        $dsn,
+        "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4",
         $username,
         $password,
         [
@@ -55,8 +70,6 @@ try {
         ]
     );
 
-    // Thiết lập múi giờ cho MySQL/MariaDB
-    // Dùng +07:00 để tránh lỗi khi MySQL chưa cài timezone name Asia/Ho_Chi_Minh
     $conn->exec("SET time_zone = '+07:00'");
     $conn->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
 
@@ -64,17 +77,17 @@ try {
     http_response_code(500);
     header("Content-Type: application/json; charset=UTF-8");
 
-    $payload = [
+    $response = [
         "status"  => "error",
         "message" => "Không kết nối được cơ sở dữ liệu",
     ];
 
-    if (filter_var(ckc_env(['APP_DEBUG'], 'false'), FILTER_VALIDATE_BOOLEAN)) {
-        $payload["detail"] = $e->getMessage();
+    $debug = strtolower((string)(env_value('APP_DEBUG') ?? ''));
+    if (in_array($debug, ['1', 'true', 'yes', 'on'], true)) {
+        $response["detail"] = $e->getMessage();
     }
 
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
-
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit();
 }
 ?>

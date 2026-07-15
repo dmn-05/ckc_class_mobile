@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit(); }
 
 require_once __DIR__ . "/../ket_noi.php";
+require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 require_once __DIR__ . "/../upload/cloudinary_helper.php";
 
 $data   = json_decode(file_get_contents("php://input"), true) ?? [];
@@ -136,13 +137,24 @@ function db_has_column(PDO $conn, string $table, string $column): bool {
 }
 
 function trang_thai_db_sang_mobile($value) {
-    return $value === 'hien_thi' ? 'dang_mo' : $value;
+    // Mobile dùng trực tiếp enum chuẩn của CSDL bai_tap/bai_kiem_tra.
+    // Vẫn chuẩn hóa dữ liệu cũ để ứng dụng không bị lỗi nếu host còn bản ghi legacy.
+    return match (trim((string)$value)) {
+        'dang_mo' => 'hien_thi',
+        'da_dong' => 'an',
+        'hien_thi', 'an', 'nhap' => trim((string)$value),
+        default => 'hien_thi',
+    };
 }
 
 function trang_thai_mobile_sang_db($value) {
-    // CSDL chung cho phép cả dang_mo và hien_thi. Giữ dang_mo cho Mobile để không vỡ UI,
-    // Web vẫn đọc được vì enum đã mở rộng.
-    return in_array($value, ['dang_mo', 'hien_thi', 'da_dong', 'an'], true) ? $value : 'dang_mo';
+    // Chỉ ghi các giá trị đúng enum của CSDL. Hai giá trị cũ được nhận để tương thích APK cũ.
+    return match (trim((string)$value)) {
+        'dang_mo', 'hien_thi' => 'hien_thi',
+        'da_dong', 'an' => 'an',
+        'nhap' => 'nhap',
+        default => 'hien_thi',
+    };
 }
 
 function first_file_url_for_assignment(PDO $conn, int $baiTapId): ?string {
@@ -185,6 +197,12 @@ function sync_bai_tap_file_metadata(PDO $conn, int $baiTapId, ?string $url, ?str
 }
 
 try {
+    if ($action === 'them' || $action === 'them_quiz') {
+        ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
+    } elseif (in_array($action, ['sua', 'xoa'], true)) {
+        ckc_require_lhp_mutable($conn, ckc_lhp_id_from_bai_tap($conn, (int)($data['id'] ?? 0)));
+    }
+
     ensure_assignment_schema($conn);
 
     // Các action quiz cũ trong file này dùng bảng cau_hoi_quiz/dap_an_quiz/bai_lam_quiz.
@@ -248,7 +266,7 @@ try {
 
     if ($trangThai !== "") {
         $sql .= " AND bt.trang_thai = :tt";
-        $params[":tt"] = $trangThai;
+        $params[":tt"] = trang_thai_mobile_sang_db($trangThai);
     }
 
     if (!empty($chuDeIds) || $locChuaPhanLoai) {
@@ -289,7 +307,9 @@ try {
             "duong_dan_file"  => $r["duong_dan_file"] ?: ($r["file_url"] ?? ($r["tep_tin_dau"] ?? null)),
             "yeu_cau_nop_file" => isset($r["yeu_cau_nop_file"]) ? (int)$r["yeu_cau_nop_file"] : 1,
             "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"] ?? null,
-            "so_file_toi_da" => isset($r["so_file_toi_da"]) ? (int)$r["so_file_toi_da"] : 1,
+            // CSDL bai_nop hiện chỉ có một đường dẫn file cho mỗi bài nộp.
+            // Luôn trả 1 để giao diện không cho cấu hình vượt khả năng lưu của host.
+            "so_file_toi_da" => 1,
             "dung_luong_toi_da_mb" => isset($r["dung_luong_toi_da_mb"]) ? (int)$r["dung_luong_toi_da_mb"] : 25,
             "cho_phep_nop_lai" => isset($r["cho_phep_nop_lai"]) ? (int)$r["cho_phep_nop_lai"] : 1,
             "cho_phep_nop_muon" => isset($r["cho_phep_nop_muon"]) ? (int)$r["cho_phep_nop_muon"] : 1,
@@ -419,7 +439,7 @@ try {
             $lopHocPhanId  = int_val($data, "lop_hoc_phan_id");
             $chuDeId       = int_val($data, "chu_de_id");
             $nguoiTaoId    = int_val($data, "nguoi_tao_id");
-            $trangThai     = str_val($data, "trang_thai", "dang_mo");
+            $trangThai     = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
             $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
@@ -432,7 +452,7 @@ try {
             if ($lopHocPhanId <= 0) respond("error", "ID lớp học phần không hợp lệ");
             if ($nguoiTaoId <= 0) respond("error", "ID người tạo không hợp lệ");
             $trangThai = trang_thai_mobile_sang_db($trangThai);
-            if (!in_array($trangThai, ["dang_mo", "hien_thi", "da_dong"], true)) $trangThai = "dang_mo";
+            if (!in_array($trangThai, ["hien_thi", "an"], true)) $trangThai = "hien_thi";
 
             $fileName = $duongDanFile !== "" ? ckc_file_name_from_url($duongDanFile) : null;
             $conn->beginTransaction();
@@ -479,7 +499,7 @@ try {
             $lopHocPhanId  = int_val($data, "lop_hoc_phan_id");
             $chuDeId       = int_val($data, "chu_de_id");
             $nguoiTaoId    = int_val($data, "nguoi_tao_id");
-            $trangThai     = str_val($data, "trang_thai", "dang_mo");
+            $trangThai     = str_val($data, "trang_thai", "hien_thi");
             $thoiGianLam   = int_val($data, "thoi_gian_lam", 0);
             $choXemDapAn   = bool_int($data["cho_xem_dap_an"] ?? 0);
             $daoCauHoi     = bool_int($data["dao_cau_hoi"] ?? 0);
@@ -490,7 +510,7 @@ try {
             if ($lopHocPhanId <= 0) respond("error", "ID lớp học phần không hợp lệ");
             if ($nguoiTaoId <= 0) respond("error", "ID người tạo không hợp lệ");
             if (!is_array($cauHoiList) || count($cauHoiList) === 0) respond("error", "Quiz phải có ít nhất 1 câu hỏi");
-            if (!in_array($trangThai, ["dang_mo", "da_dong"], true)) $trangThai = "dang_mo";
+            if (!in_array($trangThai, ["dang_mo", "hien_thi", "da_dong", "an"], true)) $trangThai = "hien_thi";
 
             foreach ($cauHoiList as $idx => $ch) {
                 $noiDungCH = trim((string)($ch["noi_dung"] ?? ""));
@@ -678,7 +698,7 @@ try {
             $hanNop       = norm_datetime($data["han_nop"] ?? "");
             $thoiGianGui  = norm_datetime($data["thoi_gian_gui"] ?? "");
             $chuDeId      = int_val($data, "chu_de_id");
-            $trangThai    = str_val($data, "trang_thai", "dang_mo");
+            $trangThai    = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
             $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
@@ -690,7 +710,7 @@ try {
             if ($id <= 0) respond("error", "ID bài tập không hợp lệ");
             if ($tieuDe === "") respond("error", "Tiêu đề không được để trống");
             $trangThai = trang_thai_mobile_sang_db($trangThai);
-            if (!in_array($trangThai, ["dang_mo", "hien_thi", "da_dong"], true)) $trangThai = "dang_mo";
+            if (!in_array($trangThai, ["hien_thi", "an"], true)) $trangThai = "hien_thi";
 
             $fileName = $duongDanFile !== "" ? ckc_file_name_from_url($duongDanFile) : null;
             $conn->beginTransaction();

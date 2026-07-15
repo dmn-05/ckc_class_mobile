@@ -53,6 +53,7 @@ try {
         JOIN sinh_vien sv ON svlhp.sinh_vien_id = sv.id
         JOIN nguoi_dung nd ON sv.nguoi_dung_id = nd.id
         WHERE svlhp.lop_hoc_phan_id = ?
+          AND svlhp.trang_thai <> 'da_huy'
         ORDER BY nd.ho_ten ASC
     ");
     $stmtSV->execute([$lopHocPhanId]);

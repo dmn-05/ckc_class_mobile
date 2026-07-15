@@ -12,7 +12,7 @@ $sinhVienId = (int)($data["sinh_vien_id"] ?? 0);
 $tuKhoa     = trim($data["tu_khoa"] ?? "");
 $trangThai  = trim($data["trang_thai"] ?? "");
 $hocKy      = trim($data["hoc_ky"] ?? "");
-$khoaHoc    = trim($data["khoa_hoc"] ?? "");
+$namHoc    = trim($data["nam_hoc"] ?? "");
 
 if ($sinhVienId <= 0) {
     http_response_code(400);
@@ -28,7 +28,6 @@ try {
             lhp.ten_lop,
             lhp.hoc_ky,
             lhp.nam_hoc,
-            lhp.khoa_hoc,
             lhp.trang_thai,
             lhp.ngay_tao,
             svlhp.trang_thai AS trang_thai_dang_ky,
@@ -43,7 +42,7 @@ try {
              WHERE tl.lop_hoc_phan_id = lhp.id AND tl.trang_thai = 'hien_thi') AS so_tai_lieu,
             (SELECT COUNT(*) FROM bai_tap bt
              WHERE bt.lop_hoc_phan_id = lhp.id
-               AND bt.trang_thai = 'dang_mo'
+               AND bt.trang_thai = 'hien_thi'
                AND (bt.thoi_gian_gui IS NULL OR bt.thoi_gian_gui <= NOW())) AS so_bai_tap,
             (SELECT COUNT(*) FROM thong_bao tb
              WHERE tb.lop_hoc_phan_id = lhp.id
@@ -61,6 +60,7 @@ try {
         LEFT JOIN giang_vien gv ON lhp.giang_vien_id = gv.id
         LEFT JOIN nguoi_dung nd ON gv.nguoi_dung_id = nd.id
         WHERE svlhp.sinh_vien_id = :sv_id
+          AND svlhp.trang_thai <> 'da_huy'
     ";
     $params = [":sv_id" => $sinhVienId, ":sv_id2" => $sinhVienId];
 
@@ -72,7 +72,7 @@ try {
     }
     if ($trangThai !== "") { $sql .= " AND svlhp.trang_thai = :tt"; $params[":tt"] = $trangThai; }
     if ($hocKy !== "")     { $sql .= " AND lhp.hoc_ky = :hk";       $params[":hk"] = $hocKy; }
-    if ($khoaHoc !== "")   { $sql .= " AND lhp.khoa_hoc = :kh";     $params[":kh"] = $khoaHoc; }
+    if ($namHoc !== "")    { $sql .= " AND lhp.nam_hoc = :nh";      $params[":nh"] = $namHoc; }
 
     $sql .= " ORDER BY svlhp.ngay_dang_ky DESC";
 
@@ -89,7 +89,6 @@ try {
         "ten_lop"             => $r["ten_lop"],
         "hoc_ky"              => $r["hoc_ky"],
         "nam_hoc"             => $r["nam_hoc"],
-        "khoa_hoc"            => $r["khoa_hoc"],
         "trang_thai"          => $r["trang_thai"],
         "ngay_tao"            => $r["ngay_tao"],
         "trang_thai_dang_ky"  => $r["trang_thai_dang_ky"],

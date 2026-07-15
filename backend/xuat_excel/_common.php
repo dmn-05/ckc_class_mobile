@@ -96,10 +96,10 @@ function xuat_excel_types(): array
         'lop_hanh_chinh' => [
             'label' => 'Lớp hành chính',
             'title' => 'DANH SÁCH LỚP HÀNH CHÍNH',
-            'description' => 'Xuất danh sách lớp hành chính theo khoa, khóa học và trạng thái.',
-            'filters' => ['tu_khoa', 'khoa_id', 'khoa_hoc', 'trang_thai'],
+            'description' => 'Xuất danh sách lớp hành chính theo khoa, năm nhập học và trạng thái.',
+            'filters' => ['tu_khoa', 'khoa_id', 'nam_nhap_hoc', 'trang_thai'],
             'default_columns' => [
-                'ma_lop', 'ten_lop', 'ma_khoa', 'ten_khoa', 'khoa_hoc',
+                'ma_lop', 'ten_lop', 'ma_khoa', 'ten_khoa', 'nam_nhap_hoc',
                 'so_luong_sinh_vien', 'trang_thai', 'ngay_tao'
             ],
             'columns' => [
@@ -107,7 +107,7 @@ function xuat_excel_types(): array
                 'ten_lop' => ['label' => 'Tên lớp', 'width' => 26],
                 'ma_khoa' => ['label' => 'Mã khoa', 'width' => 14],
                 'ten_khoa' => ['label' => 'Tên khoa', 'width' => 28],
-                'khoa_hoc' => ['label' => 'Khóa học', 'width' => 14],
+                'nam_nhap_hoc' => ['label' => 'Năm nhập học', 'width' => 16],
                 'so_luong_sinh_vien' => ['label' => 'Số sinh viên', 'width' => 16],
                 'trang_thai' => ['label' => 'Trạng thái', 'width' => 18],
                 'ngay_tao' => ['label' => 'Ngày tạo', 'width' => 20],
@@ -140,12 +140,12 @@ function xuat_excel_types(): array
         'lop_hoc_phan' => [
             'label' => 'Lớp học phần',
             'title' => 'DANH SÁCH LỚP HỌC PHẦN',
-            'description' => 'Xuất lớp học phần theo môn, giảng viên, khóa, học kỳ và trạng thái.',
-            'filters' => ['tu_khoa', 'mon_hoc_id', 'giang_vien_id', 'khoa_id', 'khoa_hoc', 'hoc_ky', 'trang_thai'],
+            'description' => 'Xuất lớp học phần theo môn, giảng viên, năm học, học kỳ và trạng thái.',
+            'filters' => ['tu_khoa', 'mon_hoc_id', 'giang_vien_id', 'khoa_id', 'nam_hoc', 'hoc_ky', 'trang_thai'],
             'default_columns' => [
                 'ma_lop_hoc_phan', 'ten_lop_hoc_phan', 'ma_mon', 'ten_mon',
                 'ma_giang_vien', 'ten_giang_vien', 'ma_khoa', 'ten_khoa',
-                'khoa_hoc', 'hoc_ky', 'nam_hoc', 'si_so_hien_tai', 'si_so_toi_da', 'trang_thai'
+                'nam_hoc', 'hoc_ky', 'si_so_hien_tai', 'si_so_toi_da', 'trang_thai'
             ],
             'columns' => [
                 'ma_lop_hoc_phan' => ['label' => 'Mã lớp học phần', 'width' => 30],
@@ -156,7 +156,6 @@ function xuat_excel_types(): array
                 'ten_giang_vien' => ['label' => 'Giảng viên phụ trách', 'width' => 26],
                 'ma_khoa' => ['label' => 'Mã khoa', 'width' => 14],
                 'ten_khoa' => ['label' => 'Tên khoa', 'width' => 26],
-                'khoa_hoc' => ['label' => 'Khóa học', 'width' => 14],
                 'hoc_ky' => ['label' => 'Học kỳ', 'width' => 12],
                 'nam_hoc' => ['label' => 'Năm học', 'width' => 14],
                 'si_so_hien_tai' => ['label' => 'Sĩ số hiện tại', 'width' => 16],
@@ -309,7 +308,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
             $select = "sv.id, sv.ma_sinh_vien, nd.ho_ten, nd.email, sv.ngay_sinh,
                 sv.gioi_tinh, sv.so_dien_thoai, sv.cccd, sv.dia_chi,
                 l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa,
-                COALESCE(sv.khoa_hoc, l.khoa_hoc) AS khoa_hoc,
+                sv.khoa_hoc AS khoa_hoc,
                 sv.trang_thai AS trang_thai_sinh_vien,
                 nd.trang_thai AS trang_thai_tai_khoan, sv.ngay_tao";
             $from = "FROM sinh_vien sv
@@ -327,14 +326,14 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
                 if ($type === 'sinh_vien') {
                     xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'sv.khoa_id', 'sv_khoa_id');
                     xuat_excel_add_int_filter($where, $params, $filters['lop_id'] ?? 0, 'sv.lop_id', 'sv_lop_id');
-                    xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', 'COALESCE(sv.khoa_hoc, l.khoa_hoc)', 'sv_khoa_hoc');
+                    xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', 'sv.khoa_hoc', 'sv_khoa_hoc');
                 }
                 xuat_excel_add_string_filter($where, $params, $filters['trang_thai'] ?? '', 'sv.trang_thai', 'sv_trang_thai');
             }
             break;
 
         case 'lop_hanh_chinh':
-            $select = "l.id, l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa, l.khoa_hoc,
+            $select = "l.id, l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa, l.nam_nhap_hoc,
                 (SELECT COUNT(*) FROM sinh_vien sv WHERE sv.lop_id = l.id) AS so_luong_sinh_vien,
                 l.trang_thai, l.ngay_tao";
             $from = "FROM lop l INNER JOIN khoa k ON k.id = l.khoa_id";
@@ -343,7 +342,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
             if ($scope !== 'toan_bo') {
                 xuat_excel_add_like($where, $params, (string)($filters['tu_khoa'] ?? ''), ['l.ma_lop', 'l.ten_lop', 'k.ma_khoa', 'k.ten_khoa'], 'lop_keyword');
                 xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'l.khoa_id', 'lop_khoa_id');
-                xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', 'l.khoa_hoc', 'lop_khoa_hoc');
+                xuat_excel_add_int_filter($where, $params, $filters['nam_nhap_hoc'] ?? 0, 'l.nam_nhap_hoc', 'lop_nam_nhap_hoc');
                 xuat_excel_add_string_filter($where, $params, $filters['trang_thai'] ?? '', 'l.trang_thai', 'lop_trang_thai');
             }
             break;
@@ -351,7 +350,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
         case 'lop_hoc_phan':
             $select = "lhp.id, lhp.ma_lop_hoc_phan, lhp.ten_lop AS ten_lop_hoc_phan,
                 mh.ma_mon, mh.ten_mon, gv.ma_giang_vien, nd.ho_ten AS ten_giang_vien,
-                k.ma_khoa, k.ten_khoa, lhp.khoa_hoc, lhp.hoc_ky, lhp.nam_hoc,
+                k.ma_khoa, k.ten_khoa, lhp.hoc_ky, lhp.nam_hoc,
                 (SELECT COUNT(*) FROM sinh_vien_lop_hoc_phan svlhp
                     WHERE svlhp.lop_hoc_phan_id = lhp.id AND svlhp.trang_thai = 'dang_hoc') AS si_so_hien_tai,
                 lhp.si_so_toi_da, lhp.trang_thai, lhp.ngay_tao";
@@ -368,7 +367,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
                 xuat_excel_add_int_filter($where, $params, $filters['mon_hoc_id'] ?? 0, 'lhp.mon_hoc_id', 'lhp_mon_hoc_id');
                 xuat_excel_add_int_filter($where, $params, $filters['giang_vien_id'] ?? 0, 'lhp.giang_vien_id', 'lhp_giang_vien_id');
                 xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'mh.khoa_id', 'lhp_khoa_id');
-                xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', 'lhp.khoa_hoc', 'lhp_khoa_hoc');
+                xuat_excel_add_string_filter($where, $params, $filters['nam_hoc'] ?? '', 'lhp.nam_hoc', 'lhp_nam_hoc');
                 xuat_excel_add_string_filter($where, $params, $filters['hoc_ky'] ?? '', 'lhp.hoc_ky', 'lhp_hoc_ky');
                 xuat_excel_add_string_filter($where, $params, $filters['trang_thai'] ?? '', 'lhp.trang_thai', 'lhp_trang_thai');
             }
@@ -377,7 +376,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
         case 'sinh_vien_lop_hoc_phan':
             $select = "svlhp.id, sv.ma_sinh_vien, nd.ho_ten, nd.email,
                 l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa,
-                COALESCE(sv.khoa_hoc, l.khoa_hoc) AS khoa_hoc,
+                sv.khoa_hoc AS khoa_hoc,
                 svlhp.trang_thai AS trang_thai_lop_hoc_phan, svlhp.ngay_dang_ky";
             $from = "FROM sinh_vien_lop_hoc_phan svlhp
                 INNER JOIN sinh_vien sv ON sv.id = svlhp.sinh_vien_id
@@ -500,18 +499,18 @@ function xuat_excel_metadata(PDO $conn, string $type, array $filters, string $sc
     ];
 
     if ($type === 'sinh_vien_lop_hanh_chinh' && (int)($filters['lop_id'] ?? 0) > 0) {
-        $stmt = $conn->prepare("SELECT l.ma_lop, l.ten_lop, l.khoa_hoc, k.ma_khoa, k.ten_khoa
+        $stmt = $conn->prepare("SELECT l.ma_lop, l.ten_lop, l.nam_nhap_hoc, k.ma_khoa, k.ten_khoa
             FROM lop l INNER JOIN khoa k ON k.id = l.khoa_id WHERE l.id = :id LIMIT 1");
         $stmt->execute([':id' => (int)$filters['lop_id']]);
         if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $metadata['Lớp hành chính'] = $row['ma_lop'] . ' - ' . $row['ten_lop'];
             $metadata['Khoa'] = $row['ma_khoa'] . ' - ' . $row['ten_khoa'];
-            $metadata['Khóa học'] = (string)$row['khoa_hoc'];
+            $metadata['Năm nhập học'] = (string)$row['nam_nhap_hoc'];
         }
     }
 
     if ($type === 'sinh_vien_lop_hoc_phan' && (int)($filters['lop_hoc_phan_id'] ?? 0) > 0) {
-        $stmt = $conn->prepare("SELECT lhp.ma_lop_hoc_phan, lhp.ten_lop, lhp.khoa_hoc, lhp.hoc_ky,
+        $stmt = $conn->prepare("SELECT lhp.ma_lop_hoc_phan, lhp.ten_lop, lhp.nam_hoc, lhp.hoc_ky,
                 mh.ma_mon, mh.ten_mon, gv.ma_giang_vien, nd.ho_ten AS ten_giang_vien
             FROM lop_hoc_phan lhp
             LEFT JOIN mon_hoc mh ON mh.id = lhp.mon_hoc_id
@@ -523,7 +522,7 @@ function xuat_excel_metadata(PDO $conn, string $type, array $filters, string $sc
             $metadata['Lớp học phần'] = $row['ma_lop_hoc_phan'] . ' - ' . $row['ten_lop'];
             $metadata['Môn học'] = trim(($row['ma_mon'] ?? '') . ' - ' . ($row['ten_mon'] ?? ''), ' -');
             $metadata['Giảng viên'] = trim(($row['ma_giang_vien'] ?? '') . ' - ' . ($row['ten_giang_vien'] ?? ''), ' -');
-            $metadata['Khóa / Học kỳ'] = trim(($row['khoa_hoc'] ?? '') . ' / ' . ($row['hoc_ky'] ?? ''), ' /');
+            $metadata['Năm học / Học kỳ'] = trim(($row['nam_hoc'] ?? '') . ' / ' . ($row['hoc_ky'] ?? ''), ' /');
         }
     }
 

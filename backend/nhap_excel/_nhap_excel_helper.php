@@ -249,29 +249,28 @@ function ckc_nam_bat_dau_khoa(string $value): ?int {
     return ckc_khoa_hoc_ok($value) ? (int)substr($value, 0, 4) : null;
 }
 
-function ckc_nam_hoc_tu_khoa_hoc(string $khoaHoc, string $hocKy): ?string {
-    if (!ckc_khoa_hoc_ok($khoaHoc)) return null;
-    $start = (int)substr($khoaHoc, 0, 4);
-    if (in_array($hocKy, ['HK1', 'HK2'], true)) return $start . '-' . ($start + 1);
-    if (in_array($hocKy, ['HK3', 'HK4'], true)) return ($start + 1) . '-' . ($start + 2);
-    if (in_array($hocKy, ['HK5', 'HK6'], true)) return ($start + 2) . '-' . ($start + 3);
-    return null;
+function ckc_nam_nhap_hoc_ok($value): bool {
+    if (!preg_match('/^\d{4}$/', trim((string)$value))) return false;
+    $year = (int)$value;
+    return $year >= 2000 && $year <= ((int)date('Y') + 5);
+}
+
+function ckc_nam_hoc_ok(string $value): bool {
+    if (!preg_match('/^(\d{4})-(\d{4})$/', trim($value), $m)) return false;
+    $start = (int)$m[1];
+    $end = (int)$m[2];
+    return $start >= 2000 && $end === $start + 1;
 }
 
 function ckc_lop_khoa_hoc(PDO $conn, int $lopId): ?string {
     $row = ckc_one(
         $conn,
-        'SELECT khoa_hoc, nam_nhap_hoc FROM lop WHERE id = :id LIMIT 1',
+        'SELECT nam_nhap_hoc FROM lop WHERE id = :id LIMIT 1',
         [':id' => $lopId]
     );
-    if (!$row) return null;
-    $khoaHoc = ckc_clean($row['khoa_hoc'] ?? '');
-    if ($khoaHoc !== '') return $khoaHoc;
-    if (($row['nam_nhap_hoc'] ?? null) !== null) {
-        $start = (int)$row['nam_nhap_hoc'];
-        return $start . '-' . ($start + 3);
-    }
-    return null;
+    if (!$row || !ckc_nam_nhap_hoc_ok($row['nam_nhap_hoc'] ?? null)) return null;
+    $start = (int)$row['nam_nhap_hoc'];
+    return $start . '-' . ($start + 3);
 }
 
 function ckc_loai_nhap_configs(): array {
@@ -475,14 +474,14 @@ function ckc_validate_row(
             $row['ma_lop'] = ckc_upper($row['ma_lop'] ?? '');
             $row['ten_lop'] = ckc_clean($row['ten_lop'] ?? '');
             $row['ma_khoa'] = ckc_upper($row['ma_khoa'] ?? '');
-            $row['khoa_hoc'] = ckc_clean($row['khoa_hoc'] ?? '');
+            $row['nam_nhap_hoc'] = ckc_clean($row['nam_nhap_hoc'] ?? '');
             $row['trang_thai'] = ckc_status_lop($row['trang_thai'] ?? '');
 
             ckc_require_max($row['ma_lop'], 'mã lớp', 20, $messages);
             ckc_require_max($row['ten_lop'], 'tên lớp', 100, $messages);
             ckc_require_max($row['ma_khoa'], 'mã khoa', 20, $messages);
-            if (!ckc_khoa_hoc_ok($row['khoa_hoc'])) {
-                $messages[] = 'Khóa học phải đúng dạng 2026-2029 và kéo dài 3 năm';
+            if (!ckc_nam_nhap_hoc_ok($row['nam_nhap_hoc'])) {
+                $messages[] = 'Năm nhập học phải gồm 4 chữ số hợp lệ, ví dụ 2026';
             }
             if (!in_array($row['trang_thai'], ['dang_hoc', 'da_tot_nghiep', 'tam_khoa'], true)) {
                 $messages[] = 'Trạng thái lớp không hợp lệ';
@@ -521,7 +520,7 @@ function ckc_validate_row(
             } else {
                 $lop = ckc_one(
                     $conn,
-                    "SELECT l.id, l.ma_lop, l.khoa_id, l.khoa_hoc, l.nam_nhap_hoc,
+                    "SELECT l.id, l.ma_lop, l.khoa_id, l.nam_nhap_hoc,
                             l.trang_thai, k.ma_khoa, k.trang_thai AS trang_thai_khoa
                      FROM lop l
                      INNER JOIN khoa k ON k.id = l.khoa_id
@@ -610,7 +609,7 @@ function ckc_validate_row(
 
                 $lop = $row['ma_lop'] === '' ? null : ckc_one(
                     $conn,
-                    "SELECT l.id, l.ma_lop, l.khoa_id, l.khoa_hoc, l.nam_nhap_hoc,
+                    "SELECT l.id, l.ma_lop, l.khoa_id, l.nam_nhap_hoc,
                             l.trang_thai, k.ma_khoa, k.trang_thai AS trang_thai_khoa
                      FROM lop l
                      INNER JOIN khoa k ON k.id = l.khoa_id
@@ -766,7 +765,7 @@ function ckc_validate_row(
             $row['ten_lop'] = ckc_clean($row['ten_lop'] ?? '');
             $row['ma_mon'] = ckc_upper($row['ma_mon'] ?? '');
             $row['ma_giang_vien'] = ckc_upper($row['ma_giang_vien'] ?? '');
-            $row['khoa_hoc'] = ckc_clean($row['khoa_hoc'] ?? '');
+            $row['nam_hoc'] = ckc_clean($row['nam_hoc'] ?? '');
             $row['hoc_ky'] = ckc_upper($row['hoc_ky'] ?? '');
             $siSoRaw = ckc_clean($row['si_so_toi_da'] ?? '');
             $row['si_so_toi_da'] = preg_match('/^\d+$/', $siSoRaw) ? (int)$siSoRaw : 0;
@@ -776,8 +775,8 @@ function ckc_validate_row(
             ckc_require_max($row['ten_lop'], 'tên lớp học phần', 150, $messages);
             ckc_require_max($row['ma_mon'], 'mã môn học', 20, $messages);
             ckc_require_max($row['ma_giang_vien'], 'mã giảng viên', 20, $messages);
-            if (!ckc_khoa_hoc_ok($row['khoa_hoc'])) {
-                $messages[] = 'Khóa học phải đúng dạng 2026-2029 và kéo dài 3 năm';
+            if (!ckc_nam_hoc_ok($row['nam_hoc'])) {
+                $messages[] = 'Năm học phải đúng dạng hai năm liên tiếp, ví dụ 2026-2027';
             }
             if (!in_array($row['hoc_ky'], ['HK1', 'HK2', 'HK3', 'HK4', 'HK5', 'HK6'], true)) {
                 $messages[] = 'Học kỳ chỉ nhận HK1 đến HK6';
@@ -826,11 +825,6 @@ function ckc_validate_row(
                 }
             }
 
-            $row['nam_hoc'] = ckc_nam_hoc_tu_khoa_hoc($row['khoa_hoc'], $row['hoc_ky']);
-            if ($row['nam_hoc'] === null) {
-                $messages[] = 'Không tính được năm học từ khóa và học kỳ';
-            }
-
             ckc_mark_seen(
                 $seen,
                 'lhp_ma',
@@ -841,8 +835,8 @@ function ckc_validate_row(
             ckc_mark_seen(
                 $seen,
                 'lhp_ten',
-                ckc_lower($row['ten_lop'] . '|' . $row['khoa_hoc'] . '|' . $row['hoc_ky']),
-                'Tên lớp học phần bị trùng trong cùng khóa và học kỳ trong file',
+                ckc_lower($row['ten_lop'] . '|' . $row['nam_hoc'] . '|' . $row['hoc_ky']),
+                'Tên lớp học phần bị trùng trong cùng năm học và học kỳ trong file',
                 $messages
             );
 
@@ -858,18 +852,18 @@ function ckc_validate_row(
                 $conn,
                 "SELECT id FROM lop_hoc_phan
                  WHERE ten_lop = :ten
-                   AND khoa_hoc = :khoa_hoc
+                   AND nam_hoc = :nam_hoc
                    AND hoc_ky = :hoc_ky
                  LIMIT 1",
                 [
                     ':ten' => $row['ten_lop'],
-                    ':khoa_hoc' => $row['khoa_hoc'],
+                    ':nam_hoc' => $row['nam_hoc'],
                     ':hoc_ky' => $row['hoc_ky'],
                 ]
             )) {
                 $status = 'canh_bao';
                 $action = 'bo_qua';
-                $messages[] = 'Tên lớp học phần đã tồn tại trong cùng khóa và học kỳ, sẽ bỏ qua';
+                $messages[] = 'Tên lớp học phần đã tồn tại trong cùng năm học và học kỳ, sẽ bỏ qua';
             }
             break;
 
