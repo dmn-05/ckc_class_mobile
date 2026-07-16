@@ -98,8 +98,6 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 26),
               children: [
-                _BannerLop(lop: widget.lop),
-                const SizedBox(height: 14),
                 _OThongBaoMoi(
                   tenNguoiDung: provider.hoSo?.hoTen ?? 'Sinh viên',
                 ),
@@ -167,7 +165,10 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                       );
                     }
 
-                    return _CardThongBaoBangTin(thongBao: item.thongBao!);
+                    return _CardThongBaoBangTin(
+                      thongBao: item.thongBao!,
+                      chiDoc: widget.chiDoc,
+                    );
                   }),
                 const SizedBox(height: 6),
                 _KhuVucBinhLuan(
@@ -207,131 +208,6 @@ class _BangTinItem {
   DateTime? get ngayTao {
     if (loai == _LoaiBangTin.thongBao) return thongBao?.ngayTao;
     return baiTap?.ngayTao;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// BANNER LỚP
-// ═══════════════════════════════════════════════════════════════
-
-class _BannerLop extends StatelessWidget {
-  final LopHocPhanSVModel lop;
-
-  const _BannerLop({required this.lop});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 178,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB), Color(0xFF38BDF8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _primary.withOpacity(0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -26,
-            top: -30,
-            child: _CircleBlur(size: 112, opacity: 0.15),
-          ),
-          Positioned(
-            right: 42,
-            bottom: -48,
-            child: _CircleBlur(size: 96, opacity: 0.11),
-          ),
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withOpacity(0.18)),
-                  ),
-                  child: Text(
-                    lop.maLopHocPhan,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  lop.tenHienThi,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    height: 1.1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  lop.tenMon ?? lop.maLopHocPhan,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.86),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'GV: ${lop.tenGiangVien ?? 'Chưa cập nhật'}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.72),
-                    fontSize: 13,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CircleBlur extends StatelessWidget {
-  final double size;
-  final double opacity;
-
-  const _CircleBlur({required this.size, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(opacity),
-      ),
-    );
   }
 }
 
@@ -396,8 +272,12 @@ class _OThongBaoMoi extends StatelessWidget {
 
 class _CardThongBaoBangTin extends StatelessWidget {
   final ThongBaoSVModel thongBao;
+  final bool chiDoc;
 
-  const _CardThongBaoBangTin({required this.thongBao});
+  const _CardThongBaoBangTin({
+    required this.thongBao,
+    required this.chiDoc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +296,10 @@ class _CardThongBaoBangTin extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChiTietThongBaoSV(thongBao: thongBao),
+            builder: (_) => ChiTietThongBaoSV(
+              thongBao: thongBao,
+              chiDoc: chiDoc,
+            ),
           ),
         ),
         child: Padding(

@@ -245,6 +245,7 @@ class BaiTap {
   final String tieuDe;
   final String? moTa;
   final String? duongDanFile;
+  final String? fileName;
   final bool yeuCauNopFile;
   final String? dinhDangFileChoPhep;
   final int soFileToiDa;
@@ -279,6 +280,7 @@ class BaiTap {
     required this.tieuDe,
     this.moTa,
     this.duongDanFile,
+    this.fileName,
     this.yeuCauNopFile = true,
     this.dinhDangFileChoPhep,
     this.soFileToiDa = 1,
@@ -314,9 +316,9 @@ class BaiTap {
     tieuDe: j['tieu_de']?.toString() ?? '',
     moTa: _toStr(j['mo_ta']),
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
+    fileName: _toStr(j['file_name']) ?? _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']),
     yeuCauNopFile: (_toInt(j['yeu_cau_nop_file']) ?? 1) == 1,
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    // CSDL bai_nop hiện chỉ lưu một đường dẫn file cho mỗi bài nộp.
     soFileToiDa: 1,
     dungLuongToiDaMb: _toInt(j['dung_luong_toi_da_mb']) ?? 25,
     choPhepNopLai: (_toInt(j['cho_phep_nop_lai']) ?? 1) == 1,

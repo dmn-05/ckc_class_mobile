@@ -170,7 +170,10 @@ class _ThaoLuanSVPageState extends State<ThaoLuanSVPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
         itemCount: p.dsBinhLuan.length,
-        itemBuilder: (_, i) => _BinhLuanTile(bl: p.dsBinhLuan[i]),
+        itemBuilder: (_, i) => _BinhLuanTile(
+          bl: p.dsBinhLuan[i],
+          chiDoc: widget.chiDoc,
+        ),
       ),
     );
   }
@@ -178,7 +181,12 @@ class _ThaoLuanSVPageState extends State<ThaoLuanSVPage> {
 
 class _BinhLuanTile extends StatelessWidget {
   final BinhLuanModel bl;
-  const _BinhLuanTile({required this.bl});
+  final bool chiDoc;
+
+  const _BinhLuanTile({
+    required this.bl,
+    required this.chiDoc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -259,7 +267,7 @@ class _BinhLuanTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (mine && !widget.chiDoc)
+            if (mine && !chiDoc)
               PopupMenuButton<String>(
                 icon: Icon(
                   Icons.more_vert_rounded,

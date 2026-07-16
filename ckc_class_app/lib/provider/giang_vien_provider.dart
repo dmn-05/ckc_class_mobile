@@ -79,8 +79,18 @@ class GiangVienProvider extends ChangeNotifier {
           .map((e) => e.hocKy?.trim() ?? '')
           .where((e) => e.isNotEmpty);
 
-      _dsNamHocLop = {..._dsNamHocLop, ...namHocMoi}.toList()..sort();
-      _dsHocKyLop = {..._dsHocKyLop, ...hocKyMoi}.toList()..sort();
+      _dsNamHocLop = {..._dsNamHocLop, ...namHocMoi}.toList()
+        ..sort((a, b) {
+          final namA = int.tryParse(a.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+          final namB = int.tryParse(b.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+          return namB.compareTo(namA);
+        });
+      _dsHocKyLop = {..._dsHocKyLop, ...hocKyMoi}.toList()
+        ..sort((a, b) {
+          final hkA = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+          final hkB = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+          return hkA.compareTo(hkB);
+        });
     } catch (e) {
       _lopError = _xuLyLoi(e);
     } finally {
@@ -391,6 +401,7 @@ class GiangVienProvider extends ChangeNotifier {
     int? chuDeId,
     String moTa = '',
     String duongDanFile = '',
+    String fileName = '',
     DateTime? hanNop,
     bool yeuCauNopFile = true,
     String dinhDangFileChoPhep = '',
@@ -413,6 +424,7 @@ class GiangVienProvider extends ChangeNotifier {
         chuDeId: chuDeId,
         moTa: moTa,
         duongDanFile: duongDanFile,
+        fileName: fileName,
         hanNop: hanNop,
         yeuCauNopFile: yeuCauNopFile,
         dinhDangFileChoPhep: dinhDangFileChoPhep,
@@ -443,6 +455,7 @@ class GiangVienProvider extends ChangeNotifier {
     int? chuDeId,
     String moTa = '',
     String duongDanFile = '',
+    String fileName = '',
     DateTime? hanNop,
     bool yeuCauNopFile = true,
     String dinhDangFileChoPhep = '',
@@ -464,6 +477,7 @@ class GiangVienProvider extends ChangeNotifier {
         chuDeId: chuDeId,
         moTa: moTa,
         duongDanFile: duongDanFile,
+        fileName: fileName,
         hanNop: hanNop,
         yeuCauNopFile: yeuCauNopFile,
         dinhDangFileChoPhep: dinhDangFileChoPhep,

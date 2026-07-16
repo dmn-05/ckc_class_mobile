@@ -99,7 +99,8 @@ function ensure_assignment_schema(PDO $conn) {
         $addCol('bai_kiem_tra', 'chu_de_id', 'chu_de_id INT NULL AFTER lop_hoc_phan_id');
     }
 
-    // Host Web đã gộp bai_nop_file vào bai_nop nên không tạo bảng phụ nữa.
+    // Mỗi bài nộp chỉ lưu một file trực tiếp trong bảng bai_nop.
+
 
 }
 
@@ -241,6 +242,7 @@ try {
                 cd.ten_chu_de,
                 nd.ho_ten AS ten_nguoi_tao,
                 (SELECT tt.duong_dan FROM tep_tin_bai_tap ttbt JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id WHERE ttbt.bai_tap_id = bt.id AND COALESCE(tt.trang_thai, 'dang_su_dung') = 'dang_su_dung' ORDER BY ttbt.id ASC LIMIT 1) AS tep_tin_dau,
+                (SELECT tt.ten_file FROM tep_tin_bai_tap ttbt JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id WHERE ttbt.bai_tap_id = bt.id AND COALESCE(tt.trang_thai, 'dang_su_dung') = 'dang_su_dung' ORDER BY ttbt.id ASC LIMIT 1) AS tep_tin_ten_dau,
                 (SELECT COUNT(*) FROM bai_nop bn 
                  WHERE bn.bai_tap_id = bt.id) AS so_bai_nop_file,
                 (SELECT COUNT(*) FROM bai_nop bn2 
@@ -305,10 +307,9 @@ try {
             "mo_ta"           => $r["mo_ta"],
             "loai_bai_tap"    => $r["loai_bai_tap"] ?? "nop_file",
             "duong_dan_file"  => $r["duong_dan_file"] ?: ($r["file_url"] ?? ($r["tep_tin_dau"] ?? null)),
+            "file_name"        => $r["file_name"] ?: ($r["tep_tin_ten_dau"] ?? null),
             "yeu_cau_nop_file" => isset($r["yeu_cau_nop_file"]) ? (int)$r["yeu_cau_nop_file"] : 1,
             "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"] ?? null,
-            // CSDL bai_nop hiện chỉ có một đường dẫn file cho mỗi bài nộp.
-            // Luôn trả 1 để giao diện không cho cấu hình vượt khả năng lưu của host.
             "so_file_toi_da" => 1,
             "dung_luong_toi_da_mb" => isset($r["dung_luong_toi_da_mb"]) ? (int)$r["dung_luong_toi_da_mb"] : 25,
             "cho_phep_nop_lai" => isset($r["cho_phep_nop_lai"]) ? (int)$r["cho_phep_nop_lai"] : 1,
@@ -442,7 +443,7 @@ try {
             $trangThai     = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
-            $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
+            $soFileToiDa = 1;
             $dungLuongToiDaMb = clamp_int($data["dung_luong_toi_da_mb"] ?? 25, 25, 1, 100);
             $choPhepNopLai = bool_int($data["cho_phep_nop_lai"] ?? 1);
             $choPhepNopMuon = bool_int($data["cho_phep_nop_muon"] ?? 1);
@@ -454,7 +455,9 @@ try {
             $trangThai = trang_thai_mobile_sang_db($trangThai);
             if (!in_array($trangThai, ["hien_thi", "an"], true)) $trangThai = "hien_thi";
 
-            $fileName = $duongDanFile !== "" ? ckc_file_name_from_url($duongDanFile) : null;
+            $fileName = str_val($data, "file_name");
+            if ($fileName === "" && $duongDanFile !== "") $fileName = ckc_file_name_from_url($duongDanFile);
+            if ($fileName === "") $fileName = null;
             $conn->beginTransaction();
             $stmt = $conn->prepare("INSERT INTO bai_tap
                 (tieu_de, noi_dung, huong_dan, mo_ta, loai_bai_tap, duong_dan_file, file_url, file_name, yeu_cau_nop_file, dinh_dang_file_cho_phep, so_file_toi_da, dung_luong_toi_da_mb, cho_phep_nop_lai, cho_phep_nop_muon, cho_phep_nop_tre, diem_toi_da, han_nop, thoi_gian_gui, lop_hoc_phan_id, chu_de_id, nguoi_tao_id, trang_thai)
@@ -701,7 +704,7 @@ try {
             $trangThai    = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
-            $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
+            $soFileToiDa = 1;
             $dungLuongToiDaMb = clamp_int($data["dung_luong_toi_da_mb"] ?? 25, 25, 1, 100);
             $choPhepNopLai = bool_int($data["cho_phep_nop_lai"] ?? 1);
             $choPhepNopMuon = bool_int($data["cho_phep_nop_muon"] ?? 1);
@@ -712,7 +715,9 @@ try {
             $trangThai = trang_thai_mobile_sang_db($trangThai);
             if (!in_array($trangThai, ["hien_thi", "an"], true)) $trangThai = "hien_thi";
 
-            $fileName = $duongDanFile !== "" ? ckc_file_name_from_url($duongDanFile) : null;
+            $fileName = str_val($data, "file_name");
+            if ($fileName === "" && $duongDanFile !== "") $fileName = ckc_file_name_from_url($duongDanFile);
+            if ($fileName === "") $fileName = null;
             $conn->beginTransaction();
             $stmt = $conn->prepare("UPDATE bai_tap
                 SET tieu_de=?, noi_dung=?, huong_dan=?, mo_ta=?, duong_dan_file=?, file_url=?, file_name=?, yeu_cau_nop_file=?, dinh_dang_file_cho_phep=?, so_file_toi_da=?, dung_luong_toi_da_mb=?, cho_phep_nop_lai=?, cho_phep_nop_muon=?, cho_phep_nop_tre=?, diem_toi_da=?, han_nop=?, thoi_gian_gui=?, chu_de_id=?, trang_thai=?, ngay_cap_nhat=NOW()

@@ -4,7 +4,6 @@ import 'package:ckc_class_app/screen/giang_vien/tao_quiz_giang_vien.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../../model/giang_vien_model.dart';
 import '../../provider/giang_vien_provider.dart';
@@ -12,54 +11,20 @@ import '../../provider/quiz_provider.dart';
 import '../../services/ket_noi_api_service.dart';
 import '../../widget/widget_chung_giangvien.dart';
 import '../../utils/modal_lifecycle.dart';
+import '../../utils/file_download_helper.dart';
 
 
-String _gvFileBackendBaseUrl() => ApiService().baseUrl;
-
-String _gvFileBackendOrigin() {
-  final uri = Uri.tryParse(_gvFileBackendBaseUrl());
-  return uri?.origin ?? '';
-}
-
-String _gvNormalizeFileUrl(String rawPath) {
-  final raw = rawPath.trim().replaceAll('\\', '/');
-  if (raw.isEmpty) return '';
-  final lower = raw.toLowerCase();
-  if (lower.startsWith('http://') || lower.startsWith('https://')) return raw;
-  if (raw.startsWith('//')) return 'https:$raw';
-  if (raw.startsWith('/backend/')) return '${_gvFileBackendOrigin()}$raw';
-  if (raw.startsWith('/')) return '${_gvFileBackendBaseUrl()}$raw';
-  return '${_gvFileBackendBaseUrl()}/$raw';
+Future<void> _gvMoFileBaiNop(BuildContext context, BaiNopFile file) async {
+  await taiFileVeMay(
+    context,
+    duongDan: file.duongDanFile,
+    tenFile: file.tenHienThi,
+  );
 }
 
 String _gvFmtDiem(double value) {
   if (value == value.truncateToDouble()) return value.toInt().toString();
   return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
-}
-
-Future<void> _gvMoFileBaiNop(BuildContext context, BaiNopFile file) async {
-  final url = _gvNormalizeFileUrl(file.duongDanFile);
-  if (url.isEmpty) {
-    hienThiSnackBar(context, 'Không có đường dẫn file', laThanh: false);
-    return;
-  }
-
-  final uri = Uri.tryParse(url);
-  if (uri == null || !uri.hasScheme) {
-    hienThiSnackBar(context, 'Đường dẫn file không hợp lệ', laThanh: false);
-    return;
-  }
-
-  try {
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      hienThiSnackBar(context, 'Không mở được file', laThanh: false);
-    }
-  } catch (e) {
-    if (context.mounted) {
-      hienThiSnackBar(context, 'Lỗi mở file: $e', laThanh: false);
-    }
-  }
 }
 
 class QuanLyBaiTap extends StatefulWidget {
@@ -803,7 +768,11 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
         maxChildSize: 0.95,
         minChildSize: 0.5,
         expand: false,
-        builder: (_, ctrl) => _BaiNopSheet(bt: bt, scrollController: ctrl),
+        builder: (_, ctrl) => _BaiNopSheet(
+          bt: bt,
+          scrollController: ctrl,
+          chiDoc: widget.chiDoc,
+        ),
       ),
     );
   }
@@ -1091,6 +1060,10 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
             'success': true,
             'message': data['message']?.toString() ?? 'Upload file thành công',
             'duong_dan_file': rawPath?.toString() ?? '',
+            'file_name': (data['file_name'] ??
+                    (data['data'] is Map ? data['data']['ten_file_goc'] : null) ??
+                    file.name)
+                .toString(),
           };
         }
 
@@ -1115,13 +1088,13 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
     final moTaCtrl = TextEditingController(text: baiTap?.moTa ?? '');
     PlatformFile? fileDaChon;
     String? duongDanFile = baiTap?.duongDanFile;
+    String? fileName = baiTap?.fileName;
     final diemToiDaCtrl = TextEditingController(
       text: _fmtSo(baiTap?.diemToiDa ?? 10),
     );
 
     bool yeuCauNopFile = baiTap?.yeuCauNopFile ?? true;
     final Set<String> dinhDangDaChon = {...?baiTap?.dsDinhDangChoPhep};
-    // Backend/CSDL hiện lưu một file duy nhất trong mỗi bản ghi bai_nop.
     int soFileToiDa = 1;
     int dungLuongToiDaMb = baiTap?.dungLuongToiDaMb ?? 25;
     bool choPhepNopLai = baiTap?.choPhepNopLai ?? true;
@@ -1218,6 +1191,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                     _FilePickerBox(
                       fileDaChon: fileDaChon,
                       duongDanFile: duongDanFile,
+                      fileName: fileName,
                       enabled: !dangLuu,
                       onChonFile: () async {
                         final result = await FilePicker.pickFiles(
@@ -1245,12 +1219,14 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
                         setS(() {
                           fileDaChon = result.files.single;
+                          fileName = result.files.single.name;
                           duongDanFile = null;
                         });
                       },
                       onXoaFile: () {
                         setS(() {
                           fileDaChon = null;
+                          fileName = null;
                           duongDanFile = null;
                         });
                       },
@@ -1452,6 +1428,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
                         duongDanFileCuoi =
                             uploadResult['duong_dan_file']?.toString() ?? '';
+                        fileName = uploadResult['file_name']?.toString() ?? fileDaChon?.name;
                       }
 
                       final result = baiTap == null
@@ -1461,11 +1438,11 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               chuDeId: chuDeId,
                               moTa: moTaCtrl.text,
                               duongDanFile: duongDanFileCuoi,
+                              fileName: fileName ?? '',
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
-                              soFileToiDa: soFileToiDa,
-                              dungLuongToiDaMb: dungLuongToiDaMb,
+                                      dungLuongToiDaMb: dungLuongToiDaMb,
                               choPhepNopLai: choPhepNopLai,
                               choPhepNopMuon: choPhepNopMuon,
                               diemToiDa:
@@ -1481,11 +1458,11 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               chuDeId: chuDeId,
                               moTa: moTaCtrl.text,
                               duongDanFile: duongDanFileCuoi,
+                              fileName: fileName ?? '',
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
-                              soFileToiDa: soFileToiDa,
-                              dungLuongToiDaMb: dungLuongToiDaMb,
+                                      dungLuongToiDaMb: dungLuongToiDaMb,
                               choPhepNopLai: choPhepNopLai,
                               choPhepNopMuon: choPhepNopMuon,
                               diemToiDa:
@@ -1878,7 +1855,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Số file',
-                    helperText: 'Phiên bản hiện tại hỗ trợ 1 file cho mỗi bài nộp',
+                    helperText: 'Mỗi sinh viên nộp tối đa 1 file',
                     prefixIcon: Icon(Icons.file_copy_rounded),
                     border: OutlineInputBorder(),
                   ),
@@ -2003,6 +1980,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
 class _FilePickerBox extends StatelessWidget {
   final PlatformFile? fileDaChon;
   final String? duongDanFile;
+  final String? fileName;
   final bool enabled;
   final VoidCallback onChonFile;
   final VoidCallback onXoaFile;
@@ -2010,6 +1988,7 @@ class _FilePickerBox extends StatelessWidget {
   const _FilePickerBox({
     required this.fileDaChon,
     required this.duongDanFile,
+    required this.fileName,
     required this.enabled,
     required this.onChonFile,
     required this.onXoaFile,
@@ -2017,6 +1996,8 @@ class _FilePickerBox extends StatelessWidget {
 
   String get _tenHienThi {
     if (fileDaChon != null) return fileDaChon!.name;
+    final provided = fileName?.trim() ?? '';
+    if (provided.isNotEmpty) return provided;
     final path = duongDanFile?.trim() ?? '';
     if (path.isEmpty) return 'Chưa chọn file đính kèm';
     final normalized = path.replaceAll('\\', '/');
@@ -2035,7 +2016,7 @@ class _FilePickerBox extends StatelessWidget {
     final path = duongDanFile?.trim() ?? '';
     if (path.isEmpty)
       return 'Hỗ trợ PDF, Word, Excel, PowerPoint, ZIP, ảnh, TXT, SQL';
-    return path;
+    return 'File đã tải lên';
   }
 
   bool get _coFile =>
@@ -2145,7 +2126,13 @@ class _FilePickerBox extends StatelessWidget {
 class _BaiNopSheet extends StatelessWidget {
   final BaiTap bt;
   final ScrollController scrollController;
-  const _BaiNopSheet({required this.bt, required this.scrollController});
+  final bool chiDoc;
+
+  const _BaiNopSheet({
+    required this.bt,
+    required this.scrollController,
+    required this.chiDoc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2309,7 +2296,7 @@ class _BaiNopSheet extends StatelessWidget {
                     const SizedBox(height: 8),
                     ...bn.dsFileHienThi.map((f) {
                       final size = f.kichThuocHienThi;
-                      final subtitle = size.isEmpty ? 'Bấm để mở file' : 'Bấm để mở file · $size';
+                      final subtitle = size.isEmpty ? 'Bấm để tải file' : 'Bấm để tải file · $size';
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
@@ -2350,7 +2337,7 @@ class _BaiNopSheet extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                          trailing: const Icon(Icons.download_rounded, size: 18),
                           onTap: () => _gvMoFileBaiNop(context, f),
                         ),
                       );
@@ -2413,7 +2400,7 @@ class _BaiNopSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: widget.chiDoc
+                onPressed: chiDoc
                     ? null
                     : () => _hienThiChamDiem(context, bn, provider),
                 icon: Icon(
@@ -2421,7 +2408,7 @@ class _BaiNopSheet extends StatelessWidget {
                   size: 16,
                 ),
                 label: Text(
-                  widget.chiDoc
+                  chiDoc
                       ? 'Lớp đã lưu · Chỉ xem'
                       : (bn.daDuocCham ? 'Chỉnh sửa điểm' : 'Chấm điểm'),
                 ),

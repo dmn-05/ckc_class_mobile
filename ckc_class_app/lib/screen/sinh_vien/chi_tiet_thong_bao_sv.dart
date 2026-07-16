@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../model/sinh_vien_model.dart';
 import '../../provider/sinh_vien_provider.dart';
 import '../../widget/widget_sinhvien.dart';
+import '../../utils/file_download_helper.dart';
 
 class ChiTietThongBaoSV extends StatefulWidget {
   final ThongBaoSVModel thongBao;
+  final bool chiDoc;
 
-  const ChiTietThongBaoSV({super.key, required this.thongBao});
+  const ChiTietThongBaoSV({
+    super.key,
+    required this.thongBao,
+    this.chiDoc = false,
+  });
 
   @override
   State<ChiTietThongBaoSV> createState() => _ChiTietThongBaoSVState();
@@ -39,14 +44,11 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
   }
 
   Future<void> _openFile(ThongBaoFileSVModel file) async {
-    final uri = Uri.tryParse(file.duongDan);
-    if (uri == null) return;
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không mở được file đính kèm')),
-      );
-    }
+    await taiFileVeMay(
+      context,
+      duongDan: file.duongDan,
+      tenFile: file.tenFile,
+    );
   }
 
   Future<void> _guiBinhLuan(SinhVienProvider p) async {
@@ -134,45 +136,73 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
                       )
                     else
                       ...provider.dsBinhLuan.map((bl) => _CommentTile(bl: bl)),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentCtrl,
-                            minLines: 1,
-                            maxLines: 4,
-                            decoration: InputDecoration(
-                              hintText: 'Viết bình luận về thông báo...',
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    if (widget.chiDoc)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 10),
+                        child: Text(
+                          'Lớp đã lưu · Chỉ có thể xem bình luận.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    else ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _commentCtrl,
+                              minLines: 1,
+                              maxLines: 4,
+                              decoration: InputDecoration(
+                                hintText: 'Viết bình luận về thông báo...',
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE2E8F0),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        FilledButton(
-                          onPressed: provider.blProcessing ? null : () => _guiBinhLuan(provider),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(52, 52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          const SizedBox(width: 10),
+                          FilledButton(
+                            onPressed: provider.blProcessing
+                                ? null
+                                : () => _guiBinhLuan(provider),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(52, 52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: provider.blProcessing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.send_rounded),
                           ),
-                          child: provider.blProcessing
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.send_rounded),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ],

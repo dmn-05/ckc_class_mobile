@@ -250,20 +250,23 @@ class SinhVienService {
         throw Exception('Vui lòng chọn file để nộp');
       }
 
+      if (paths.length != 1) {
+        throw Exception('Mỗi lần chỉ được nộp 1 file');
+      }
+
       final formData = FormData();
       formData.fields
         ..add(MapEntry('action', 'nop_bai'))
         ..add(MapEntry('sinh_vien_id', sinhVienId.toString()))
         ..add(MapEntry('bai_tap_id', baiTapId.toString()));
 
-      for (final path in paths) {
-        formData.files.add(
-          MapEntry(
-            'files[]',
-            await MultipartFile.fromFile(path, filename: _tenFileTuPath(path)),
-          ),
-        );
-      }
+      final path = paths.single;
+      formData.files.add(
+        MapEntry(
+          'file',
+          await MultipartFile.fromFile(path, filename: _tenFileTuPath(path)),
+        ),
+      );
 
       final res = await _api.post(
         '/sinh_vien/bai_tap_sinh_vien.php',
@@ -301,6 +304,66 @@ class SinhVienService {
       return raw
           .map((e) => BinhLuanModel.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+    } catch (e) {
+      throw Exception(_err(e));
+    }
+  }
+
+  Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(
+    int thongBaoId,
+  ) async {
+    try {
+      final res = await _api.post(
+        '/sinh_vien/binh_luan.php',
+        data: {
+          'action': 'danh_sach',
+          'thong_bao_id': thongBaoId,
+          'nguoi_dung_id': 0,
+        },
+      );
+      final body = _layBody(res);
+      if (!_ok(body)) {
+        throw Exception(
+          _msg(body, def: 'Không lấy được bình luận thông báo'),
+        );
+      }
+      final raw = body['data'];
+      if (raw is! List) return [];
+      return raw
+          .map((e) => BinhLuanModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      throw Exception(_err(e));
+    }
+  }
+
+  Future<BinhLuanModel> dangBinhLuanThongBao({
+    required int nguoiDungId,
+    required int thongBaoId,
+    required String noiDung,
+  }) async {
+    try {
+      if (noiDung.trim().isEmpty) {
+        throw Exception('Nội dung không được trống');
+      }
+      final res = await _api.post(
+        '/sinh_vien/binh_luan.php',
+        data: {
+          'action': 'dang',
+          'nguoi_dung_id': nguoiDungId,
+          'thong_bao_id': thongBaoId,
+          'noi_dung': noiDung.trim(),
+        },
+      );
+      final body = _layBody(res);
+      if (!_ok(body)) {
+        throw Exception(
+          _msg(body, def: 'Đăng bình luận thông báo thất bại'),
+        );
+      }
+      return BinhLuanModel.fromJson(
+        Map<String, dynamic>.from(body['data']),
+      );
     } catch (e) {
       throw Exception(_err(e));
     }

@@ -60,6 +60,8 @@ class SinhVienProvider extends ChangeNotifier {
   String _lopTrangThai = '';
   String _lopHocKy = '';
   String _lopNamHoc = '';
+  final Set<String> _dsNamHocLop = <String>{};
+  final Set<String> _dsHocKyLop = <String>{};
 
   List<LopHocPhanSVModel> get dsLop => _dsLop;
   bool get lopLoading => _lopLoading;
@@ -70,24 +72,22 @@ class SinhVienProvider extends ChangeNotifier {
   String get lopNamHoc => _lopNamHoc;
 
   List<String> get dsNamHocLop {
-    final set = <String>{};
-    for (final lop in _dsLop) {
-      final value = lop.namHoc?.trim();
-      if (value != null && value.isNotEmpty) set.add(value);
-    }
-    if (_lopNamHoc.isNotEmpty) set.add(_lopNamHoc);
-    final list = set.toList()..sort();
+    final list = _dsNamHocLop.toList()
+      ..sort((a, b) => b.compareTo(a));
     return list;
   }
 
   List<String> get dsHocKyLop {
-    final set = <String>{};
-    for (final lop in _dsLop) {
-      final value = lop.hocKy?.trim();
-      if (value != null && value.isNotEmpty) set.add(value);
-    }
-    if (_lopHocKy.isNotEmpty) set.add(_lopHocKy);
-    final list = set.toList()..sort();
+    const order = ['HK1', 'HK2', 'HK3', 'HK4', 'HK5', 'HK6'];
+    final list = _dsHocKyLop.toList()
+      ..sort((a, b) {
+        final ia = order.indexOf(a);
+        final ib = order.indexOf(b);
+        if (ia == -1 && ib == -1) return a.compareTo(b);
+        if (ia == -1) return 1;
+        if (ib == -1) return -1;
+        return ia.compareTo(ib);
+      });
     return list;
   }
 
@@ -112,6 +112,13 @@ class SinhVienProvider extends ChangeNotifier {
         hocKy: _lopHocKy,
         namHoc: _lopNamHoc,
       );
+
+      for (final lop in _dsLop) {
+        final nam = lop.namHoc?.trim() ?? '';
+        final ky = lop.hocKy?.trim() ?? '';
+        if (nam.isNotEmpty) _dsNamHocLop.add(nam);
+        if (ky.isNotEmpty) _dsHocKyLop.add(ky);
+      }
     } catch (e) {
       _lopError = _err(e);
     } finally {
@@ -286,6 +293,10 @@ class SinhVienProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Vui lòng chọn file để nộp'};
     }
 
+    if (paths.length != 1) {
+      return {'success': false, 'message': 'Mỗi lần chỉ được nộp 1 file'};
+    }
+
     _btProcessing = true;
     notifyListeners();
 
@@ -353,6 +364,46 @@ class SinhVienProvider extends ChangeNotifier {
       _blError = _err(e);
     } finally {
       _blLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> layDanhSachBinhLuanThongBao(int thongBaoId) async {
+    _blLoading = true;
+    _blError = null;
+    notifyListeners();
+    try {
+      _dsBinhLuan = await _service.layDanhSachBinhLuanThongBao(thongBaoId);
+    } catch (e) {
+      _blError = _err(e);
+    } finally {
+      _blLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> dangBinhLuanThongBao({
+    required int thongBaoId,
+    required String noiDung,
+  }) async {
+    _blProcessing = true;
+    notifyListeners();
+    try {
+      final bl = await _service.dangBinhLuanThongBao(
+        nguoiDungId: _nguoiDungId,
+        thongBaoId: thongBaoId,
+        noiDung: noiDung,
+      );
+      _dsBinhLuan.add(bl);
+      notifyListeners();
+      return {
+        'success': true,
+        'message': 'Đăng bình luận thông báo thành công',
+      };
+    } catch (e) {
+      return {'success': false, 'message': _err(e)};
+    } finally {
+      _blProcessing = false;
       notifyListeners();
     }
   }
@@ -546,6 +597,9 @@ class SinhVienProvider extends ChangeNotifier {
     _lopTuKhoa = '';
     _lopTrangThai = '';
     _lopHocKy = '';
+    _lopNamHoc = '';
+    _dsNamHocLop.clear();
+    _dsHocKyLop.clear();
 
     _dsTaiLieu = [];
     _tlLoading = false;

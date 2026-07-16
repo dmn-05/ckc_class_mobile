@@ -101,6 +101,8 @@ function ensure_assignment_file_schema(PDO $conn) {
     $addCol('bai_tap', 'cho_phep_nop_lai', 'cho_phep_nop_lai TINYINT(1) DEFAULT 1 AFTER dung_luong_toi_da_mb');
     $addCol('bai_tap', 'cho_phep_nop_muon', 'cho_phep_nop_muon TINYINT(1) DEFAULT 1 AFTER cho_phep_nop_lai');
     $addCol('bai_tap', 'diem_toi_da', 'diem_toi_da DECIMAL(5,2) DEFAULT 10 AFTER cho_phep_nop_muon');
+    $addCol('bai_tap', 'file_url', 'file_url TEXT NULL AFTER cho_phep_nop_muon');
+    $addCol('bai_tap', 'file_name', 'file_name VARCHAR(255) NULL AFTER file_url');
 
     // Host Web đã gộp bảng bai_nop_file vào bai_nop.
     // Mobile chỉ cần đảm bảo bai_nop có cột ten_file_goc để lưu tên file gốc.
@@ -172,6 +174,7 @@ try {
                 bt.mo_ta,
                 COALESCE(bt.loai_bai_tap, 'nop_file') AS loai_bai_tap,
                 COALESCE(bt.duong_dan_file, bt.file_url, (SELECT tt.duong_dan FROM tep_tin_bai_tap ttbt JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id WHERE ttbt.bai_tap_id = bt.id AND COALESCE(tt.trang_thai, 'dang_su_dung') = 'dang_su_dung' ORDER BY ttbt.id ASC LIMIT 1)) AS duong_dan_file,
+                COALESCE(bt.file_name, (SELECT tt.ten_file FROM tep_tin_bai_tap ttbt JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id WHERE ttbt.bai_tap_id = bt.id AND COALESCE(tt.trang_thai, 'dang_su_dung') = 'dang_su_dung' ORDER BY ttbt.id ASC LIMIT 1)) AS file_name,
                 bt.yeu_cau_nop_file,
                 bt.dinh_dang_file_cho_phep,
                 bt.so_file_toi_da,
@@ -247,6 +250,7 @@ try {
                 "mo_ta" => $r["mo_ta"],
                 "loai_bai_tap" => $r["loai_bai_tap"] ?: "nop_file",
                 "duong_dan_file" => $r["duong_dan_file"],
+                "file_name" => $r["file_name"],
                 "yeu_cau_nop_file" => (int)($r["yeu_cau_nop_file"] ?? 1),
                 "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"],
                 // CSDL bai_nop hiện chỉ lưu được một file cho mỗi sinh viên/bài tập.

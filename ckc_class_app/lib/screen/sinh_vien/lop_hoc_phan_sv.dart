@@ -348,21 +348,78 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
     required ValueChanged<String?> onChanged,
     Map<String, String> labels = const {},
   }) {
-    final unique = values.toSet().toList()..sort();
+    final unique = <String>{
+      ...values.where((item) => item.trim().isNotEmpty),
+      if (value.trim().isNotEmpty) value,
+    }.toList();
+    unique.sort((a, b) => _soSanhGiaTriBoLoc(label, a, b));
+
     return DropdownButtonFormField<String>(
       value: value,
       isExpanded: true,
+      menuMaxHeight: 360,
+      borderRadius: BorderRadius.circular(18),
       decoration: _dropDecoration(label, icon),
       items: [
-        DropdownMenuItem(value: '', child: Text(allLabel)),
+        DropdownMenuItem(
+          value: '',
+          child: _dropdownItem(icon, allLabel, laTatCa: true),
+        ),
         ...unique.map(
           (item) => DropdownMenuItem(
             value: item,
-            child: Text(labels[item] ?? item, overflow: TextOverflow.ellipsis),
+            child: _dropdownItem(icon, labels[item] ?? item),
           ),
         ),
       ],
       onChanged: onChanged,
+    );
+  }
+
+  int _soSanhGiaTriBoLoc(String label, String a, String b) {
+    if (label == 'Năm học') {
+      final namA = int.tryParse(a.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+      final namB = int.tryParse(b.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+      return namB.compareTo(namA);
+    }
+    if (label == 'Học kỳ') {
+      final hkA = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+      final hkB = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+      return hkA.compareTo(hkB);
+    }
+    return a.compareTo(b);
+  }
+
+  Widget _dropdownItem(IconData icon, String text, {bool laTatCa = false}) {
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: laTatCa
+                ? const Color(0xFFF1F5F9)
+                : const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            laTatCa ? Icons.apps_rounded : icon,
+            size: 16,
+            color: laTatCa ? _muted : _primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _text,
+              fontWeight: laTatCa ? FontWeight.w700 : FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

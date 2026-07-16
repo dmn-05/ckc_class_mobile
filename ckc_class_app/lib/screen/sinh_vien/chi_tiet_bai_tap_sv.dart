@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../provider/sinh_vien_provider.dart';
 import '../../widget/widget_sinhvien.dart';
+import '../../utils/file_download_helper.dart';
 
 class ChiTietBaiTapSV extends StatefulWidget {
   final dynamic baiTap;
@@ -48,26 +49,58 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
     return Colors.orange;
   }
 
+  String _duoiFile(String name) {
+    final clean = name.split('/').last.split('\\').last;
+    final index = clean.lastIndexOf('.');
+    return index < 0 ? '' : clean.substring(index + 1).toLowerCase();
+  }
+
   Future<void> _chonVaNopFile(dynamic bt) async {
+    final allowed = List<String>.from(bt.dsDinhDangChoPhep);
     final result = await FilePicker.pickFiles(
       allowMultiple: false,
-      type: FileType.any,
+      type: allowed.isEmpty ? FileType.any : FileType.custom,
+      allowedExtensions: allowed.isEmpty ? null : allowed,
+      withData: false,
     );
 
-    if (result == null || result.files.single.path == null) return;
-    if (!mounted) return;
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files.where((f) => f.path != null).toList();
+    if (files.isEmpty || !mounted) return;
+
+    if (files.length != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mỗi lần chỉ được nộp 1 file')),
+      );
+      return;
+    }
+
+    final maxBytes = bt.dungLuongToiDaMb * 1024 * 1024;
+    for (final file in files) {
+      final ext = _duoiFile(file.name);
+      if (allowed.isNotEmpty && !allowed.contains(ext)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File ${file.name} không đúng định dạng cho phép')),
+        );
+        return;
+      }
+      if (file.size > maxBytes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File ${file.name} vượt quá ${bt.dungLuongToiDaMb}MB')),
+        );
+        return;
+      }
+    }
 
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<SinhVienProvider>();
-
     final rs = await provider.nopBai(
       baiTapId: bt.id,
-      filePath: result.files.single.path!,
+      filePath: files.single.path!,
       lopHocPhanId: widget.lopHocPhanId,
     );
 
     if (!mounted) return;
-
     messenger.showSnackBar(
       SnackBar(
         content: Text(rs['message'].toString()),
@@ -201,11 +234,18 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
                         color: Colors.blue,
                       ),
                     if (bt.duongDanFile != null && bt.duongDanFile!.toString().isNotEmpty)
-                      _InfoRow(
-                        icon: Icons.attach_file_rounded,
-                        label: 'File đề',
-                        value: bt.duongDanFile.toString(),
+                      _DownloadFileRow(
+                        label: 'File đề bài',
+                        tenFile: tenFileHienThi(
+                          tenFile: bt.fileName?.toString(),
+                          duongDan: bt.duongDanFile.toString(),
+                        ),
                         color: Colors.indigo,
+                        onTap: () => taiFileVeMay(
+                          context,
+                          duongDan: bt.duongDanFile.toString(),
+                          tenFile: bt.fileName?.toString(),
+                        ),
                       ),
                   ],
                 ),
@@ -224,12 +264,18 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
                       value: bt.tenTrangThaiNop,
                       color: mau,
                     ),
-                    if (!bt.laQuiz && bt.fileDaNop != null)
-                      _InfoRow(
-                        icon: Icons.insert_drive_file_rounded,
-                        label: 'File đã nộp',
-                        value: bt.fileDaNop.toString(),
-                        color: Colors.green,
+                    if (!bt.laQuiz)
+                      ...bt.dsFileDaNopHienThi.map(
+                        (file) => _DownloadFileRow(
+                          label: 'File đã nộp',
+                          tenFile: file.tenHienThi,
+                          color: Colors.green,
+                          onTap: () => taiFileVeMay(
+                            context,
+                            duongDan: file.duongDanFile,
+                            tenFile: file.tenHienThi,
+                          ),
+                        ),
                       ),
                     if (!bt.laQuiz && bt.diem != null)
                       _InfoRow(
@@ -489,6 +535,60 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DownloadFileRow extends StatelessWidget {
+  final String label;
+  final String tenFile;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DownloadFileRow({
+    required this.label,
+    required this.tenFile,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.download_rounded, size: 18, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(tenFile, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontWeight: FontWeight.w900, height: 1.25)),
+                  ],
+                ),
+              ),
+              Icon(Icons.download_for_offline_outlined, color: color),
+            ],
+          ),
+        ),
       ),
     );
   }

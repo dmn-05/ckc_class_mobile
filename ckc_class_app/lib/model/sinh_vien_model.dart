@@ -270,33 +270,94 @@ class TaiLieuSVModel {
 }
 
 // ─── THÔNG BÁO (góc nhìn sinh viên) ──────────────────────────
+class ThongBaoFileSVModel {
+  final int id;
+  final String tenFile;
+  final String duongDan;
+  final String? loaiFile;
+  final int kichThuoc;
+  final DateTime? ngayTao;
+
+  const ThongBaoFileSVModel({
+    required this.id,
+    required this.tenFile,
+    required this.duongDan,
+    this.loaiFile,
+    this.kichThuoc = 0,
+    this.ngayTao,
+  });
+
+  factory ThongBaoFileSVModel.fromJson(Map<String, dynamic> j) {
+    final duongDan =
+        _toStr(j['duong_dan']) ?? _toStr(j['duong_dan_file']) ?? '';
+    final tenFile =
+        _toStr(j['ten_file']) ??
+        _toStr(j['ten_file_goc']) ??
+        (duongDan.isEmpty
+            ? 'File đính kèm'
+            : duongDan.split('/').last.split('\\').last);
+
+    return ThongBaoFileSVModel(
+      id: _toInt(j['id']) ?? 0,
+      tenFile: tenFile,
+      duongDan: duongDan,
+      loaiFile: _toStr(j['loai_file']),
+      kichThuoc: _toInt(j['kich_thuoc']) ?? 0,
+      ngayTao: _toDateTime(j['ngay_tao']),
+    );
+  }
+
+  String get kichThuocHienThi {
+    if (kichThuoc <= 0) return '';
+    final kb = kichThuoc / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(kb < 100 ? 1 : 0)} KB';
+    final mb = kb / 1024;
+    return '${mb.toStringAsFixed(mb < 100 ? 1 : 0)} MB';
+  }
+}
+
 class ThongBaoSVModel {
   final int id;
+  final int? baiVietId;
   final String tieuDe;
   final String? noiDung;
   final String? tenNguoiTao;
   final DateTime? ngayTao;
   final DateTime? ngayCapNhat;
   final int soBinhLuan;
+  final List<ThongBaoFileSVModel> files;
 
   const ThongBaoSVModel({
     required this.id,
+    this.baiVietId,
     required this.tieuDe,
     this.noiDung,
     this.tenNguoiTao,
     this.ngayTao,
     this.ngayCapNhat,
     this.soBinhLuan = 0,
+    this.files = const [],
   });
 
   factory ThongBaoSVModel.fromJson(Map<String, dynamic> j) => ThongBaoSVModel(
     id: _toInt(j['id']) ?? 0,
+    baiVietId: _toInt(j['bai_viet_id']),
     tieuDe: j['tieu_de']?.toString() ?? '',
     noiDung: _toStr(j['noi_dung']),
     tenNguoiTao: _toStr(j['ten_nguoi_tao']),
     ngayTao: _toDateTime(j['ngay_tao']),
     ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
     soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
+    files: (j['files'] is List)
+        ? (j['files'] as List)
+              .map(
+                (e) => ThongBaoFileSVModel.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .where((e) => e.duongDan.trim().isNotEmpty)
+              .toList()
+        : const [],
   );
 }
 
@@ -353,6 +414,7 @@ class BaiTapSVModel {
   final String tieuDe;
   final String? moTa;
   final String? duongDanFile;
+  final String? fileName;
   final DateTime? hanNop;
   final String trangThai;
   final DateTime? ngayTao;
@@ -392,6 +454,7 @@ class BaiTapSVModel {
     required this.tieuDe,
     this.moTa,
     this.duongDanFile,
+    this.fileName,
     this.hanNop,
     this.trangThai = 'hien_thi',
     this.ngayTao,
@@ -425,13 +488,13 @@ class BaiTapSVModel {
     tieuDe: j['tieu_de']?.toString() ?? '',
     moTa: _toStr(j['mo_ta']),
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
+    fileName: _toStr(j['file_name']) ?? _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']),
     hanNop: _toDateTime(j['han_nop']),
     trangThai: _chuanHoaTrangThaiBaiTap(j['trang_thai']),
     ngayTao: _toDateTime(j['ngay_tao']),
     tenNguoiTao: _toStr(j['ten_nguoi_tao']),
     yeuCauNopFile: _toBool(j['yeu_cau_nop_file'], def: true),
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    // CSDL bai_nop hiện chỉ lưu một đường dẫn file cho mỗi bài nộp.
     soFileToiDa: 1,
     dungLuongToiDaMb: (_toInt(j['dung_luong_toi_da_mb']) ?? 25) <= 0
         ? 25

@@ -393,9 +393,17 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
     required ValueChanged<String?> onChanged,
     Map<String, String> labels = const {},
   }) {
+    final unique = <String>{
+      ...values.where((item) => item.trim().isNotEmpty),
+      if (value.trim().isNotEmpty) value,
+    }.toList();
+    unique.sort((a, b) => _soSanhGiaTriBoLoc(label, a, b));
+
     return DropdownButtonFormField<String>(
       value: value,
       isExpanded: true,
+      menuMaxHeight: 360,
+      borderRadius: BorderRadius.circular(18),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -408,20 +416,71 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _primary, width: 1.4),
+        ),
       ),
       items: [
-        DropdownMenuItem<String>(value: '', child: Text(allLabel)),
-        ...values.map(
+        DropdownMenuItem<String>(
+          value: '',
+          child: _dropdownItem(icon, allLabel, laTatCa: true),
+        ),
+        ...unique.map(
           (item) => DropdownMenuItem<String>(
             value: item,
-            child: Text(
-              labels[item] ?? item,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: _dropdownItem(icon, labels[item] ?? item),
           ),
         ),
       ],
       onChanged: onChanged,
+    );
+  }
+
+  int _soSanhGiaTriBoLoc(String label, String a, String b) {
+    if (label == 'Năm học') {
+      final namA = int.tryParse(a.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+      final namB = int.tryParse(b.split(RegExp(r'[-–]')).first.trim()) ?? 0;
+      return namB.compareTo(namA);
+    }
+    if (label == 'Học kỳ') {
+      final hkA = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+      final hkB = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 99;
+      return hkA.compareTo(hkB);
+    }
+    return a.compareTo(b);
+  }
+
+  Widget _dropdownItem(IconData icon, String text, {bool laTatCa = false}) {
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: laTatCa
+                ? const Color(0xFFF1F5F9)
+                : const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            laTatCa ? Icons.apps_rounded : icon,
+            size: 16,
+            color: laTatCa ? _muted : _primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _text,
+              fontWeight: laTatCa ? FontWeight.w700 : FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -680,38 +739,48 @@ class _TrangThaiThongBao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 54, color: const Color(0xFF94A3B8)),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - 48).clamp(0.0, double.infinity).toDouble(),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 54, color: const Color(0xFF94A3B8)),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: onPressed,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(buttonLabel),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onPressed,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(buttonLabel),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

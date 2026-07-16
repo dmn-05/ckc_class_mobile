@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../model/giang_vien_model.dart';
 import '../../widget/widget_chung_giangvien.dart';
+import '../../utils/file_download_helper.dart';
 
 class ChiTietBaiTapGiangVien extends StatelessWidget {
   final LopHocPhan lop;
@@ -221,14 +222,25 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
                 label: 'Người tạo',
                 value: baiTap.tenNguoiTao ?? 'Chưa cập nhật',
               ),
-              _InfoRow(
-                icon: Icons.attach_file_rounded,
-                label: 'File đính kèm',
-                value: (baiTap.duongDanFile == null || baiTap.duongDanFile!.trim().isEmpty)
-                    ? 'Không có file đính kèm'
-                    : baiTap.duongDanFile!,
-                color: const Color(0xFF0D9488),
-              ),
+              if (baiTap.duongDanFile == null || baiTap.duongDanFile!.trim().isEmpty)
+                const _InfoRow(
+                  icon: Icons.attach_file_rounded,
+                  label: 'File đính kèm',
+                  value: 'Không có file đính kèm',
+                  color: Color(0xFF0D9488),
+                )
+              else
+                _FileDownloadRow(
+                  tenFile: tenFileHienThi(
+                    tenFile: baiTap.fileName,
+                    duongDan: baiTap.duongDanFile,
+                  ),
+                  onTap: () => taiFileVeMay(
+                    context,
+                    duongDan: baiTap.duongDanFile!,
+                    tenFile: baiTap.fileName,
+                  ),
+                ),
               if (baiTap.laQuiz) ...[
                 _InfoRow(
                   icon: Icons.timer_rounded,
@@ -246,6 +258,52 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FileDownloadRow extends StatelessWidget {
+  final String tenFile;
+  final VoidCallback onTap;
+
+  const _FileDownloadRow({required this.tenFile, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D9488).withOpacity(.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.download_rounded, size: 18, color: Color(0xFF0D9488)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('File đính kèm', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(tenFile, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.download_for_offline_outlined, color: Color(0xFF0D9488)),
+            ],
+          ),
+        ),
       ),
     );
   }
