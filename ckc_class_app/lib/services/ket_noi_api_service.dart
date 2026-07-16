@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 class ApiService {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
+    defaultValue: 'https://ckcclassmobile-production.up.railway.app/backend',
   );
 
   static String get _baseUrl {
@@ -24,7 +25,6 @@ class ApiService {
     // Chạy app desktop Windows hoặc nền tảng khác trên cùng máy
     return 'http://localhost/backend';
   }
-
 
   String get baseUrl => _baseUrl;
 

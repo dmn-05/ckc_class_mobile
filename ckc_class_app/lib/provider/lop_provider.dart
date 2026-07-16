@@ -13,7 +13,7 @@ class LopProvider extends ChangeNotifier {
 
   String _tuKhoa = '';
   int _khoaId = 0;
-  String _khoaHoc = '';
+  int? _namNhapHoc;
   String _trangThai = '';
 
   List<Lop> get dsLop => _dsLop;
@@ -23,7 +23,7 @@ class LopProvider extends ChangeNotifier {
 
   String get tuKhoa => _tuKhoa;
   int get khoaId => _khoaId;
-  String get khoaHoc => _khoaHoc;
+  int? get namNhapHoc => _namNhapHoc;
   String get trangThai => _trangThai;
 
   bool get coDuLieu => _dsLop.isNotEmpty;
@@ -52,12 +52,12 @@ class LopProvider extends ChangeNotifier {
   Future<void> layDanhSachLop({
     String? tuKhoa,
     int? khoaId,
-    String? khoaHoc,
+    int? namNhapHoc,
     String? trangThai,
   }) async {
     if (tuKhoa != null) _tuKhoa = tuKhoa.trim();
     if (khoaId != null) _khoaId = khoaId;
-    if (khoaHoc != null) _khoaHoc = khoaHoc.trim();
+    if (namNhapHoc != null) _namNhapHoc = namNhapHoc <= 0 ? null : namNhapHoc;
     if (trangThai != null) _trangThai = trangThai.trim();
 
     _error = null;
@@ -67,7 +67,7 @@ class LopProvider extends ChangeNotifier {
       _dsLop = await _lopService.layDanhSachLop(
         tuKhoa: _tuKhoa,
         khoaId: _khoaId,
-        khoaHoc: _khoaHoc,
+        namNhapHoc: _namNhapHoc,
         trangThai: _trangThai,
       );
 
@@ -92,8 +92,8 @@ class LopProvider extends ChangeNotifier {
     await layDanhSachLop(khoaId: khoaId);
   }
 
-  Future<void> locTheoKhoaHoc(String khoaHoc) async {
-    await layDanhSachLop(khoaHoc: khoaHoc);
+  Future<void> locTheoNamNhapHoc(int? namNhapHoc) async {
+    await layDanhSachLop(namNhapHoc: namNhapHoc);
   }
 
   Future<void> locTheoTrangThai(String trangThai) async {
@@ -103,13 +103,13 @@ class LopProvider extends ChangeNotifier {
   Future<void> xoaBoLoc() async {
     _tuKhoa = '';
     _khoaId = 0;
-    _khoaHoc = '';
+    _namNhapHoc = null;
     _trangThai = '';
 
     await layDanhSachLop(
       tuKhoa: '',
       khoaId: 0,
-      khoaHoc: '',
+      namNhapHoc: 0,
       trangThai: '',
     );
   }
@@ -118,7 +118,7 @@ class LopProvider extends ChangeNotifier {
     required String maLop,
     required String tenLop,
     required int khoaId,
-    required String khoaHoc,
+    required int namNhapHoc,
     String trangThai = 'dang_hoc',
   }) async {
     _error = null;
@@ -129,7 +129,7 @@ class LopProvider extends ChangeNotifier {
         maLop: maLop,
         tenLop: tenLop,
         khoaId: khoaId,
-        khoaHoc: khoaHoc,
+        namNhapHoc: namNhapHoc,
         trangThai: trangThai,
       );
 
@@ -152,7 +152,7 @@ class LopProvider extends ChangeNotifier {
     required String maLop,
     required String tenLop,
     required int khoaId,
-    required String khoaHoc,
+    required int namNhapHoc,
     required String trangThai,
   }) async {
     _error = null;
@@ -164,7 +164,7 @@ class LopProvider extends ChangeNotifier {
         maLop: maLop,
         tenLop: tenLop,
         khoaId: khoaId,
-        khoaHoc: khoaHoc,
+        namNhapHoc: namNhapHoc,
         trangThai: trangThai,
       );
 

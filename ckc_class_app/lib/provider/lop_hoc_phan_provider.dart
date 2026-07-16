@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
+import '../utils/safe_change_notifier.dart';
 
 import '../services/lop_hoc_phan_service.dart';
 import '../model/lop_hoc_phan_model.dart';
 
-class LopHocPhanProvider extends ChangeNotifier {
+class LopHocPhanProvider extends SafeChangeNotifier {
   final LopHocPhanService _lopHocPhanService = LopHocPhanService();
 
   List<LopHocPhan> _dsLopHocPhan = [];
@@ -15,7 +15,7 @@ class LopHocPhanProvider extends ChangeNotifier {
   int _monHocId = 0;
   int _giangVienId = 0;
   String _hocKy = '';
-  String _khoaHoc = '';
+  String _namHoc = '';
   String _trangThai = '';
 
   List<LopHocPhan> get dsLopHocPhan => _dsLopHocPhan;
@@ -27,7 +27,7 @@ class LopHocPhanProvider extends ChangeNotifier {
   int get monHocId => _monHocId;
   int get giangVienId => _giangVienId;
   String get hocKy => _hocKy;
-  String get khoaHoc => _khoaHoc;
+  String get namHoc => _namHoc;
   String get trangThai => _trangThai;
 
   bool get coDuLieu => _dsLopHocPhan.isNotEmpty;
@@ -59,7 +59,7 @@ class LopHocPhanProvider extends ChangeNotifier {
     int? giangVienId,
     String? hocKy,
   
-    String? khoaHoc,
+    String? namHoc,
     String? trangThai,
   }) async {
     if (tuKhoa != null) _tuKhoa = tuKhoa.trim();
@@ -67,14 +67,7 @@ class LopHocPhanProvider extends ChangeNotifier {
     if (giangVienId != null) _giangVienId = giangVienId;
     
 
-    if (khoaHoc != null) {
-      final khoaHocCu = _khoaHoc;
-      _khoaHoc = khoaHoc.trim();
-
-      if (_khoaHoc.isEmpty || _khoaHoc != khoaHocCu) {
-        _hocKy = '';
-      }
-    }
+    if (namHoc != null) _namHoc = namHoc.trim();
 
     if (hocKy != null) _hocKy = hocKy.trim();
     if (trangThai != null) _trangThai = trangThai.trim();
@@ -89,7 +82,7 @@ class LopHocPhanProvider extends ChangeNotifier {
         giangVienId: _giangVienId,
         hocKy: _hocKy,
        
-        khoaHoc: _khoaHoc,
+        namHoc: _namHoc,
         trangThai: _trangThai,
       );
 
@@ -118,8 +111,8 @@ class LopHocPhanProvider extends ChangeNotifier {
     await layDanhSachLopHocPhan(giangVienId: giangVienId);
   }
 
-  Future<void> locTheoKhoaHoc(String khoaHoc) async {
-    await layDanhSachLopHocPhan(khoaHoc: khoaHoc, hocKy: '');
+  Future<void> locTheoNamHoc(String namHoc) async {
+    await layDanhSachLopHocPhan(namHoc: namHoc);
   }
 
   Future<void> locTheoHocKy(String hocKy) async {
@@ -137,7 +130,7 @@ class LopHocPhanProvider extends ChangeNotifier {
     _giangVienId = 0;
     _hocKy = '';
     
-    _khoaHoc = '';
+    _namHoc = '';
     _trangThai = '';
 
     await layDanhSachLopHocPhan(
@@ -146,7 +139,7 @@ class LopHocPhanProvider extends ChangeNotifier {
       giangVienId: 0,
       hocKy: '',
      
-      khoaHoc: '',
+      namHoc: '',
       trangThai: '',
     );
   }
@@ -157,8 +150,7 @@ class LopHocPhanProvider extends ChangeNotifier {
     required int monHocId,
     required int giangVienId,
     required String hocKy,
-    String namHoc = '',
-    required String khoaHoc,
+    required String namHoc,
     int? siSoToiDa,
     String trangThai = 'dang_mo',
     int lopId = 0,
@@ -173,7 +165,7 @@ class LopHocPhanProvider extends ChangeNotifier {
         monHocId: monHocId,
         giangVienId: giangVienId,
         hocKy: hocKy,
-        khoaHoc: khoaHoc,
+        namHoc: namHoc,
         siSoToiDa: siSoToiDa,
         trangThai: trangThai,
         lopId: lopId,
@@ -200,8 +192,7 @@ class LopHocPhanProvider extends ChangeNotifier {
     required int monHocId,
     required int giangVienId,
     required String hocKy,
-    String namHoc = '',
-    required String khoaHoc,
+    required String namHoc,
     int? siSoToiDa,
     required String trangThai,
   }) async {
@@ -217,7 +208,6 @@ class LopHocPhanProvider extends ChangeNotifier {
         giangVienId: giangVienId,
         hocKy: hocKy,
         namHoc: namHoc,
-        khoaHoc: khoaHoc,
         siSoToiDa: siSoToiDa,
         trangThai: trangThai,
       );

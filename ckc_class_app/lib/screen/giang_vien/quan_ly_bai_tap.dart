@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:ckc_class_app/screen/giang_vien/ket_qua_quiz_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/chi_tiet_bai_tap_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/tao_quiz_giang_vien.dart';
@@ -12,11 +11,15 @@ import '../../provider/giang_vien_provider.dart';
 import '../../provider/quiz_provider.dart';
 import '../../services/ket_noi_api_service.dart';
 import '../../widget/widget_chung_giangvien.dart';
+import '../../utils/modal_lifecycle.dart';
 
-
-String _gvFileBackendOrigin() => ApiService().origin;
 
 String _gvFileBackendBaseUrl() => ApiService().baseUrl;
+
+String _gvFileBackendOrigin() {
+  final uri = Uri.tryParse(_gvFileBackendBaseUrl());
+  return uri?.origin ?? '';
+}
 
 String _gvNormalizeFileUrl(String rawPath) {
   final raw = rawPath.trim().replaceAll('\\', '/');
@@ -34,17 +37,6 @@ String _gvFmtDiem(double value) {
   return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
 }
 
-String _gvB64Url(String value) {
-  return base64Url.encode(utf8.encode(value)).replaceAll('=', '');
-}
-
-String _gvDownloadProxyUrl({
-  required String url,
-  required String fileName,
-}) {
-  return '${_gvFileBackendBaseUrl()}/upload/tai_file.php?u=${_gvB64Url(url)}&f=${_gvB64Url(fileName)}';
-}
-
 Future<void> _gvMoFileBaiNop(BuildContext context, BaiNopFile file) async {
   final url = _gvNormalizeFileUrl(file.duongDanFile);
   if (url.isEmpty) {
@@ -52,12 +44,7 @@ Future<void> _gvMoFileBaiNop(BuildContext context, BaiNopFile file) async {
     return;
   }
 
-  final tenGoc = file.tenFileGoc?.trim();
-  final urlMo = (tenGoc != null && tenGoc.isNotEmpty)
-      ? _gvDownloadProxyUrl(url: url, fileName: tenGoc)
-      : url;
-
-  final uri = Uri.tryParse(urlMo);
+  final uri = Uri.tryParse(url);
   if (uri == null || !uri.hasScheme) {
     hienThiSnackBar(context, 'Đường dẫn file không hợp lệ', laThanh: false);
     return;
@@ -77,7 +64,12 @@ Future<void> _gvMoFileBaiNop(BuildContext context, BaiNopFile file) async {
 
 class QuanLyBaiTap extends StatefulWidget {
   final LopHocPhan lop;
-  const QuanLyBaiTap({super.key, required this.lop});
+  final bool chiDoc;
+  const QuanLyBaiTap({
+    super.key,
+    required this.lop,
+    this.chiDoc = false,
+  });
 
   @override
   State<QuanLyBaiTap> createState() => _QuanLyBaiTapState();
@@ -216,6 +208,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
               ),
             ],
           ),
+          if (!widget.chiDoc) ...[
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -284,6 +277,22 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
               ],
             ),
           ),
+          ] else ...[
+            const SizedBox(height: 10),
+            const Row(
+              children: [
+                Icon(Icons.visibility_rounded, size: 18, color: _muted),
+                SizedBox(width: 7),
+                Text(
+                  'Chế độ chỉ xem',
+                  style: TextStyle(
+                    color: _muted,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -404,7 +413,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                PopupMenuButton<String>(
+                if (!widget.chiDoc) PopupMenuButton<String>(
                   onSelected: (v) {
                     final cd = provider.dsChuDe.firstWhere(
                       (e) => e.tenChuDe == tenChuDe,
@@ -444,15 +453,23 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
         builder: (_) => ChiTietBaiTapGiangVien(
           lop: widget.lop,
           baiTap: bt,
-          onEdit: () async => _suaBaiTapHoacQuiz(provider, bt),
-          onDelete: () async => _xacNhanXoa(bt, provider),
+          onEdit: widget.chiDoc
+              ? null
+              : () async => _suaBaiTapHoacQuiz(provider, bt),
+          onDelete: widget.chiDoc
+              ? null
+              : () async => _xacNhanXoa(bt, provider),
           onViewSubmissions: () async {
             if (bt.laQuiz) {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
-                      KetQuaQuizGiangVien(baiTapId: bt.id, tieuDe: bt.tieuDe),
+                      KetQuaQuizGiangVien(
+                        baiTapId: bt.id,
+                        tieuDe: bt.tieuDe,
+                        chiDoc: widget.chiDoc,
+                      ),
                 ),
               );
             } else {
@@ -548,7 +565,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
+                  if (!widget.chiDoc) PopupMenuButton<String>(
                     tooltip: 'Tùy chọn',
                     color: Colors.white,
                     surfaceTintColor: Colors.white,
@@ -583,6 +600,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               builder: (_) => KetQuaQuizGiangVien(
                                 baiTapId: bt.id,
                                 tieuDe: bt.tieuDe,
+                                chiDoc: widget.chiDoc,
                               ),
                             ),
                           );
@@ -1103,7 +1121,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
     bool yeuCauNopFile = baiTap?.yeuCauNopFile ?? true;
     final Set<String> dinhDangDaChon = {...?baiTap?.dsDinhDangChoPhep};
-    int soFileToiDa = baiTap?.soFileToiDa ?? 1;
+    // Backend/CSDL hiện lưu một file duy nhất trong mỗi bản ghi bai_nop.
+    int soFileToiDa = 1;
     int dungLuongToiDaMb = baiTap?.dungLuongToiDaMb ?? 25;
     bool choPhepNopLai = baiTap?.choPhepNopLai ?? true;
     bool choPhepNopMuon = baiTap?.choPhepNopMuon ?? true;
@@ -1127,7 +1146,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
     DateTime? hanNop = baiTap?.hanNop;
     DateTime? thoiGianGui = baiTap?.thoiGianGui;
-    String trangThai = baiTap?.trangThai ?? 'dang_mo';
+    String trangThai = baiTap?.trangThai == 'an' ? 'an' : 'hien_thi';
     int? chuDeId = baiTap?.chuDeId;
     bool dangLuu = false;
 
@@ -1241,7 +1260,6 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       yeuCauNopFile: yeuCauNopFile,
                       dinhDangPhoBien: dinhDangPhoBien,
                       dinhDangDaChon: dinhDangDaChon,
-                      soFileToiDa: soFileToiDa,
                       dungLuongToiDaMb: dungLuongToiDaMb,
                       choPhepNopLai: choPhepNopLai,
                       choPhepNopMuon: choPhepNopMuon,
@@ -1257,7 +1275,6 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                           }
                         });
                       },
-                      onDoiSoFile: (v) => setS(() => soFileToiDa = v),
                       onDoiDungLuong: (v) => setS(() => dungLuongToiDaMb = v),
                       onDoiNopLai: (v) => setS(() => choPhepNopLai = v),
                       onDoiNopMuon: (v) => setS(() => choPhepNopMuon = v),
@@ -1291,13 +1308,13 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                                   const Duration(days: 365),
                                 ),
                               );
-                              if (ngay == null) return;
+                              if (ngay == null || !ctx.mounted) return;
 
                               final gio = await showTimePicker(
                                 context: ctx,
                                 initialTime: TimeOfDay.now(),
                               );
-                              if (gio == null) return;
+                              if (gio == null || !ctx.mounted) return;
 
                               setS(
                                 () => hanNop = DateTime(
@@ -1358,7 +1375,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                                       context: ctx,
                                       giaTriHienTai: thoiGianGui,
                                     );
-                                    if (picked == null) return;
+                                    if (picked == null || !ctx.mounted) return;
                                     setS(() => thoiGianGui = picked);
                                   },
                             child: Text(
@@ -1378,17 +1395,17 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       ),
                       items: const [
                         DropdownMenuItem(
-                          value: 'dang_mo',
+                          value: 'hien_thi',
                           child: Text('Đang mở'),
                         ),
                         DropdownMenuItem(
-                          value: 'da_dong',
+                          value: 'an',
                           child: Text('Đã đóng'),
                         ),
                       ],
                       onChanged: dangLuu
                           ? null
-                          : (v) => setS(() => trangThai = v ?? 'dang_mo'),
+                          : (v) => setS(() => trangThai = v ?? 'hien_thi'),
                     ),
                   ],
                 ),
@@ -1397,7 +1414,12 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
           ),
           actions: [
             TextButton(
-              onPressed: dangLuu ? null : () => Navigator.pop(ctx),
+              onPressed: dangLuu
+                  ? null
+                  : () {
+                      unfocusCurrentInput();
+                      Navigator.of(ctx, rootNavigator: true).pop();
+                    },
               child: const Text('Hủy'),
             ),
             ElevatedButton.icon(
@@ -1476,7 +1498,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       if (!mounted) return;
 
                       if (result['success'] == true) {
-                        Navigator.pop(ctx);
+                        unfocusCurrentInput();
+                        Navigator.of(ctx, rootNavigator: true).pop();
                         hienThiSnackBar(
                           context,
                           result['message'] ?? '',
@@ -1509,14 +1532,11 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
       ),
     );
 
-    // Không dispose controller ngay sau showDialog.
-    // Route dialog vẫn có thể render thêm vài frame khi đóng, nếu dispose sớm
-    // sẽ gây lỗi: A TextEditingController was used after being disposed.
-    Future.delayed(const Duration(milliseconds: 400), () {
-      tieuDeCtrl.dispose();
-      moTaCtrl.dispose();
-      diemToiDaCtrl.dispose();
-    });
+    await disposeControllersAfterModal([
+      tieuDeCtrl,
+      moTaCtrl,
+      diemToiDaCtrl,
+    ]);
   }
 
   Future<void> _hienThiFormChuDe(
@@ -1528,6 +1548,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: Text(chuDe == null ? 'Thêm chủ đề' : 'Sửa chủ đề'),
@@ -1542,7 +1563,12 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
           ),
           actions: [
             TextButton(
-              onPressed: dangLuu ? null : () => Navigator.pop(ctx),
+              onPressed: dangLuu
+                  ? null
+                  : () {
+                      unfocusCurrentInput();
+                      Navigator.of(ctx, rootNavigator: true).pop();
+                    },
               child: const Text('Hủy'),
             ),
             ElevatedButton.icon(
@@ -1603,6 +1629,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
         ),
       ),
     );
+
+    await disposeControllersAfterModal([ctrl]);
   }
 
   Future<void> _xacNhanXoaChuDe(GiangVienProvider provider, ChuDe chuDe) async {
@@ -1742,7 +1770,6 @@ class _CaiDatNopBaiBox extends StatelessWidget {
   final bool yeuCauNopFile;
   final List<String> dinhDangPhoBien;
   final Set<String> dinhDangDaChon;
-  final int soFileToiDa;
   final int dungLuongToiDaMb;
   final bool choPhepNopLai;
   final bool choPhepNopMuon;
@@ -1750,7 +1777,6 @@ class _CaiDatNopBaiBox extends StatelessWidget {
   final bool dangLuu;
   final ValueChanged<bool> onDoiYeuCauNopFile;
   final void Function(String ext, bool selected) onToggleDinhDang;
-  final ValueChanged<int> onDoiSoFile;
   final ValueChanged<int> onDoiDungLuong;
   final ValueChanged<bool> onDoiNopLai;
   final ValueChanged<bool> onDoiNopMuon;
@@ -1759,7 +1785,6 @@ class _CaiDatNopBaiBox extends StatelessWidget {
     required this.yeuCauNopFile,
     required this.dinhDangPhoBien,
     required this.dinhDangDaChon,
-    required this.soFileToiDa,
     required this.dungLuongToiDaMb,
     required this.choPhepNopLai,
     required this.choPhepNopMuon,
@@ -1767,7 +1792,6 @@ class _CaiDatNopBaiBox extends StatelessWidget {
     required this.dangLuu,
     required this.onDoiYeuCauNopFile,
     required this.onToggleDinhDang,
-    required this.onDoiSoFile,
     required this.onDoiDungLuong,
     required this.onDoiNopLai,
     required this.onDoiNopMuon,
@@ -1850,33 +1874,18 @@ class _CaiDatNopBaiBox extends StatelessWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final soFileDropdown = DropdownButtonFormField<int>(
-                  value: soFileToiDa.clamp(1, 10).toInt(),
+                  value: 1,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Số file',
+                    helperText: 'Phiên bản hiện tại hỗ trợ 1 file cho mỗi bài nộp',
                     prefixIcon: Icon(Icons.file_copy_rounded),
                     border: OutlineInputBorder(),
                   ),
-                  selectedItemBuilder: (_) => List.generate(
-                    10,
-                    (i) => Text(
-                      '${i + 1} file',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  items: List.generate(
-                    10,
-                    (i) => DropdownMenuItem(
-                      value: i + 1,
-                      child: Text(
-                        '${i + 1} file',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  onChanged: dangLuu ? null : (v) => onDoiSoFile(v ?? 1),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('1 file')),
+                  ],
+                  onChanged: null,
                 );
 
                 final dungLuongDropdown = DropdownButtonFormField<int>(
@@ -2404,12 +2413,18 @@ class _BaiNopSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _hienThiChamDiem(context, bn, provider),
+                onPressed: widget.chiDoc
+                    ? null
+                    : () => _hienThiChamDiem(context, bn, provider),
                 icon: Icon(
                   bn.daDuocCham ? Icons.edit : Icons.grading,
                   size: 16,
                 ),
-                label: Text(bn.daDuocCham ? 'Chỉnh sửa điểm' : 'Chấm điểm'),
+                label: Text(
+                  widget.chiDoc
+                      ? 'Lớp đã lưu · Chỉ xem'
+                      : (bn.daDuocCham ? 'Chỉnh sửa điểm' : 'Chấm điểm'),
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                 ),
@@ -2433,6 +2448,7 @@ class _BaiNopSheet extends StatelessWidget {
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: Text('Chấm điểm: ${bn.tenSinhVien}'),
@@ -2474,7 +2490,12 @@ class _BaiNopSheet extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: dangLuu ? null : () => Navigator.pop(ctx),
+              onPressed: dangLuu
+                  ? null
+                  : () {
+                      unfocusCurrentInput();
+                      Navigator.of(ctx, rootNavigator: true).pop();
+                    },
               child: const Text('Hủy'),
             ),
             ElevatedButton.icon(
@@ -2491,9 +2512,12 @@ class _BaiNopSheet extends StatelessWidget {
                         diem: diem,
                         nhanXet: nhanXetCtrl.text,
                       );
+                      if (!ctx.mounted) return;
                       setS(() => dangLuu = false);
+                      unfocusCurrentInput();
+                      Navigator.of(ctx, rootNavigator: true).pop();
+
                       if (!context.mounted) return;
-                      Navigator.pop(ctx);
                       hienThiSnackBar(
                         context,
                         result['message'] ?? '',
@@ -2517,11 +2541,10 @@ class _BaiNopSheet extends StatelessWidget {
       ),
     );
 
-    // Trì hoãn dispose để tránh dialog còn render trong lúc animation đóng.
-    Future.delayed(const Duration(milliseconds: 400), () {
-      diemCtrl.dispose();
-      nhanXetCtrl.dispose();
-    });
+    await disposeControllersAfterModal([
+      diemCtrl,
+      nhanXetCtrl,
+    ]);
   }
 }
 

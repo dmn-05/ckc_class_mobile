@@ -43,7 +43,7 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
-          PopupMenuButton<String>(
+          if (onEdit != null || onDelete != null) PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'sua') {
                 await onEdit?.call();
@@ -120,9 +120,9 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
                 color: guiColor,
               ),
               _InfoChip(
-                icon: baiTap.trangThai == 'dang_mo' ? Icons.lock_open_rounded : Icons.lock_rounded,
-                text: baiTap.trangThai == 'dang_mo' ? 'Đang mở' : baiTap.trangThai,
-                color: baiTap.trangThai == 'dang_mo' ? const Color(0xFF16A34A) : _muted,
+                icon: baiTap.isDangMo ? Icons.lock_open_rounded : Icons.lock_rounded,
+                text: baiTap.tenTrangThai,
+                color: baiTap.isDangMo ? const Color(0xFF16A34A) : _muted,
               ),
             ],
           ),

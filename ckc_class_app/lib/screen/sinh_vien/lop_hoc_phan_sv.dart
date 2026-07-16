@@ -8,7 +8,9 @@ import '../../widget/widget_sinhvien.dart';
 import 'chi_tiet_lop_sv.dart';
 
 class LopHocPhanSV extends StatefulWidget {
-  const LopHocPhanSV({super.key});
+  final bool chiLuuTru;
+
+  const LopHocPhanSV({super.key, this.chiLuuTru = false});
 
   @override
   State<LopHocPhanSV> createState() => _LopHocPhanSVState();
@@ -62,7 +64,7 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
         return;
       }
 
-      await provider.layDanhSachLop();
+      await provider.layDanhSachLop(trangThai: '');
     });
   }
 
@@ -78,9 +80,9 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text(
-          'Lớp học phần',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        title: Text(
+          widget.chiLuuTru ? 'Lưu trữ' : 'Lớp học phần',
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         centerTitle: true,
         backgroundColor: _bg,
@@ -111,9 +113,8 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
 
   int _demBoLoc(SinhVienProvider provider) {
     var count = 0;
-    if (provider.lopKhoaHoc.isNotEmpty) count++;
+    if (provider.lopNamHoc.isNotEmpty) count++;
     if (provider.lopHocKy.isNotEmpty) count++;
-    if (provider.lopTrangThai.isNotEmpty) count++;
     return count;
   }
 
@@ -285,7 +286,7 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
   }
 
   Widget _buildNoiDungBoLoc(SinhVienProvider provider, bool dangCoBoLoc) {
-    final dsKhoaHoc = [...provider.dsKhoaHocLop];
+    final dsNamHoc = [...provider.dsNamHocLop];
     final dsHocKy = [...provider.dsHocKyLop];
 
     return Padding(
@@ -295,43 +296,23 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
           const Divider(height: 1),
           const SizedBox(height: 14),
           _dropdown(
-            value: provider.lopKhoaHoc,
-            label: 'Khóa học',
+            value: provider.lopNamHoc,
+            label: 'Năm học',
             icon: Icons.school_outlined,
-            allLabel: 'Tất cả khóa học',
-            values: dsKhoaHoc,
-            onChanged: (v) => provider.layDanhSachLop(khoaHoc: v ?? ''),
+            allLabel: 'Tất cả năm học',
+            values: dsNamHoc,
+            onChanged: (v) => provider.layDanhSachLop(namHoc: v ?? ''),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _dropdown(
-                  value: provider.lopHocKy,
-                  label: 'Học kỳ',
-                  icon: Icons.calendar_month_rounded,
-                  allLabel: 'Tất cả học kỳ',
-                  values: dsHocKy.isEmpty ? const ['HK1', 'HK2', 'HK3', 'HK4', 'HK5', 'HK6'] : dsHocKy,
-                  onChanged: (v) => provider.layDanhSachLop(hocKy: v ?? ''),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _dropdown(
-                  value: provider.lopTrangThai,
-                  label: 'Trạng thái',
-                  icon: Icons.toggle_on_outlined,
-                  allLabel: 'Tất cả',
-                  values: const ['dang_hoc', 'hoan_thanh', 'da_huy'],
-                  labels: const {
-                    'dang_hoc': 'Đang học',
-                    'hoan_thanh': 'Hoàn thành',
-                    'da_huy': 'Đã hủy',
-                  },
-                  onChanged: (v) => provider.layDanhSachLop(trangThai: v ?? ''),
-                ),
-              ),
-            ],
+          _dropdown(
+            value: provider.lopHocKy,
+            label: 'Học kỳ',
+            icon: Icons.calendar_month_rounded,
+            allLabel: 'Tất cả học kỳ',
+            values: dsHocKy.isEmpty
+                ? const ['HK1', 'HK2', 'HK3', 'HK4', 'HK5', 'HK6']
+                : dsHocKy,
+            onChanged: (v) => provider.layDanhSachLop(hocKy: v ?? ''),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -408,6 +389,9 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
   }
 
   Widget _buildDanhSach(SinhVienProvider provider) {
+    final danhSach = provider.dsLop
+        .where((lop) => lop.isDaLuu == widget.chiLuuTru)
+        .toList();
     if (provider.lopLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -417,10 +401,12 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
         onTaiLai: provider.layDanhSachLop,
       );
     }
-    if (provider.dsLop.isEmpty) {
-      return const TrangRong(
-        thongDiep: 'Bạn chưa đăng ký lớp học phần nào',
-        icon: Icons.class_outlined,
+    if (danhSach.isEmpty) {
+      return TrangRong(
+        thongDiep: widget.chiLuuTru
+            ? 'Chưa có lớp học phần đã lưu'
+            : 'Bạn chưa có lớp học phần đang hoạt động',
+        icon: widget.chiLuuTru ? Icons.archive_outlined : Icons.class_outlined,
       );
     }
 
@@ -428,17 +414,17 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
       onRefresh: provider.layDanhSachLop,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        itemCount: provider.dsLop.length + 1,
+        itemCount: danhSach.length + 1,
         itemBuilder: (_, i) {
           if (i == 0) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Danh sách lớp',
-                      style: TextStyle(
+                      widget.chiLuuTru ? 'Lớp đã lưu' : 'Danh sách lớp',
+                      style: const TextStyle(
                         color: _text,
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
@@ -455,7 +441,7 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '${provider.dsLop.length} lớp',
+                      '${danhSach.length} lớp',
                       style: const TextStyle(
                         color: _primary,
                         fontWeight: FontWeight.w800,
@@ -468,7 +454,7 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
             );
           }
 
-          return _buildTheLop(provider.dsLop[i - 1] as LopHocPhanSVModel);
+          return _buildTheLop(danhSach[i - 1]);
         },
       ),
     );
@@ -548,6 +534,18 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
                                   icon: Icons.calendar_month_rounded,
                                   label: lop.hocKy!,
                                   color: _primary,
+                                ),
+                              if (lop.namHoc != null)
+                                _InfoPill(
+                                  icon: Icons.date_range_rounded,
+                                  label: lop.namHoc!,
+                                  color: const Color(0xFF7C3AED),
+                                ),
+                              if (lop.isDaLuu)
+                                const _InfoPill(
+                                  icon: Icons.archive_outlined,
+                                  label: 'Chỉ xem',
+                                  color: Color(0xFF64748B),
                                 ),
                               _InfoPill(
                                 icon: Icons.badge_rounded,

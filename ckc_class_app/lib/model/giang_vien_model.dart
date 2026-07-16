@@ -17,6 +17,19 @@ String? _toStr(dynamic v) {
   return (s.isEmpty || s.toLowerCase() == 'null') ? null : s;
 }
 
+String _chuanHoaTrangThaiBaiTap(dynamic value) {
+  switch (value?.toString().trim()) {
+    case 'dang_mo':
+    case 'hien_thi':
+      return 'hien_thi';
+    case 'da_dong':
+    case 'an':
+      return 'an';
+    default:
+      return 'hien_thi';
+  }
+}
+
 // ─── LỚP HỌC PHẦN ────────────────────────────────────────
 class LopHocPhan {
   final int id;
@@ -24,7 +37,6 @@ class LopHocPhan {
   final String? tenLop;
   final String? hocKy;
   final String? namHoc;
-  final String? khoaHoc;
   final int? siSoToiDa;
   final String trangThai;
   final DateTime? ngayTao;
@@ -43,7 +55,6 @@ class LopHocPhan {
     this.tenLop,
     this.hocKy,
     this.namHoc,
-    this.khoaHoc,
     this.siSoToiDa,
     this.trangThai = 'dang_mo',
     this.ngayTao,
@@ -63,7 +74,6 @@ class LopHocPhan {
     tenLop: _toStr(j['ten_lop']),
     hocKy: _toStr(j['hoc_ky']),
     namHoc: _toStr(j['nam_hoc']),
-    khoaHoc: _toStr(j['khoa_hoc']),
     siSoToiDa: _toInt(j['si_so_toi_da']),
     trangThai: j['trang_thai']?.toString() ?? 'dang_mo',
     ngayTao: _toDateTime(j['ngay_tao']),
@@ -79,6 +89,8 @@ class LopHocPhan {
 
   bool get isDangMo => trangThai == 'dang_mo' || trangThai == 'hien_thi';
   bool get isDaKhoa => trangThai == 'da_khoa';
+  bool get isDaKetThuc => trangThai == 'da_ket_thuc';
+  bool get isDaLuu => isDaKhoa || isDaKetThuc;
 
   String get tenTrangThai => switch (trangThai) {
     'dang_mo' => 'Đang mở',
@@ -88,7 +100,7 @@ class LopHocPhan {
   };
 
   String get tenHienThi => tenLop ?? maLopHocPhan;
-  String get khoaHocHienThi => khoaHoc ?? namHoc ?? 'Chưa cập nhật';
+  String get namHocHienThi => namHoc ?? 'Chưa cập nhật';
 }
 
 // ─── SINH VIÊN TRONG LỚP ─────────────────────────────────
@@ -278,7 +290,7 @@ class BaiTap {
     required this.lopHocPhanId,
     required this.nguoiTaoId,
     this.tenNguoiTao,
-    this.trangThai = 'dang_mo',
+    this.trangThai = 'hien_thi',
     this.ngayTao,
     this.ngayCapNhat,
     this.soBaiNop = 0,
@@ -304,7 +316,8 @@ class BaiTap {
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
     yeuCauNopFile: (_toInt(j['yeu_cau_nop_file']) ?? 1) == 1,
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    soFileToiDa: _toInt(j['so_file_toi_da']) ?? 1,
+    // CSDL bai_nop hiện chỉ lưu một đường dẫn file cho mỗi bài nộp.
+    soFileToiDa: 1,
     dungLuongToiDaMb: _toInt(j['dung_luong_toi_da_mb']) ?? 25,
     choPhepNopLai: (_toInt(j['cho_phep_nop_lai']) ?? 1) == 1,
     choPhepNopMuon: (_toInt(j['cho_phep_nop_muon']) ?? 1) == 1,
@@ -313,7 +326,7 @@ class BaiTap {
     lopHocPhanId: _toInt(j['lop_hoc_phan_id']) ?? 0,
     nguoiTaoId: _toInt(j['nguoi_tao_id']) ?? 0,
     tenNguoiTao: _toStr(j['ten_nguoi_tao']),
-    trangThai: j['trang_thai']?.toString() ?? 'dang_mo',
+    trangThai: _chuanHoaTrangThaiBaiTap(j['trang_thai']),
     ngayTao: _toDateTime(j['ngay_tao']),
     ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
     soBaiNop: _toInt(j['so_bai_nop']) ?? 0,
@@ -332,7 +345,15 @@ class BaiTap {
     thoiGianGui: _toDateTime(j['thoi_gian_gui']),
   );
 
-  bool get isDangMo => trangThai == 'dang_mo' || trangThai == 'hien_thi';
+  bool get isDangMo => trangThai == 'hien_thi';
+  bool get isDaDong => trangThai == 'an';
+
+  String get tenTrangThai => switch (trangThai) {
+    'hien_thi' => 'Đang mở',
+    'an' => 'Đã đóng',
+    _ => trangThai,
+  };
+
   //thêm mới
   bool get laQuiz => loaiBaiTap == 'quiz';
   bool get laNopFile => loaiBaiTap == 'nop_file';
@@ -513,46 +534,6 @@ class BaiNop {
   };
 }
 
-
-class ThongBaoFile {
-  final int id;
-  final String tenFile;
-  final String duongDan;
-  final String? loaiFile;
-  final int kichThuoc;
-  final DateTime? ngayTao;
-
-  const ThongBaoFile({
-    required this.id,
-    required this.tenFile,
-    required this.duongDan,
-    this.loaiFile,
-    this.kichThuoc = 0,
-    this.ngayTao,
-  });
-
-  factory ThongBaoFile.fromJson(Map<String, dynamic> j) {
-    final url = _toStr(j['duong_dan_file']) ?? _toStr(j['duong_dan']) ?? _toStr(j['url']) ?? '';
-    final name = _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']) ?? (url.isEmpty ? 'File đính kèm' : url.split('/').last.split('\\').last);
-    return ThongBaoFile(
-      id: _toInt(j['id']) ?? 0,
-      tenFile: name,
-      duongDan: url,
-      loaiFile: _toStr(j['loai_file']),
-      kichThuoc: _toInt(j['kich_thuoc']) ?? 0,
-      ngayTao: _toDateTime(j['ngay_tao']),
-    );
-  }
-
-  String get kichThuocHienThi {
-    if (kichThuoc <= 0) return '';
-    final kb = kichThuoc / 1024;
-    if (kb < 1024) return '${kb.toStringAsFixed(kb < 100 ? 1 : 0)} KB';
-    final mb = kb / 1024;
-    return '${mb.toStringAsFixed(mb < 100 ? 1 : 0)} MB';
-  }
-}
-
 // ─── THÔNG BÁO ────────────────────────────────────────────
 class ThongBao {
   final int id;
@@ -566,8 +547,6 @@ class ThongBao {
   final DateTime? ngayCapNhat;
   final int soBinhLuan;
   final DateTime? thoiGianGui;
-  final int? baiVietId;
-  final List<ThongBaoFile> files;
 
   const ThongBao({
     required this.id,
@@ -581,31 +560,21 @@ class ThongBao {
     this.ngayCapNhat,
     this.soBinhLuan = 0,
     this.thoiGianGui,
-    this.baiVietId,
-    this.files = const [],
   });
 
-  factory ThongBao.fromJson(Map<String, dynamic> j) {
-    final rawFiles = j['files'];
-    final dsFiles = rawFiles is List
-        ? rawFiles.map((e) => ThongBaoFile.fromJson(Map<String, dynamic>.from(e))).toList()
-        : <ThongBaoFile>[];
-    return ThongBao(
-      id: _toInt(j['id']) ?? 0,
-      tieuDe: j['tieu_de']?.toString() ?? '',
-      noiDung: _toStr(j['noi_dung']),
-      lopHocPhanId: _toInt(j['lop_hoc_phan_id']) ?? 0,
-      nguoiTaoId: _toInt(j['nguoi_tao_id']) ?? 0,
-      tenNguoiTao: _toStr(j['ten_nguoi_tao']),
-      trangThai: j['trang_thai']?.toString() ?? 'hien_thi',
-      ngayTao: _toDateTime(j['ngay_tao']),
-      ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
-      soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
-      thoiGianGui: _toDateTime(j['thoi_gian_gui']),
-      baiVietId: _toInt(j['bai_viet_id']),
-      files: dsFiles,
-    );
-  }
+  factory ThongBao.fromJson(Map<String, dynamic> j) => ThongBao(
+    id: _toInt(j['id']) ?? 0,
+    tieuDe: j['tieu_de']?.toString() ?? '',
+    noiDung: _toStr(j['noi_dung']),
+    lopHocPhanId: _toInt(j['lop_hoc_phan_id']) ?? 0,
+    nguoiTaoId: _toInt(j['nguoi_tao_id']) ?? 0,
+    tenNguoiTao: _toStr(j['ten_nguoi_tao']),
+    trangThai: j['trang_thai']?.toString() ?? 'hien_thi',
+    ngayTao: _toDateTime(j['ngay_tao']),
+    ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
+    soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
+    thoiGianGui: _toDateTime(j['thoi_gian_gui']),
+  );
 
   bool get isHienThi => trangThai == 'hien_thi';
   bool get daHenGio {

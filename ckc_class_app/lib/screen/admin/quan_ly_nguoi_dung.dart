@@ -959,18 +959,62 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
     return const SizedBox.shrink();
   }
 
+  Widget _dongThongTinNguoiDung(String label, String value) {
+    final text = value.trim().isEmpty ? 'Chưa cập nhật' : value.trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: RichText(
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: DefaultTextStyle.of(
+            context,
+          ).style.copyWith(fontSize: 13.5, color: Colors.black87),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+            ),
+            TextSpan(text: text),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTrangThaiChip(NguoiDung nguoiDung) {
     final color = _mauTrangThai(nguoiDung.trangThai);
 
-    return Chip(
-      label: Text(nguoiDung.tenTrangThai, style: TextStyle(color: color)),
-      avatar: Icon(
-        nguoiDung.isHoatDong ? Icons.check_circle : Icons.lock,
-        color: color,
-        size: 18,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      side: BorderSide(color: color.withValues(alpha: 0.35)),
-      backgroundColor: color.withValues(alpha: 0.08),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            nguoiDung.isHoatDong ? Icons.check_circle : Icons.lock,
+            color: color,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            nguoiDung.tenTrangThai,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1010,71 +1054,109 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
             final nguoiDung = provider.dsNguoiDung[index];
             final tenVaiTro = nguoiDung.tenVaiTro ?? '';
 
+            String maLabel = '';
             String maLienKet = '';
 
             if (nguoiDung.maGiangVien != null &&
                 nguoiDung.maGiangVien!.isNotEmpty) {
-              maLienKet = 'Mã giảng viên: ${nguoiDung.maGiangVien}';
+              maLabel = 'Mã giảng viên';
+              maLienKet = nguoiDung.maGiangVien!;
             } else if (nguoiDung.maSinhVien != null &&
                 nguoiDung.maSinhVien!.isNotEmpty) {
-              maLienKet = 'Mã sinh viên: ${nguoiDung.maSinhVien}';
+              maLabel = 'Mã sinh viên';
+              maLienKet = nguoiDung.maSinhVien!;
             }
 
             return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: CircleAvatar(child: Icon(_iconVaiTro(tenVaiTro))),
-                title: Text(
-                  nguoiDung.hoTen,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Email: ${nguoiDung.email}'),
-                      const SizedBox(height: 4),
-                      Text('Vai trò: ${nguoiDung.tenVaiTroHienThi}'),
-                      if (maLienKet.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(maLienKet),
-                      ],
-                      const SizedBox(height: 4),
-                      Text('Ngày tạo: ${_dinhDangNgay(nguoiDung.ngayTao)}'),
-                      const SizedBox(height: 6),
-                      _buildTrangThaiChip(nguoiDung),
-                    ],
-                  ),
-                ),
-                trailing: Wrap(
-                  spacing: 2,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      tooltip: 'Xem chi tiết',
-                      icon: const Icon(Icons.info_outline),
-                      onPressed: () {
-                        _hienThiChiTietNguoiDung(nguoiDung);
-                      },
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          child: Icon(_iconVaiTro(tenVaiTro), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            nguoiDung.hoTen,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      tooltip: 'Cập nhật',
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        _hienThiFormNguoiDung(nguoiDung: nguoiDung);
-                      },
+                    const SizedBox(height: 8),
+                    _dongThongTinNguoiDung('Email', nguoiDung.email),
+                    _dongThongTinNguoiDung(
+                      'Vai trò',
+                      nguoiDung.tenVaiTroHienThi,
                     ),
-                    IconButton(
-                      tooltip: nguoiDung.isHoatDong
-                          ? 'Khóa tài khoản'
-                          : 'Tài khoản đã bị khóa',
-                      icon: Icon(
-                        Icons.lock,
-                        color: nguoiDung.isHoatDong ? Colors.red : Colors.grey,
-                      ),
-                      onPressed: nguoiDung.isHoatDong
-                          ? () => _xacNhanKhoa(nguoiDung)
-                          : null,
+                    if (maLienKet.isNotEmpty)
+                      _dongThongTinNguoiDung(maLabel, maLienKet),
+                    _dongThongTinNguoiDung(
+                      'Ngày tạo',
+                      _dinhDangNgay(nguoiDung.ngayTao),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildTrangThaiChip(nguoiDung),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Xem chi tiết',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          icon: const Icon(Icons.info_outline, size: 22),
+                          onPressed: () {
+                            _hienThiChiTietNguoiDung(nguoiDung);
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'Cập nhật',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          icon: const Icon(Icons.edit, size: 22),
+                          onPressed: () {
+                            _hienThiFormNguoiDung(nguoiDung: nguoiDung);
+                          },
+                        ),
+                        IconButton(
+                          tooltip: nguoiDung.isHoatDong
+                              ? 'Khóa tài khoản'
+                              : 'Tài khoản đã bị khóa',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          icon: Icon(
+                            Icons.lock,
+                            size: 22,
+                            color: nguoiDung.isHoatDong
+                                ? Colors.red
+                                : Colors.grey,
+                          ),
+                          onPressed: nguoiDung.isHoatDong
+                              ? () => _xacNhanKhoa(nguoiDung)
+                              : null,
+                        ),
+                      ],
                     ),
                   ],
                 ),

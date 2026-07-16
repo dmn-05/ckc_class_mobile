@@ -2,6 +2,7 @@ import 'package:ckc_class_app/provider/sinh_vien_lop_provider.dart';
 import 'package:ckc_class_app/screen/admin/quan_ly_lop/sinh_vien_lop_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../utils/modal_lifecycle.dart';
 
 import '../../../model/khoa_bo_mon_model.dart';
 import '../../../model/lop_model.dart';
@@ -133,32 +134,11 @@ class _QuanLyLopState extends State<QuanLyLop> {
     return text.substring(0, 1).toUpperCase();
   }
 
-  String _khoaHocMacDinh() {
+  int _namNhapHocMacDinh() => DateTime.now().year;
+
+  List<int> _taoDanhSachNamNhapHoc() {
     final namHienTai = DateTime.now().year;
-    return '$namHienTai-${namHienTai + 3}';
-  }
-
-  List<String> _taoDanhSachKhoaHoc() {
-    final namHienTai = DateTime.now().year;
-    final namBatDau = namHienTai - 5;
-
-    return List.generate(11, (index) {
-      final start = namBatDau + index;
-      return '$start-${start + 3}';
-    });
-  }
-
-  bool _khoaHocHopLe(String value) {
-    final text = value.trim();
-    final regex = RegExp(r'^\d{4}-\d{4}$');
-
-    if (!regex.hasMatch(text)) return false;
-
-    final parts = text.split('-');
-    final start = int.tryParse(parts[0]);
-    final end = int.tryParse(parts[1]);
-
-    return start != null && end != null && end - start == 3;
+    return List.generate(11, (index) => namHienTai - 7 + index);
   }
 
   Future<void> _hienThiChiTietLop(Lop lop) async {
@@ -177,7 +157,7 @@ class _QuanLyLopState extends State<QuanLyLop> {
                   _dongChiTiet('ID', lop.id),
                   _dongChiTiet('Mã lớp', lop.maLop),
                   _dongChiTiet('Tên lớp', lop.tenLop),
-                  _dongChiTiet('Khóa học', lop.khoaHocHienThi),
+                  _dongChiTiet('Năm nhập học', lop.namNhapHocHienThi),
                   _dongChiTiet('Trạng thái', lop.tenTrangThai),
                   _dongChiTiet('Số sinh viên', lop.soLuongSinhVien),
                   _dongChiTiet('Ngày tạo', _dinhDangNgay(lop.ngayTao)),
@@ -218,13 +198,10 @@ class _QuanLyLopState extends State<QuanLyLop> {
 
     final tenLopController = TextEditingController(text: lop?.tenLop ?? '');
 
-    String khoaHoc = lop?.khoaHoc.isNotEmpty == true
-        ? lop!.khoaHoc
-        : _khoaHocMacDinh();
-
-    final dsKhoaHocForm = _taoDanhSachKhoaHoc();
-    if (!dsKhoaHocForm.contains(khoaHoc)) {
-      dsKhoaHocForm.insert(0, khoaHoc);
+    int namNhapHoc = lop?.namNhapHoc ?? _namNhapHocMacDinh();
+    final dsNamNhapHocForm = _taoDanhSachNamNhapHoc();
+    if (!dsNamNhapHocForm.contains(namNhapHoc)) {
+      dsNamNhapHocForm.insert(0, namNhapHoc);
     }
 
     int khoaId = lop?.khoaId ?? dsKhoaDangHoatDong.first.id;
@@ -296,36 +273,29 @@ class _QuanLyLopState extends State<QuanLyLop> {
                           },
                         ),
                         const SizedBox(height: 14),
-                        DropdownButtonFormField<String>(
-                          value: khoaHoc,
+                        DropdownButtonFormField<int>(
+                          value: namNhapHoc,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Khóa học',
+                            labelText: 'Năm nhập học',
                             prefixIcon: Icon(Icons.date_range),
                             border: OutlineInputBorder(),
                           ),
-                          items: dsKhoaHocForm.map((item) {
-                            return DropdownMenuItem<String>(
+                          items: dsNamNhapHocForm.map((item) {
+                            return DropdownMenuItem<int>(
                               value: item,
-                              child: Text('Khóa $item'),
+                              child: Text('Năm $item'),
                             );
                           }).toList(),
                           onChanged: dangLuu
                               ? null
                               : (value) {
                                   if (value == null) return;
-
-                                  setDialogState(() {
-                                    khoaHoc = value;
-                                  });
+                                  setDialogState(() => namNhapHoc = value);
                                 },
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Vui lòng chọn khóa học';
-                            }
-
-                            return null;
-                          },
+                          validator: (value) => value == null
+                              ? 'Vui lòng chọn năm nhập học'
+                              : null,
                         ),
                         const SizedBox(height: 14),
                         DropdownButtonFormField<int>(
@@ -400,7 +370,8 @@ class _QuanLyLopState extends State<QuanLyLop> {
                   onPressed: dangLuu
                       ? null
                       : () {
-                          Navigator.pop(dialogContext);
+                          unfocusCurrentInput();
+                          Navigator.of(dialogContext, rootNavigator: true).pop();
                         },
                   child: const Text('Hủy'),
                 ),
@@ -423,7 +394,7 @@ class _QuanLyLopState extends State<QuanLyLop> {
                                   maLop: maLopController.text.trim(),
                                   tenLop: tenLopController.text.trim(),
                                   khoaId: khoaId,
-                                  khoaHoc: khoaHoc,
+                                  namNhapHoc: namNhapHoc,
                                   trangThai: trangThai,
                                 )
                               : await provider.suaLop(
@@ -431,11 +402,11 @@ class _QuanLyLopState extends State<QuanLyLop> {
                                   maLop: maLopController.text.trim(),
                                   tenLop: tenLopController.text.trim(),
                                   khoaId: khoaId,
-                                  khoaHoc: khoaHoc,
+                                  namNhapHoc: namNhapHoc,
                                   trangThai: trangThai,
                                 );
 
-                          if (!mounted) return;
+                          if (!mounted || !dialogContext.mounted) return;
 
                           setDialogState(() {
                             dangLuu = false;
@@ -449,7 +420,8 @@ class _QuanLyLopState extends State<QuanLyLop> {
                                   : 'Thao tác thất bại');
 
                           if (success) {
-                            Navigator.pop(dialogContext);
+                            unfocusCurrentInput();
+                            Navigator.of(dialogContext, rootNavigator: true).pop();
                           }
 
                           _showSnackBar(
@@ -476,10 +448,10 @@ class _QuanLyLopState extends State<QuanLyLop> {
       },
     );
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    maLopController.dispose();
-    tenLopController.dispose();
+    await disposeControllersAfterModal([
+      maLopController,
+      tenLopController,
+    ]);
   }
 
   Future<void> _xacNhanTamKhoaLop(Lop lop) async {
@@ -582,7 +554,7 @@ class _QuanLyLopState extends State<QuanLyLop> {
   Widget _buildBoLocLop(LopProvider lopProvider, List<Khoa> dsKhoa) {
     final dangCoBoLoc =
         lopProvider.khoaId != 0 ||
-        lopProvider.khoaHoc.isNotEmpty ||
+        lopProvider.namNhapHoc != null ||
         lopProvider.trangThai.isNotEmpty ||
         _timKiemLopController.text.trim().isNotEmpty;
 
@@ -733,37 +705,33 @@ class _QuanLyLopState extends State<QuanLyLop> {
                             ),
                             SizedBox(
                               width: filterWidth,
-                              child: DropdownButtonFormField<String>(
-                                value: lopProvider.khoaHoc,
+                              child: DropdownButtonFormField<int>(
+                                value: lopProvider.namNhapHoc ?? 0,
                                 isExpanded: true,
                                 decoration: const InputDecoration(
                                   isDense: false,
                                   floatingLabelBehavior:
                                       FloatingLabelBehavior.always,
-                                  contentPadding: EdgeInsets.fromLTRB(
-                                    12,
-                                    18,
-                                    12,
-                                    14,
-                                  ),
-                                  labelText: 'Khóa học',
+                                  contentPadding: EdgeInsets.fromLTRB(12, 18, 12, 14),
+                                  labelText: 'Năm nhập học',
                                   prefixIcon: Icon(Icons.date_range, size: 20),
                                   border: OutlineInputBorder(),
                                 ),
                                 items: [
-                                  const DropdownMenuItem<String>(
-                                    value: '',
-                                    child: Text('Tất cả khóa'),
+                                  const DropdownMenuItem<int>(
+                                    value: 0,
+                                    child: Text('Tất cả năm'),
                                   ),
-                                  ..._taoDanhSachKhoaHoc().map((khoaHoc) {
-                                    return DropdownMenuItem<String>(
-                                      value: khoaHoc,
-                                      child: Text('Khóa $khoaHoc'),
-                                    );
-                                  }),
+                                  ..._taoDanhSachNamNhapHoc().map((nam) =>
+                                      DropdownMenuItem<int>(
+                                        value: nam,
+                                        child: Text('Năm $nam'),
+                                      )),
                                 ],
                                 onChanged: (value) {
-                                  lopProvider.locTheoKhoaHoc(value ?? '');
+                                  lopProvider.locTheoNamNhapHoc(
+                                    value == null || value == 0 ? null : value,
+                                  );
                                 },
                               ),
                             ),
@@ -890,7 +858,7 @@ class _QuanLyLopState extends State<QuanLyLop> {
 
                     _dongThongTinLop('Mã lớp', lop.maLop),
                     _dongThongTinLop('Khoa', lop.tenKhoaHienThi),
-                    _dongThongTinLop('Khóa học', lop.khoaHocHienThi),
+                    _dongThongTinLop('Năm nhập học', lop.namNhapHocHienThi),
                     _dongThongTinLop(
                       'Số sinh viên',
                       lop.soLuongSinhVien.toString(),

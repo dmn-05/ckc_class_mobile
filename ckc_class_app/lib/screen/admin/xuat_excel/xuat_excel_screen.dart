@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../model/xuat_excel_model.dart';
 import '../../../provider/xuat_excel_provider.dart';
+import '../../../utils/modal_lifecycle.dart';
 
 class XuatExcelScreen extends StatefulWidget {
   final bool showAppBar;
@@ -88,7 +89,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                 return;
               }
 
-              Navigator.of(dialogContext).pop(value);
+              unfocusCurrentInput();
+              Navigator.of(dialogContext, rootNavigator: true).pop(value);
             }
 
             return AlertDialog(
@@ -119,7 +121,10 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  onPressed: () {
+                    unfocusCurrentInput();
+                    Navigator.of(dialogContext, rootNavigator: true).pop();
+                  },
                   child: const Text('Hủy'),
                 ),
                 FilledButton.icon(
@@ -134,7 +139,7 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
       },
     );
 
-    controller.dispose();
+    await disposeControllersAfterModal([controller]);
     return result;
   }
 
@@ -469,6 +474,66 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                         ],
                         onChanged: (value) =>
                             _provider.setFilter('khoa_hoc', value ?? ''),
+                      ),
+                    ),
+                  );
+                }
+
+                if (filters.contains('nam_nhap_hoc')) {
+                  widgets.add(
+                    SizedBox(
+                      width: width,
+                      child: DropdownButtonFormField<int>(
+                        value: _intFilter('nam_nhap_hoc'),
+                        isExpanded: true,
+                        decoration: _decoration(
+                          'Năm nhập học',
+                          Icons.calendar_today_rounded,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 0,
+                            child: Text('Tất cả năm nhập học'),
+                          ),
+                          ..._provider.catalog.namNhapHoc.map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item.toString()),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            _provider.setFilter('nam_nhap_hoc', value ?? 0),
+                      ),
+                    ),
+                  );
+                }
+
+                if (filters.contains('nam_hoc')) {
+                  widgets.add(
+                    SizedBox(
+                      width: width,
+                      child: DropdownButtonFormField<String>(
+                        value: _stringFilter('nam_hoc'),
+                        isExpanded: true,
+                        decoration: _decoration(
+                          'Năm học',
+                          Icons.date_range_rounded,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('Tất cả năm học'),
+                          ),
+                          ..._provider.catalog.namHoc.map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            _provider.setFilter('nam_hoc', value ?? ''),
                       ),
                     ),
                   );

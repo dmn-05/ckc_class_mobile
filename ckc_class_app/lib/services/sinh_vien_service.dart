@@ -73,7 +73,7 @@ class SinhVienService {
     String tuKhoa = '',
     String trangThai = '',
     String hocKy = '',
-    String khoaHoc = '',
+    String namHoc = '',
   }) async {
     try {
       final res = await _api.post(
@@ -83,7 +83,7 @@ class SinhVienService {
           'tu_khoa': tuKhoa.trim(),
           'trang_thai': trangThai.trim(),
           'hoc_ky': hocKy.trim(),
-          'khoa_hoc': khoaHoc.trim(),
+          'nam_hoc': namHoc.trim(),
         },
       );
       final body = _layBody(res);
@@ -331,53 +331,6 @@ class SinhVienService {
     }
   }
 
-
-  Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(int thongBaoId) async {
-    try {
-      final res = await _api.post(
-        '/sinh_vien/binh_luan.php',
-        data: {
-          'action': 'danh_sach',
-          'thong_bao_id': thongBaoId,
-          'nguoi_dung_id': 0,
-        },
-      );
-      final body = _layBody(res);
-      if (!_ok(body)) throw Exception(_msg(body, def: 'Không lấy được bình luận'));
-      final raw = body['data'];
-      if (raw is! List) return [];
-      return raw
-          .map((e) => BinhLuanModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-    } catch (e) {
-      throw Exception(_err(e));
-    }
-  }
-
-  Future<BinhLuanModel> dangBinhLuanThongBao({
-    required int nguoiDungId,
-    required int thongBaoId,
-    required String noiDung,
-  }) async {
-    try {
-      if (noiDung.trim().isEmpty) throw Exception('Nội dung không được trống');
-      final res = await _api.post(
-        '/sinh_vien/binh_luan.php',
-        data: {
-          'action': 'dang',
-          'nguoi_dung_id': nguoiDungId,
-          'thong_bao_id': thongBaoId,
-          'noi_dung': noiDung.trim(),
-        },
-      );
-      final body = _layBody(res);
-      if (!_ok(body)) throw Exception(_msg(body, def: 'Đăng bình luận thất bại'));
-      return BinhLuanModel.fromJson(Map<String, dynamic>.from(body['data']));
-    } catch (e) {
-      throw Exception(_err(e));
-    }
-  }
-
   Future<String> suaBinhLuan({
     required int nguoiDungId,
     required int binhLuanId,
@@ -475,26 +428,5 @@ class SinhVienService {
     return data['message'] ?? 'Tham gia lớp thành công';
   }
 
-  Future<String> huyThamGiaLopHocPhan({
-    required int sinhVienId,
-    required int lopHocPhanId,
-  }) async {
-    final response = await _api.post(
-      '/sinh_vien/huy_tham_gia_lop_hoc_phan.php',
-      data: {'sinh_vien_id': sinhVienId, 'lop_hoc_phan_id': lopHocPhanId},
-    );
 
-    final data = response.data;
-
-    if (data is! Map || data['status'] != 'success') {
-      throw Exception(
-        data is Map
-            ? data['message'] ?? 'Hủy tham gia lớp thất bại'
-            : 'Dữ liệu server không hợp lệ',
-      );
-    }
-
-    return data['message']?.toString() ??
-        'Đã hủy tham gia lớp học phần thành công';
-  }
 }

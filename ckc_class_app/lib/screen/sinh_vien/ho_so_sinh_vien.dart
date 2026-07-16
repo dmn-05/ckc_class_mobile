@@ -178,6 +178,11 @@ class HoSoSinhVienPage extends StatelessWidget {
                       _joinValue([hs.maLop, hs.tenLop]),
                     ),
                     _item(
+                      Icons.calendar_view_month_rounded,
+                      'Khóa học',
+                      hs.khoaHoc ?? '--',
+                    ),
+                    _item(
                       Icons.account_balance_outlined,
                       'Khoa',
                       hs.tenKhoa ?? '--',

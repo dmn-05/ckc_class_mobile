@@ -10,11 +10,13 @@ import '../../widget/widget_sinhvien.dart';
 class ChiTietBaiTapSV extends StatefulWidget {
   final dynamic baiTap;
   final int lopHocPhanId;
+  final bool chiDoc;
 
   const ChiTietBaiTapSV({
     super.key,
     required this.baiTap,
     required this.lopHocPhanId,
+    this.chiDoc = false,
   });
 
   @override
@@ -134,6 +136,7 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
             minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: _NutHanhDong(
               bt: bt,
+              chiDoc: widget.chiDoc,
               dangXuLy: provider.btProcessing,
               onQuiz: () => _xuLyQuiz(bt),
               onNopFile: () => _chonVaNopFile(bt),
@@ -493,12 +496,14 @@ class _InfoRow extends StatelessWidget {
 
 class _NutHanhDong extends StatelessWidget {
   final dynamic bt;
+  final bool chiDoc;
   final bool dangXuLy;
   final VoidCallback onQuiz;
   final VoidCallback onNopFile;
 
   const _NutHanhDong({
     required this.bt,
+    required this.chiDoc,
     required this.dangXuLy,
     required this.onQuiz,
     required this.onNopFile,
@@ -508,13 +513,27 @@ class _NutHanhDong extends StatelessWidget {
   Widget build(BuildContext context) {
     if (bt.laQuiz) {
       return FilledButton.icon(
-        onPressed: bt.daDong || dangXuLy ? null : onQuiz,
+        onPressed: dangXuLy || (chiDoc && !bt.daLamQuiz) || (!bt.daLamQuiz && bt.daDong)
+            ? null
+            : onQuiz,
         icon: Icon(bt.daLamQuiz ? Icons.bar_chart_rounded : Icons.quiz_rounded),
-        label: Text(bt.daLamQuiz ? 'Xem kết quả quiz' : 'Bắt đầu làm quiz'),
+        label: Text(
+          bt.daLamQuiz
+              ? 'Xem kết quả quiz'
+              : (chiDoc ? 'Lớp đã lưu · Chỉ xem' : 'Bắt đầu làm quiz'),
+        ),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
+      );
+    }
+
+    if (chiDoc) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.visibility_rounded),
+        label: const Text('Lớp đã lưu · Chỉ xem'),
       );
     }
 

@@ -143,6 +143,7 @@ class DeQuiz {
   final DateTime? hanNop;
   final int? thoiGianLam;
   final DateTime? thoiGianBatDau;
+  final int? thoiGianConLaiGiay;
   final bool choXemDapAn;
   final List<CauHoiQuiz> cauHoi;
 
@@ -154,6 +155,7 @@ class DeQuiz {
     this.hanNop,
     this.thoiGianLam,
     this.thoiGianBatDau,
+    this.thoiGianConLaiGiay,
     this.choXemDapAn = false,
     this.cauHoi = const [],
   });
@@ -168,6 +170,7 @@ class DeQuiz {
       hanNop: _toDateTime(j['han_nop']),
       thoiGianLam: _toInt(j['thoi_gian_lam']),
       thoiGianBatDau: _toDateTime(j['thoi_gian_bat_dau']),
+      thoiGianConLaiGiay: _toInt(j['thoi_gian_con_lai_giay']),
       choXemDapAn: _toBool(j['cho_xem_dap_an']),
       cauHoi: raw is List
           ? raw

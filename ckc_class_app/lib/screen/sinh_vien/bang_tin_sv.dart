@@ -1,3 +1,4 @@
+import 'package:ckc_class_app/screen/sinh_vien/chi_tiet_bai_tap_sv.dart';
 import 'package:ckc_class_app/screen/sinh_vien/chi_tiet_thong_bao_sv.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,19 +15,54 @@ const Color _muted = Color(0xFF64748B);
 class BangTinSVPage extends StatefulWidget {
   final LopHocPhanSVModel lop;
   final Future<void> Function()? onRefresh;
+  final bool chiDoc;
 
-  const BangTinSVPage({super.key, required this.lop, this.onRefresh});
+  const BangTinSVPage({
+    super.key,
+    required this.lop,
+    this.onRefresh,
+    this.chiDoc = false,
+  });
 
   @override
   State<BangTinSVPage> createState() => _BangTinSVPageState();
 }
 
 class _BangTinSVPageState extends State<BangTinSVPage> {
+  final _binhLuanCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _binhLuanCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guiBinhLuan(SinhVienProvider provider) async {
+    final noiDung = _binhLuanCtrl.text.trim();
+    if (noiDung.isEmpty) return;
+
+    final kq = await provider.dangBinhLuan(
+      lopHocPhanId: widget.lop.id,
+      noiDung: noiDung,
+    );
+
+    if (!mounted) return;
+
+    if (kq['success'] == true) {
+      _binhLuanCtrl.clear();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(kq['message']?.toString() ?? 'Đã xử lý')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SinhVienProvider>(
       builder: (context, provider, _) {
-        final dangTai = provider.tbLoading;
+        final dangTai =
+            provider.tbLoading || provider.btLoading || provider.blLoading;
 
         if (dangTai) {
           return const ColoredBox(
@@ -35,7 +71,17 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
           );
         }
 
-        final items = List<ThongBaoSVModel>.from(provider.dsThongBao);
+        final items = <_BangTinItem>[
+          ...provider.dsThongBao.map((e) => _BangTinItem.thongBao(e)),
+          ...provider.dsBaiTap.map((e) => _BangTinItem.baiTap(e)),
+        ];
+
+        // Sắp xếp bài mới nhất lên đầu giống Google Classroom.
+        items.sort((a, b) {
+          final da = a.ngayTao ?? DateTime(2000);
+          final db = b.ngayTao ?? DateTime(2000);
+          return db.compareTo(da);
+        });
 
         return ColoredBox(
           color: _bg,
@@ -43,7 +89,11 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
             onRefresh:
                 widget.onRefresh ??
                 () async {
-                  await provider.layDanhSachThongBao(widget.lop.id);
+                  await Future.wait([
+                    provider.layDanhSachThongBao(widget.lop.id),
+                    provider.layDanhSachBaiTap(widget.lop.id),
+                    provider.layDanhSachBinhLuan(widget.lop.id),
+                  ]);
                 },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 26),
@@ -58,7 +108,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Thông báo của giảng viên',
+                        'Hoạt động mới nhất',
                         style: TextStyle(
                           color: _text,
                           fontSize: 18,
@@ -77,7 +127,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
-                        '${items.length} tin',
+                        '${items.length} mục',
                         style: const TextStyle(
                           color: _primary,
                           fontWeight: FontWeight.w800,
@@ -90,17 +140,73 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                 const SizedBox(height: 10),
                 if (items.isEmpty)
                   const TrangRong(
-                    thongDiep: 'Chưa có thông báo nào',
-                    icon: Icons.campaign_outlined,
+                    thongDiep: 'Chưa có thông báo hoặc bài tập',
+                    icon: Icons.forum_outlined,
                   )
                 else
-                  ...items.map((item) => _CardThongBaoBangTin(thongBao: item)),
+                  ...items.map((item) {
+                    if (item.loai == _LoaiBangTin.baiTap) {
+                      return _CardBaiTapBangTin(
+                        baiTap: item.baiTap!,
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChiTietBaiTapSV(
+                                baiTap: item.baiTap!,
+                                lopHocPhanId: widget.lop.id,
+                                chiDoc: widget.chiDoc,
+                              ),
+                            ),
+                          );
+
+                          if (result == true && context.mounted) {
+                            await provider.layDanhSachBaiTap(widget.lop.id);
+                          }
+                        },
+                      );
+                    }
+
+                    return _CardThongBaoBangTin(thongBao: item.thongBao!);
+                  }),
+                const SizedBox(height: 6),
+                _KhuVucBinhLuan(
+                  provider: provider,
+                  controller: _binhLuanCtrl,
+                  onGui: () => _guiBinhLuan(provider),
+                  chiDoc: widget.chiDoc,
+                ),
               ],
             ),
           ),
         );
       },
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODEL NỘI BỘ DÙNG ĐỂ TRỘN THÔNG BÁO + BÀI TẬP
+// ═══════════════════════════════════════════════════════════════
+
+enum _LoaiBangTin { thongBao, baiTap }
+
+class _BangTinItem {
+  final _LoaiBangTin loai;
+  final ThongBaoSVModel? thongBao;
+  final BaiTapSVModel? baiTap;
+
+  _BangTinItem.thongBao(this.thongBao)
+    : loai = _LoaiBangTin.thongBao,
+      baiTap = null;
+
+  _BangTinItem.baiTap(this.baiTap)
+    : loai = _LoaiBangTin.baiTap,
+      thongBao = null;
+
+  DateTime? get ngayTao {
+    if (loai == _LoaiBangTin.thongBao) return thongBao?.ngayTao;
+    return baiTap?.ngayTao;
   }
 }
 
@@ -116,8 +222,8 @@ class _BannerLop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 178),
-      padding: const EdgeInsets.all(18),
+      height: 178,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(
@@ -161,35 +267,28 @@ class _BannerLop extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: Colors.white.withOpacity(0.18)),
                   ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width - 92,
-                    ),
-                    child: Text(
-                      lop.maLopHocPhan,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
+                  child: Text(
+                    lop.maLopHocPhan,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   lop.tenHienThi,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
-                    height: 1.08,
+                    fontSize: 25,
+                    height: 1.1,
                     fontWeight: FontWeight.w900,
                   ),
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 7),
                 Text(
                   lop.tenMon ?? lop.maLopHocPhan,
                   style: TextStyle(
@@ -267,7 +366,7 @@ class _OThongBaoMoi extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Theo dõi thông báo mới từ giảng viên. Bài tập được tách riêng ở tab Bài tập.',
+              'Theo dõi thông báo, bài tập và nhận xét mới trong lớp học.',
               style: TextStyle(color: Colors.grey.shade700, height: 1.35),
             ),
           ),
@@ -372,21 +471,6 @@ class _CardThongBaoBangTin extends StatelessWidget {
                   style: const TextStyle(color: Color(0xFF334155), height: 1.4),
                 ),
               ],
-
-              if (thongBao.files.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: thongBao.files
-                      .map((f) => _TypeBadge(
-                            label: f.tenFile,
-                            icon: Icons.attach_file_rounded,
-                            color: _primary,
-                          ))
-                      .toList(),
-                ),
-              ],
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -406,7 +490,7 @@ class _CardThongBaoBangTin extends StatelessWidget {
                     ),
                     const SizedBox(width: 7),
                     Text(
-                      '${thongBao.soBinhLuan} bình luận',
+                      '${thongBao.soBinhLuan} nhận xét trong lớp học',
                       style: const TextStyle(color: _muted, fontSize: 13),
                     ),
                   ],
@@ -579,11 +663,13 @@ class _KhuVucBinhLuan extends StatelessWidget {
   final SinhVienProvider provider;
   final TextEditingController controller;
   final VoidCallback onGui;
+  final bool chiDoc;
 
   const _KhuVucBinhLuan({
     required this.provider,
     required this.controller,
     required this.onGui,
+    required this.chiDoc,
   });
 
   @override
@@ -700,6 +786,7 @@ class _KhuVucBinhLuan extends StatelessWidget {
                   ),
                 ),
               ),
+            if (!chiDoc) ...[
             const SizedBox(height: 10),
             Row(
               children: [
@@ -709,7 +796,7 @@ class _KhuVucBinhLuan extends StatelessWidget {
                     minLines: 1,
                     maxLines: 3,
                     decoration: InputDecoration(
-                      hintText: 'Thêm bình luận...',
+                      hintText: 'Thêm nhận xét trong lớp học...',
                       isDense: true,
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
@@ -744,6 +831,19 @@ class _KhuVucBinhLuan extends StatelessWidget {
                 ),
               ],
             ),
+            ] else ...[
+              const SizedBox(height: 10),
+              const Row(
+                children: [
+                  Icon(Icons.visibility_rounded, size: 18, color: _muted),
+                  SizedBox(width: 7),
+                  Text(
+                    'Lớp đã lưu · Không thể thêm nhận xét',
+                    style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

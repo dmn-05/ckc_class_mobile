@@ -80,32 +80,17 @@ class LopService {
     }
   }
 
-  void _kiemTraKhoaHoc(String khoaHoc) {
-    final value = khoaHoc.trim();
-    final regex = RegExp(r'^\d{4}-\d{4}$');
-
-    if (!regex.hasMatch(value)) {
-      throw Exception('Khóa học không hợp lệ. Ví dụ đúng: 2024-2027');
-    }
-
-    final parts = value.split('-');
-    final namBatDau = int.tryParse(parts[0]) ?? 0;
-    final namKetThuc = int.tryParse(parts[1]) ?? 0;
+  void _kiemTraNamNhapHoc(int namNhapHoc) {
     final namHienTai = DateTime.now().year;
-
-    if (namBatDau < 2000 || namBatDau > namHienTai + 1) {
-      throw Exception('Năm bắt đầu khóa học không hợp lệ');
-    }
-
-    if (namKetThuc - namBatDau != 3) {
-      throw Exception('Khóa học phải kéo dài đúng 3 năm. Ví dụ: 2024-2027');
+    if (namNhapHoc < 2000 || namNhapHoc > namHienTai + 2) {
+      throw Exception('Năm nhập học không hợp lệ');
     }
   }
 
   Future<List<Lop>> layDanhSachLop({
     String tuKhoa = '',
     int khoaId = 0,
-    String khoaHoc = '',
+    int? namNhapHoc,
     String trangThai = '',
   }) async {
     try {
@@ -114,7 +99,7 @@ class LopService {
         data: {
           'tu_khoa': tuKhoa.trim(),
           'khoa_id': khoaId,
-          'khoa_hoc': khoaHoc.trim(),
+          'nam_nhap_hoc': namNhapHoc?.toString() ?? '',
           'trang_thai': trangThai.trim(),
         },
       );
@@ -142,20 +127,19 @@ class LopService {
     required String maLop,
     required String tenLop,
     required int khoaId,
-    required String khoaHoc,
+    required int namNhapHoc,
     String trangThai = 'dang_hoc',
   }) async {
     try {
       final ma = maLop.trim().toUpperCase();
       final ten = tenLop.trim();
-      final khoaHocValue = khoaHoc.trim();
       final trangThaiValue = trangThai.trim();
 
       if (ma.isEmpty) throw Exception('Mã lớp không được để trống');
       if (ten.isEmpty) throw Exception('Tên lớp không được để trống');
       if (khoaId <= 0) throw Exception('Vui lòng chọn khoa');
 
-      _kiemTraKhoaHoc(khoaHocValue);
+      _kiemTraNamNhapHoc(namNhapHoc);
       _kiemTraTrangThaiLop(trangThaiValue);
 
       final response = await _apiService.post(
@@ -164,7 +148,7 @@ class LopService {
           'ma_lop': ma,
           'ten_lop': ten,
           'khoa_id': khoaId,
-          'khoa_hoc': khoaHocValue,
+          'nam_nhap_hoc': namNhapHoc,
           'trang_thai': trangThaiValue,
         },
       );
@@ -186,13 +170,12 @@ class LopService {
     required String maLop,
     required String tenLop,
     required int khoaId,
-    required String khoaHoc,
+    required int namNhapHoc,
     required String trangThai,
   }) async {
     try {
       final ma = maLop.trim().toUpperCase();
       final ten = tenLop.trim();
-      final khoaHocValue = khoaHoc.trim();
       final trangThaiValue = trangThai.trim();
 
       if (id <= 0) throw Exception('ID lớp không hợp lệ');
@@ -200,7 +183,7 @@ class LopService {
       if (ten.isEmpty) throw Exception('Tên lớp không được để trống');
       if (khoaId <= 0) throw Exception('Vui lòng chọn khoa');
 
-      _kiemTraKhoaHoc(khoaHocValue);
+      _kiemTraNamNhapHoc(namNhapHoc);
       _kiemTraTrangThaiLop(trangThaiValue);
 
       final response = await _apiService.post(
@@ -210,7 +193,7 @@ class LopService {
           'ma_lop': ma,
           'ten_lop': ten,
           'khoa_id': khoaId,
-          'khoa_hoc': khoaHocValue,
+          'nam_nhap_hoc': namNhapHoc,
           'trang_thai': trangThaiValue,
         },
       );

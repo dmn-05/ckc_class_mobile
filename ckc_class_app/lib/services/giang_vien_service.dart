@@ -67,7 +67,6 @@ class GiangVienService {
     String tuKhoa = '',
     String trangThai = '',
     String hocKy = '',
-    String khoaHoc = '',
     String namHoc = '',
   }) async {
     try {
@@ -78,7 +77,6 @@ class GiangVienService {
           'tu_khoa': tuKhoa.trim(),
           'trang_thai': trangThai.trim(),
           'hoc_ky': hocKy.trim(),
-          'khoa_hoc': khoaHoc.trim(),
           'nam_hoc': namHoc.trim(),
         },
       );
@@ -282,7 +280,7 @@ class GiangVienService {
     bool choPhepNopLai = true,
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
-    String trangThai = 'dang_mo',
+    String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
   }) async {
     try {
@@ -340,7 +338,7 @@ class GiangVienService {
     bool choPhepNopLai = true,
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
-    String trangThai = 'dang_mo',
+    String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
   }) async {
     try {
@@ -595,32 +593,24 @@ class GiangVienService {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    List<String> filePaths = const [],
   }) async {
     try {
       if (tieuDe.trim().isEmpty) throw Exception('Tiêu đề không được để trống');
-      final data = {
-        'action': 'them',
-        'tieu_de': tieuDe.trim(),
-        'noi_dung': noiDung.trim(),
-        'lop_hoc_phan_id': lopHocPhanId,
-        'nguoi_tao_id': nguoiTaoId,
-        'trang_thai': trangThai,
-        'thoi_gian_gui': _fmtMysql(thoiGianGui),
-      };
-      dynamic payload = data;
-      if (filePaths.isNotEmpty) {
-        final form = FormData.fromMap(data);
-        for (final path in filePaths.where((e) => e.trim().isNotEmpty)) {
-          form.files.add(MapEntry('files[]', await MultipartFile.fromFile(path)));
-        }
-        payload = form;
-      }
-      final res = await _api.post('/giang_vien/thong_bao.php', data: payload);
+      final res = await _api.post(
+        '/giang_vien/thong_bao.php',
+        data: {
+          'action': 'them',
+          'tieu_de': tieuDe.trim(),
+          'noi_dung': noiDung.trim(),
+          'lop_hoc_phan_id': lopHocPhanId,
+          'nguoi_tao_id': nguoiTaoId,
+          'trang_thai': trangThai,
+          'thoi_gian_gui': _fmtMysql(thoiGianGui),
+        },
+      );
       final body = _layBody(res);
-      if (!_laThanhCong(body)) {
+      if (!_laThanhCong(body))
         throw Exception(_layThongBao(body, macDinh: 'Đăng thông báo thất bại'));
-      }
       return _layThongBao(body, macDinh: 'Đăng thông báo thành công');
     } catch (e) {
       throw Exception(_xuLyLoi(e));
@@ -633,33 +623,25 @@ class GiangVienService {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    int nguoiTaoId = 0,
-    List<String> filePaths = const [],
   }) async {
     try {
       if (tieuDe.trim().isEmpty) throw Exception('Tiêu đề không được để trống');
-      final data = {
-        'action': 'sua',
-        'id': id,
-        'tieu_de': tieuDe.trim(),
-        'noi_dung': noiDung.trim(),
-        'trang_thai': trangThai,
-        'thoi_gian_gui': _fmtMysql(thoiGianGui),
-        'nguoi_tao_id': nguoiTaoId,
-      };
-      dynamic payload = data;
-      if (filePaths.isNotEmpty) {
-        final form = FormData.fromMap(data);
-        for (final path in filePaths.where((e) => e.trim().isNotEmpty)) {
-          form.files.add(MapEntry('files[]', await MultipartFile.fromFile(path)));
-        }
-        payload = form;
-      }
-      final res = await _api.post('/giang_vien/thong_bao.php', data: payload);
+      final res = await _api.post(
+        '/giang_vien/thong_bao.php',
+        data: {
+          'action': 'sua',
+          'id': id,
+          'tieu_de': tieuDe.trim(),
+          'noi_dung': noiDung.trim(),
+          'trang_thai': trangThai,
+          'thoi_gian_gui': _fmtMysql(thoiGianGui),
+        },
+      );
       final body = _layBody(res);
-      if (!_laThanhCong(body)) {
-        throw Exception(_layThongBao(body, macDinh: 'Cập nhật thông báo thất bại'));
-      }
+      if (!_laThanhCong(body))
+        throw Exception(
+          _layThongBao(body, macDinh: 'Cập nhật thông báo thất bại'),
+        );
       return _layThongBao(body, macDinh: 'Cập nhật thông báo thành công');
     } catch (e) {
       throw Exception(_xuLyLoi(e));

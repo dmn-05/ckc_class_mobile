@@ -11,8 +11,13 @@ import '../../widget/widget_sinhvien.dart';
 
 class BaiTapSVPage extends StatefulWidget {
   final int lopHocPhanId;
+  final bool chiDoc;
 
-  const BaiTapSVPage({super.key, required this.lopHocPhanId});
+  const BaiTapSVPage({
+    super.key,
+    required this.lopHocPhanId,
+    this.chiDoc = false,
+  });
 
   @override
   State<BaiTapSVPage> createState() => _BaiTapSVPageState();
@@ -410,7 +415,11 @@ class _NhomChuDeSV extends StatelessWidget {
             ),
           ),
           ...dsBaiTap.map(
-            (bt) => _BaiTapCard(bt: bt, lopHocPhanId: lopHocPhanId),
+            (bt) => _BaiTapCard(
+              bt: bt,
+              lopHocPhanId: lopHocPhanId,
+              chiDoc: widget.chiDoc,
+            ),
           ),
         ],
       ),
@@ -421,8 +430,13 @@ class _NhomChuDeSV extends StatelessWidget {
 class _BaiTapCard extends StatelessWidget {
   final BaiTapSVModel bt;
   final int lopHocPhanId;
+  final bool chiDoc;
 
-  const _BaiTapCard({required this.bt, required this.lopHocPhanId});
+  const _BaiTapCard({
+    required this.bt,
+    required this.lopHocPhanId,
+    required this.chiDoc,
+  });
 
   Color _mauTrangThai() {
     if (bt.laQuiz) {
@@ -440,7 +454,11 @@ class _BaiTapCard extends StatelessWidget {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChiTietBaiTapSV(baiTap: bt, lopHocPhanId: lopHocPhanId),
+        builder: (_) => ChiTietBaiTapSV(
+          baiTap: bt,
+          lopHocPhanId: lopHocPhanId,
+          chiDoc: chiDoc,
+        ),
       ),
     );
 
@@ -645,7 +663,9 @@ class _BaiTapCard extends StatelessWidget {
                     builder: (context, provider, _) {
                       if (bt.laQuiz) {
                         return FilledButton.icon(
-                          onPressed: bt.daDong || provider.btProcessing
+                          onPressed: provider.btProcessing ||
+                                  (chiDoc && !bt.daLamQuiz) ||
+                                  (!bt.daLamQuiz && bt.daDong)
                               ? null
                               : () async {
                                   if (bt.daLamQuiz) {
@@ -684,7 +704,9 @@ class _BaiTapCard extends StatelessWidget {
                                 : Icons.quiz_rounded,
                           ),
                           label: Text(
-                            bt.daLamQuiz ? 'Xem kết quả' : 'Làm quiz',
+                            bt.daLamQuiz
+                                ? 'Xem kết quả'
+                                : (chiDoc ? 'Lớp đã lưu · Chỉ xem' : 'Làm quiz'),
                           ),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -696,7 +718,7 @@ class _BaiTapCard extends StatelessWidget {
                       }
 
                       return FilledButton.icon(
-                        onPressed: provider.btProcessing || !bt.coTheNopFile
+                        onPressed: chiDoc || provider.btProcessing || !bt.coTheNopFile
                             ? null
                             : () => _chonVaNopFile(context),
                         icon: const Icon(Icons.upload_file_rounded),
@@ -884,8 +906,8 @@ class _BaiTapCard extends StatelessWidget {
     }
 
     final allowed = bt.dsDinhDangChoPhep;
-    // CSDL host Web đã gộp bai_nop_file vào bai_nop, nên mỗi bài nộp chỉ lưu 1 file.
     final result = await FilePicker.pickFiles(
+      // CSDL bai_nop hiện chỉ có một trường đường dẫn file.
       allowMultiple: false,
       type: allowed.isEmpty ? FileType.any : FileType.custom,
       allowedExtensions: allowed.isEmpty ? null : allowed,
@@ -900,9 +922,12 @@ class _BaiTapCard extends StatelessWidget {
       return;
     }
 
-    if (files.length > 1) {
+    if (files.length > bt.soFileToiDa) {
       if (context.mounted) {
-        _baoLoi(context, 'Hệ thống hiện chỉ hỗ trợ nộp 1 file cho mỗi bài.');
+        _baoLoi(
+          context,
+          'Bài tập này chỉ cho phép nộp tối đa ${bt.soFileToiDa} file',
+        );
       }
       return;
     }

@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../model/quiz_model.dart';
 import '../../provider/quiz_provider.dart';
+import '../../utils/modal_lifecycle.dart';
 import '../../widget/widget_chung_giangvien.dart';
 
 class KetQuaQuizGiangVien extends StatefulWidget {
   final int baiTapId;
   final String tieuDe;
+  final bool chiDoc;
 
   const KetQuaQuizGiangVien({
     super.key,
     required this.baiTapId,
     required this.tieuDe,
+    this.chiDoc = false,
   });
 
   @override
@@ -237,7 +240,7 @@ class _KetQuaQuizGiangVienState extends State<KetQuaQuizGiangVien> {
                     ),
                     FilledButton.tonal(
                       onPressed: () => _moChamTuLuan(kq),
-                      child: Text(kq.canChamTuLuan ? 'Chấm' : 'Xem'),
+                      child: Text(widget.chiDoc ? 'Xem' : (kq.canChamTuLuan ? 'Chấm' : 'Xem')),
                     ),
                   ],
                 ),
@@ -346,6 +349,7 @@ class _KetQuaQuizGiangVienState extends State<KetQuaQuizGiangVien> {
                                 const SizedBox(height: 12),
                                 TextField(
                                   controller: controllers[q.cauHoiId],
+                                  readOnly: widget.chiDoc,
                                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                   decoration: InputDecoration(
                                     labelText: 'Điểm / ${q.diemToiDa.toStringAsFixed(1)}',
@@ -365,7 +369,7 @@ class _KetQuaQuizGiangVienState extends State<KetQuaQuizGiangVien> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: detail.cauHoiTuLuan.isEmpty
+                      onPressed: widget.chiDoc || detail.cauHoiTuLuan.isEmpty
                           ? null
                           : () async {
                               final scores = <int, double>{};
@@ -388,11 +392,14 @@ class _KetQuaQuizGiangVienState extends State<KetQuaQuizGiangVien> {
                                 baiLamQuizId: detail.baiLamQuizId,
                                 diemTheoCauHoi: scores,
                               );
-                              if (!mounted) return;
+                              if (!mounted || !ctx.mounted) return;
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 SnackBar(content: Text(res['message']?.toString() ?? 'Đã xử lý')),
                               );
-                              if (res['success'] == true) Navigator.pop(ctx, true);
+                              if (res['success'] == true) {
+                                unfocusCurrentInput();
+                                Navigator.of(ctx).pop(true);
+                              }
                             },
                       icon: const Icon(Icons.save_rounded),
                       label: const Text('Lưu điểm tự luận'),
@@ -406,9 +413,7 @@ class _KetQuaQuizGiangVienState extends State<KetQuaQuizGiangVien> {
       },
     );
 
-    for (final c in controllers.values) {
-      c.dispose();
-    }
+    await disposeControllersAfterModal(controllers.values);
 
     if (saved == true && mounted) {
       await context.read<QuizProvider>().layKetQuaQuizGiangVien(widget.baiTapId);

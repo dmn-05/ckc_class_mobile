@@ -99,20 +99,16 @@ class LopHocPhanService {
     }
   }
 
-  void _kiemTraKhoaHoc(String khoaHoc) {
-    final value = khoaHoc.trim();
-    final regex = RegExp(r'^\d{4}-\d{4}$');
-
-    if (!regex.hasMatch(value)) {
-      throw Exception('Khóa học không hợp lệ. Ví dụ đúng: 2024-2027');
+  void _kiemTraNamHoc(String namHoc) {
+    final value = namHoc.trim();
+    final match = RegExp(r'^(\d{4})-(\d{4})$').firstMatch(value);
+    if (match == null) {
+      throw Exception('Năm học không hợp lệ. Ví dụ đúng: 2025-2026');
     }
-
-    final parts = value.split('-');
-    final namBatDau = int.tryParse(parts[0]) ?? 0;
-    final namKetThuc = int.tryParse(parts[1]) ?? 0;
-
-    if (namKetThuc - namBatDau != 3) {
-      throw Exception('Khóa học phải kéo dài 3 năm. Ví dụ: 2024-2027');
+    final batDau = int.parse(match.group(1)!);
+    final ketThuc = int.parse(match.group(2)!);
+    if (batDau < 2000 || batDau > DateTime.now().year + 2 || ketThuc - batDau != 1) {
+      throw Exception('Năm học không hợp lệ. Ví dụ đúng: 2025-2026');
     }
   }
 
@@ -121,7 +117,7 @@ class LopHocPhanService {
     int monHocId = 0,
     int giangVienId = 0,
     String hocKy = '',
-    String khoaHoc = '',
+    String namHoc = '',
     String trangThai = '',
   }) async {
     try {
@@ -132,7 +128,7 @@ class LopHocPhanService {
           'mon_hoc_id': monHocId,
           'giang_vien_id': giangVienId,
           'hoc_ky': hocKy.trim(),
-          'khoa_hoc': khoaHoc.trim(),
+          'nam_hoc': namHoc.trim(),
           'trang_thai': trangThai.trim(),
         },
       );
@@ -163,7 +159,7 @@ class LopHocPhanService {
     required int monHocId,
     required int giangVienId,
     required String hocKy,
-    required String khoaHoc,
+    required String namHoc,
     int? siSoToiDa,
     String trangThai = 'dang_mo',
     int lopId = 0,
@@ -171,7 +167,7 @@ class LopHocPhanService {
     try {
       final ma = maLopHocPhan.trim();
       final ten = tenLop.trim();
-      final khoaHocValue = khoaHoc.trim();
+      final namHocValue = namHoc.trim();
       final hocKyValue = hocKy.trim();
       final trangThaiValue = trangThai.trim();
 
@@ -180,7 +176,7 @@ class LopHocPhanService {
       if (monHocId <= 0) throw Exception('Vui lòng chọn môn học');
       if (giangVienId <= 0) throw Exception('Vui lòng chọn giảng viên');
 
-      _kiemTraKhoaHoc(khoaHocValue);
+      _kiemTraNamHoc(namHocValue);
 
       if (siSoToiDa != null && (siSoToiDa <= 0 || siSoToiDa > 500)) {
         throw Exception('Sĩ số tối đa phải từ 1 đến 500');
@@ -198,7 +194,7 @@ class LopHocPhanService {
           'giang_vien_id': giangVienId,
           'hoc_ky': hocKyValue,
 
-          'khoa_hoc': khoaHocValue,
+          'nam_hoc': namHocValue,
           'si_so_toi_da': siSoToiDa,
           'trang_thai': trangThaiValue,
           'lop_id': lopId,
@@ -226,15 +222,14 @@ class LopHocPhanService {
     required int monHocId,
     required int giangVienId,
     required String hocKy,
-    String namHoc = '',
-    required String khoaHoc,
+    required String namHoc,
     int? siSoToiDa,
     required String trangThai,
   }) async {
     try {
       final ma = maLopHocPhan.trim();
       final ten = tenLop.trim();
-      final khoaHocValue = khoaHoc.trim();
+      final namHocValue = namHoc.trim();
       final hocKyValue = hocKy.trim();
       final trangThaiValue = trangThai.trim();
 
@@ -244,7 +239,7 @@ class LopHocPhanService {
       if (monHocId <= 0) throw Exception('Vui lòng chọn môn học');
       if (giangVienId <= 0) throw Exception('Vui lòng chọn giảng viên');
 
-      _kiemTraKhoaHoc(khoaHocValue);
+      _kiemTraNamHoc(namHocValue);
 
       if (siSoToiDa != null && (siSoToiDa <= 0 || siSoToiDa > 500)) {
         throw Exception('Sĩ số tối đa phải từ 1 đến 500');
@@ -262,7 +257,7 @@ class LopHocPhanService {
           'mon_hoc_id': monHocId,
           'giang_vien_id': giangVienId,
           'hoc_ky': hocKyValue,
-          'khoa_hoc': khoaHocValue,
+          'nam_hoc': namHocValue,
           'si_so_toi_da': siSoToiDa,
           'trang_thai': trangThaiValue,
         },

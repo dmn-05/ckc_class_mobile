@@ -65,6 +65,8 @@ class XuatExcelDanhMucItem {
   final String ten;
   final int? parentId;
   final String? khoaHoc;
+  final int? namNhapHoc;
+  final String? namHoc;
   final String? hocKy;
   final String? trangThai;
   final String? thongTinPhu;
@@ -75,6 +77,8 @@ class XuatExcelDanhMucItem {
     required this.ten,
     this.parentId,
     this.khoaHoc,
+    this.namNhapHoc,
+    this.namHoc,
     this.hocKy,
     this.trangThai,
     this.thongTinPhu,
@@ -95,6 +99,8 @@ class XuatExcelDanhMuc {
   final List<XuatExcelDanhMucItem> giangVien;
   final List<XuatExcelDanhMucItem> lopHocPhan;
   final List<String> khoaHoc;
+  final List<int> namNhapHoc;
+  final List<String> namHoc;
   final List<String> hocKy;
 
   const XuatExcelDanhMuc({
@@ -105,6 +111,8 @@ class XuatExcelDanhMuc {
     required this.giangVien,
     required this.lopHocPhan,
     required this.khoaHoc,
+    required this.namNhapHoc,
+    required this.namHoc,
     required this.hocKy,
   });
 
@@ -147,7 +155,7 @@ class XuatExcelDanhMuc {
               ma: e['ma_lop']?.toString() ?? '',
               ten: e['ten_lop']?.toString() ?? '',
               parentId: toInt(e['khoa_id']),
-              khoaHoc: e['khoa_hoc']?.toString(),
+              namNhapHoc: int.tryParse(e['nam_nhap_hoc']?.toString() ?? ''),
               trangThai: e['trang_thai']?.toString(),
             ),
           )
@@ -181,7 +189,7 @@ class XuatExcelDanhMuc {
               id: toInt(e['id']),
               ma: e['ma_lop_hoc_phan']?.toString() ?? '',
               ten: e['ten_lop']?.toString() ?? '',
-              khoaHoc: e['khoa_hoc']?.toString(),
+              namHoc: e['nam_hoc']?.toString(),
               hocKy: e['hoc_ky']?.toString(),
               trangThai: e['trang_thai']?.toString(),
               thongTinPhu: [
@@ -193,6 +201,14 @@ class XuatExcelDanhMuc {
           .toList(),
       khoaHoc: (json['khoa_hoc'] as List? ?? const [])
           .map((e) => e.toString())
+          .toList(),
+      namNhapHoc: (json['nam_nhap_hoc'] as List? ?? const [])
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((e) => e > 0)
+          .toList(),
+      namHoc: (json['nam_hoc'] as List? ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
           .toList(),
       hocKy: (json['hoc_ky'] as List? ?? const [])
           .map((e) => e.toString())
@@ -208,6 +224,8 @@ class XuatExcelDanhMuc {
     giangVien: [],
     lopHocPhan: [],
     khoaHoc: [],
+    namNhapHoc: [],
+    namHoc: [],
     hocKy: [],
   );
 }

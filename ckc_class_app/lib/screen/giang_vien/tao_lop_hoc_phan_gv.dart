@@ -62,6 +62,7 @@ class _TaoLopHocPhanGVState extends State<TaoLopHocPhanGV> {
           ? raw.map((e) => Map<String, dynamic>.from(e as Map)).toList()
           : <Map<String, dynamic>>[];
 
+      if (!mounted) return;
       setState(() {
         _dsMonHoc = ds;
         if (_dsMonHoc.isNotEmpty) {
@@ -69,7 +70,9 @@ class _TaoLopHocPhanGVState extends State<TaoLopHocPhanGV> {
         }
       });
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _loadingMonHoc = false);
     }
@@ -177,6 +180,9 @@ class _TaoLopHocPhanGVState extends State<TaoLopHocPhanGV> {
                         DropdownMenuItem(value: 'HK1', child: Text('HK1')),
                         DropdownMenuItem(value: 'HK2', child: Text('HK2')),
                         DropdownMenuItem(value: 'HK3', child: Text('HK3')),
+                        DropdownMenuItem(value: 'HK4', child: Text('HK4')),
+                        DropdownMenuItem(value: 'HK5', child: Text('HK5')),
+                        DropdownMenuItem(value: 'HK6', child: Text('HK6')),
                       ],
                       onChanged: (v) => setState(() => _hocKy = v ?? 'HK1'),
                     ),
@@ -186,8 +192,20 @@ class _TaoLopHocPhanGVState extends State<TaoLopHocPhanGV> {
                       decoration: const InputDecoration(
                         labelText: 'Năm học',
                         hintText: 'VD: 2026-2027',
+                        helperText: 'Nhập hai năm liên tiếp, ví dụ 2026-2027',
                         border: OutlineInputBorder(),
                       ),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        final match = RegExp(r'^(\d{4})-(\d{4})$').firstMatch(text);
+                        if (match == null) return 'Năm học phải có dạng 2026-2027';
+                        final batDau = int.parse(match.group(1)!);
+                        final ketThuc = int.parse(match.group(2)!);
+                        if (ketThuc - batDau != 1) {
+                          return 'Hai năm trong năm học phải liên tiếp';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(

@@ -24,8 +24,8 @@ class GiangVienProvider extends ChangeNotifier {
   String _lopTuKhoa = '';
   String _lopTrangThai = '';
   String _lopHocKy = '';
-  String _lopKhoaHoc = '';
-  List<String> _dsKhoaHocLop = [];
+  String _lopNamHoc = '';
+  List<String> _dsNamHocLop = [];
   List<String> _dsHocKyLop = [];
 
   List<LopHocPhan> get dsLopHocPhan => _dsLopHocPhan;
@@ -34,20 +34,20 @@ class GiangVienProvider extends ChangeNotifier {
   String get lopTuKhoa => _lopTuKhoa;
   String get lopTrangThai => _lopTrangThai;
   String get lopHocKy => _lopHocKy;
-  String get lopKhoaHoc => _lopKhoaHoc;
-  List<String> get dsKhoaHocLop => List.unmodifiable(_dsKhoaHocLop);
+  String get lopNamHoc => _lopNamHoc;
+  List<String> get dsNamHocLop => List.unmodifiable(_dsNamHocLop);
   List<String> get dsHocKyLop => List.unmodifiable(_dsHocKyLop);
 
   Future<void> layDanhSachLop({
     String? tuKhoa,
     String? trangThai,
     String? hocKy,
-    String? khoaHoc,
+    String? namHoc,
   }) async {
     if (tuKhoa != null) _lopTuKhoa = tuKhoa;
     if (trangThai != null) _lopTrangThai = trangThai;
     if (hocKy != null) _lopHocKy = hocKy.trim();
-    if (khoaHoc != null) _lopKhoaHoc = khoaHoc.trim();
+    if (namHoc != null) _lopNamHoc = namHoc.trim();
 
     if (_giangVienId <= 0) {
       _dsLopHocPhan = [];
@@ -67,19 +67,19 @@ class GiangVienProvider extends ChangeNotifier {
         tuKhoa: _lopTuKhoa,
         trangThai: _lopTrangThai,
         hocKy: _lopHocKy,
-        khoaHoc: _lopKhoaHoc,
+        namHoc: _lopNamHoc,
       );
 
       // Giữ danh sách lựa chọn bộ lọc từ dữ liệu đã tải.
       // Không xóa cache khi đang lọc để người dùng vẫn đổi được sang giá trị khác.
-      final khoaHocMoi = _dsLopHocPhan
-          .map((e) => e.khoaHoc?.trim() ?? '')
+      final namHocMoi = _dsLopHocPhan
+          .map((e) => e.namHoc?.trim() ?? '')
           .where((e) => e.isNotEmpty);
       final hocKyMoi = _dsLopHocPhan
           .map((e) => e.hocKy?.trim() ?? '')
           .where((e) => e.isNotEmpty);
 
-      _dsKhoaHocLop = {..._dsKhoaHocLop, ...khoaHocMoi}.toList()..sort();
+      _dsNamHocLop = {..._dsNamHocLop, ...namHocMoi}.toList()..sort();
       _dsHocKyLop = {..._dsHocKyLop, ...hocKyMoi}.toList()..sort();
     } catch (e) {
       _lopError = _xuLyLoi(e);
@@ -93,12 +93,12 @@ class GiangVienProvider extends ChangeNotifier {
     _lopTuKhoa = '';
     _lopTrangThai = '';
     _lopHocKy = '';
-    _lopKhoaHoc = '';
+    _lopNamHoc = '';
     await layDanhSachLop(
       tuKhoa: '',
       trangThai: '',
       hocKy: '',
-      khoaHoc: '',
+      namHoc: '',
     );
   }
 
@@ -399,9 +399,8 @@ class GiangVienProvider extends ChangeNotifier {
     bool choPhepNopLai = true,
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
-    String trangThai = 'dang_mo',
+    String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    List<String> filePaths = const [],
   }) async {
     _btProcessing = true;
     notifyListeners();
@@ -452,9 +451,8 @@ class GiangVienProvider extends ChangeNotifier {
     bool choPhepNopLai = true,
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
-    String trangThai = 'dang_mo',
+    String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    List<String> filePaths = const [],
   }) async {
     _btProcessing = true;
     notifyListeners();
@@ -632,7 +630,6 @@ class GiangVienProvider extends ChangeNotifier {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    List<String> filePaths = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
@@ -662,7 +659,6 @@ class GiangVienProvider extends ChangeNotifier {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
-    List<String> filePaths = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
@@ -831,8 +827,8 @@ class GiangVienProvider extends ChangeNotifier {
     _lopTuKhoa = '';
     _lopTrangThai = '';
     _lopHocKy = '';
-    _lopKhoaHoc = '';
-    _dsKhoaHocLop = [];
+    _lopNamHoc = '';
+    _dsNamHocLop = [];
     _dsHocKyLop = [];
 
     _dsSinhVienLop = [];

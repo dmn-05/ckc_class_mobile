@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../model/giang_vien_model.dart';
-import '../../model/sinh_vien_model.dart' show BinhLuanModel;
-import '../../services/sinh_vien_service.dart';
 import '../../widget/widget_chung_giangvien.dart';
 
 class ChiTietThongBaoGiangVien extends StatelessWidget {
@@ -25,17 +22,6 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
   static const _text = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
 
-  Future<void> _openFile(ThongBaoFile file, BuildContext context) async {
-    final uri = Uri.tryParse(file.duongDan);
-    if (uri == null) return;
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không mở được file đính kèm')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final guiColor = thongBao.daHenGio ? const Color(0xFFF97316) : const Color(0xFF16A34A);
@@ -54,7 +40,7 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
-          PopupMenuButton<String>(
+          if (onEdit != null || onDelete != null) PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'sua') {
                 await onEdit?.call();
@@ -87,7 +73,9 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: onEdit == null && onDelete == null
+          ? null
+          : SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
           decoration: const BoxDecoration(
@@ -230,16 +218,6 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
               ),
             ],
           ),
-          if (thongBao.files.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _SectionCard(
-              title: 'File đính kèm',
-              icon: Icons.attach_file_rounded,
-              children: thongBao.files
-                  .map((f) => _FileTile(file: f, onTap: () => _openFile(f, context)))
-                  .toList(),
-            ),
-          ],
           const SizedBox(height: 14),
           _SectionCard(
             title: 'Thông tin gửi',
@@ -285,127 +263,10 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
               _InfoRow(
                 icon: Icons.comment_outlined,
                 label: 'Bình luận',
-                value: '${thongBao.soBinhLuan} bình luận về thông báo',
+                value: '${thongBao.soBinhLuan} bình luận trong lớp',
                 color: const Color(0xFF0D9488),
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          _CommentsSection(thongBaoId: thongBao.id),
-        ],
-      ),
-    );
-  }
-}
-
-
-class _FileTile extends StatelessWidget {
-  final ThongBaoFile file;
-  final VoidCallback onTap;
-  const _FileTile({required this.file, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF2563EB)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(file.tenFile, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  if (file.kichThuocHienThi.isNotEmpty) Text(file.kichThuocHienThi, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                ],
-              ),
-            ),
-            const Icon(Icons.open_in_new_rounded, color: Color(0xFF64748B)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CommentsSection extends StatelessWidget {
-  final int thongBaoId;
-  const _CommentsSection({required this.thongBaoId});
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Bình luận của sinh viên',
-      icon: Icons.forum_rounded,
-      children: [
-        FutureBuilder<List<BinhLuanModel>>(
-          future: SinhVienService().layDanhSachBinhLuanThongBao(thongBaoId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(14),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return Text('Không tải được bình luận: ${snapshot.error}', style: const TextStyle(color: Colors.red));
-            }
-            final ds = snapshot.data ?? const <BinhLuanModel>[];
-            if (ds.isEmpty) {
-              return const Text('Chưa có bình luận nào.', style: TextStyle(color: Color(0xFF64748B)));
-            }
-            return Column(
-              children: ds.map((bl) => _CommentTile(bl: bl)).toList(),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _CommentTile extends StatelessWidget {
-  final BinhLuanModel bl;
-  const _CommentTile({required this.bl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 17,
-            backgroundColor: const Color(0xFFDBEAFE),
-            child: Text(bl.tenNguoiDung.isNotEmpty ? bl.tenNguoiDung[0].toUpperCase() : '?'),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(bl.tenNguoiDung, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                const SizedBox(height: 3),
-                Text(bl.noiDung, style: const TextStyle(color: Color(0xFF334155), height: 1.35)),
-              ],
-            ),
           ),
         ],
       ),

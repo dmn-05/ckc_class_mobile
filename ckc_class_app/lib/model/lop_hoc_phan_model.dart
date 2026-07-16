@@ -38,7 +38,6 @@ class LopHocPhan {
   final int? giangVienId;
   final String hocKy;
   final String namHoc;
-  final String khoaHoc;
   final int? siSoToiDa;
   final String trangThai;
   final DateTime? ngayTao;
@@ -73,7 +72,6 @@ class LopHocPhan {
     this.giangVienId,
     required this.hocKy,
     required this.namHoc,
-    this.khoaHoc = '',
     this.siSoToiDa,
     required this.trangThai,
     this.ngayTao,
@@ -105,7 +103,6 @@ class LopHocPhan {
       giangVienId: _toIntOrNull(json['giang_vien_id']),
       hocKy: json['hoc_ky']?.toString() ?? 'HK1',
       namHoc: json['nam_hoc']?.toString() ?? '',
-      khoaHoc: json['khoa_hoc']?.toString() ?? '',
       siSoToiDa: _toIntOrNull(json['si_so_toi_da']),
       trangThai: json['trang_thai']?.toString() ?? 'dang_mo',
       ngayTao: _toDateTime(json['ngay_tao']),
@@ -138,7 +135,6 @@ class LopHocPhan {
       'giang_vien_id': giangVienId,
       'hoc_ky': hocKy,
       'nam_hoc': namHoc,
-      'khoa_hoc': khoaHoc,
       'si_so_toi_da': siSoToiDa,
       'trang_thai': trangThai,
       'ngay_tao': ngayTao?.toIso8601String(),
@@ -167,6 +163,8 @@ class LopHocPhan {
   bool get daKhoa => trangThai == 'da_khoa';
 
   bool get daKetThuc => trangThai == 'da_ket_thuc';
+
+  bool get isDaLuu => daKhoa || daKetThuc;
 
   String get tenTrangThai {
     switch (trangThai) {

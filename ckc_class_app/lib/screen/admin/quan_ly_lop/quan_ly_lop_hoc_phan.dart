@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../utils/modal_lifecycle.dart';
 import 'package:ckc_class_app/model/khoa_bo_mon_model.dart';
 import 'package:ckc_class_app/model/lop_model.dart';
 import 'package:ckc_class_app/model/lop_hoc_phan_model.dart';
@@ -70,15 +71,17 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
     return text;
   }
 
-  List<String> _taoDanhSachKhoaHoc() {
+  List<String> _taoDanhSachNamHoc() {
     final namHienTai = DateTime.now().year;
-    final namBatDau = namHienTai - 5;
-
-    return List.generate(11, (index) {
-      final start = namBatDau + index;
-      final end = start + 3;
-      return '$start-$end';
+    return List.generate(10, (index) {
+      final batDau = namHienTai - 6 + index;
+      return '$batDau-${batDau + 1}';
     });
+  }
+
+  String _namHocMacDinh() {
+    final nam = DateTime.now().year;
+    return '$nam-${nam + 1}';
   }
 
   List<String> _dsHocKyTheoKhoa() {
@@ -152,98 +155,24 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
     final monHoc = _timMonHocTheoId(dsMonHoc, monHocId);
     final lop = _timLopTheoId(dsLop, lopId);
 
-    if (lop != null && monHoc != null) {
-      return '${lop.tenLop} - ${monHoc.tenMon}'.trim();
-    }
-
     final tenMon = (monHoc?.tenMon ?? '').trim();
-    final hocKyText = _labelHocKyNgan(hocKy).trim();
-    final khoaHocText = namHoc.trim();
+    final hocKyText = hocKy.trim();
+    final namHocText = namHoc.trim();
+
+    if (lop != null && monHoc != null) {
+      return '${lop.maLop} - $tenMon - $hocKyText - $namHocText'.trim();
+    }
 
     if (tenMon.isEmpty) {
-      return 'HKP - $hocKyText - $khoaHocText'.trim();
+      return 'HKP - $hocKyText - $namHocText'.trim();
     }
 
-    return 'HKP - $hocKyText - $tenMon - $khoaHocText'.trim();
+    return 'HKP - $tenMon - $hocKyText - $namHocText'.trim();
   }
 
-  String _namHocTheoKhoaHocVaHocKy(String khoaHoc, String hocKy) {
-    final parts = khoaHoc.split('-');
-    if (parts.length != 2) return '';
-
-    final namBatDau = int.tryParse(parts[0]);
-    if (namBatDau == null) return '';
-
-    int offset;
-    switch (hocKy) {
-      case 'HK1':
-      case 'HK2':
-        offset = 0;
-        break;
-      case 'HK3':
-      case 'HK4':
-        offset = 1;
-        break;
-      case 'HK5':
-      case 'HK6':
-        offset = 2;
-        break;
-      default:
-        offset = 0;
-    }
-
-    final namHocBatDau = namBatDau + offset;
-    return '$namHocBatDau-${namHocBatDau + 1}';
-  }
-
-  String _khoaHocTuNamHocVaHocKy(String namHoc, String hocKy) {
-    final parts = namHoc.split('-');
-    if (parts.length != 2) return '';
-
-    final namHocBatDau = int.tryParse(parts[0]);
-    if (namHocBatDau == null) return '';
-
-    int offset;
-    switch (hocKy) {
-      case 'HK1':
-      case 'HK2':
-        offset = 0;
-        break;
-      case 'HK3':
-      case 'HK4':
-        offset = 1;
-        break;
-      case 'HK5':
-      case 'HK6':
-        offset = 2;
-        break;
-      default:
-        offset = 0;
-    }
-
-    final namBatDauKhoa = namHocBatDau - offset;
-    return '$namBatDauKhoa-${namBatDauKhoa + 3}';
-  }
-
-  String _khoaHocTuLopHocPhan(LopHocPhan? lopHocPhan) {
-    if (lopHocPhan == null) {
-      final namHienTai = DateTime.now().year;
-      return '$namHienTai-${namHienTai + 3}';
-    }
-
-    if (lopHocPhan.khoaHoc.trim().isNotEmpty) {
-      return lopHocPhan.khoaHoc.trim();
-    }
-
-    final khoaHoc = _khoaHocTuNamHocVaHocKy(
-      lopHocPhan.namHoc,
-      lopHocPhan.hocKy,
-    );
-
-    if (khoaHoc.isNotEmpty) return khoaHoc;
-
-    final namHienTai = DateTime.now().year;
-    return '$namHienTai-${namHienTai + 3}';
+  String _namHocTuLopHocPhan(LopHocPhan? lopHocPhan) {
+    final value = lopHocPhan?.namHoc.trim() ?? '';
+    return value.isEmpty ? _namHocMacDinh() : value;
   }
 
   Color _mauTrangThaiLopHocPhan(String trangThai) {
@@ -323,7 +252,7 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                   _dongChiTiet('ID', lopHocPhan.id),
                   _dongChiTiet('Mã lớp học phần', lopHocPhan.maLopHocPhan),
                   _dongChiTiet('Tên lớp', lopHocPhan.tenLop),
-                  _dongChiTiet('Khóa học', _khoaHocTuLopHocPhan(lopHocPhan)),
+                  _dongChiTiet('Năm học', _namHocTuLopHocPhan(lopHocPhan)),
                   _dongChiTiet('Học kỳ', lopHocPhan.hocKy),
                   _dongChiTiet('Sĩ số', lopHocPhan.siSoHienThi),
                   _dongChiTiet('Tổng SV đăng ký', lopHocPhan.tongSoSinhVien),
@@ -434,18 +363,9 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
     // 0 = Học kỳ phụ, không tự động thêm sinh viên từ lớp hành chính.
     int lopId = 0;
 
-    String khoaHoc = _khoaHocTuLopHocPhan(lopHocPhan);
-    final dsKhoaHoc = _taoDanhSachKhoaHoc();
-    for (final lop in dsLopDangHoc) {
-      final khoaLop = lop.khoaHoc.trim();
-      if (khoaLop.isNotEmpty && !dsKhoaHoc.contains(khoaLop)) {
-        dsKhoaHoc.add(khoaLop);
-      }
-    }
-    dsKhoaHoc.sort();
-    if (!dsKhoaHoc.contains(khoaHoc)) {
-      dsKhoaHoc.insert(0, khoaHoc);
-    }
+    String namHoc = _namHocTuLopHocPhan(lopHocPhan);
+    final dsNamHoc = _taoDanhSachNamHoc();
+    if (!dsNamHoc.contains(namHoc)) dsNamHoc.insert(0, namHoc);
 
     String hocKy = lopHocPhan?.hocKy ?? 'HK1';
     if (!_laHocKyHopLe(hocKy)) {
@@ -598,7 +518,7 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                 return DropdownMenuItem<int>(
                                   value: lop.id,
                                   child: Text(
-                                    '${lop.maLop} - ${lop.tenLop} - Khóa ${lop.khoaHocHienThi}',
+                                    '${lop.maLop} - ${lop.tenLop} - Nhập học ${lop.namNhapHocHienThi}',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );
@@ -609,58 +529,38 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                 : (value) {
                                     setDialogState(() {
                                       lopId = value ?? 0;
-                                      final lop = _timLopTheoId(
-                                        dsLopDangHoc,
-                                        lopId,
-                                      );
-                                      if (lop != null &&
-                                          lop.khoaHoc.trim().isNotEmpty) {
-                                        khoaHoc = lop.khoaHoc.trim();
-                                        if (!_laHocKyHopLe(hocKy)) {
-                                          hocKy = 'HK1';
-                                        }
-                                      }
                                     });
                                   },
                           ),
                           const SizedBox(height: 14),
                         ],
                         DropdownButtonFormField<String>(
-                          value: khoaHoc,
+                          value: namHoc,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Khóa học',
+                            labelText: 'Năm học',
                             prefixIcon: Icon(Icons.date_range),
                             border: OutlineInputBorder(),
                           ),
-                          items: dsKhoaHoc.map((item) {
-                            return DropdownMenuItem<String>(
-                              value: item,
-                              child: Text('Khóa $item'),
-                            );
-                          }).toList(),
+                          items: dsNamHoc.map((item) => DropdownMenuItem<String>(
+                            value: item,
+                            child: Text('Năm học $item'),
+                          )).toList(),
                           onChanged: dangLuu
                               ? null
-                              : (value) {
-                                  setDialogState(() {
-                                    khoaHoc = value ?? khoaHoc;
-                                    hocKy = 'HK1';
-                                  });
-                                },
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Vui lòng chọn khóa học';
-                            }
-
-                            return null;
-                          },
+                              : (value) => setDialogState(() {
+                                  namHoc = value ?? namHoc;
+                                }),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Vui lòng chọn năm học'
+                              : null,
                         ),
                         const SizedBox(height: 14),
                         DropdownButtonFormField<String>(
                           value: hocKy,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Học kỳ theo khóa',
+                            labelText: 'Học kỳ',
                             prefixIcon: Icon(Icons.event),
                             border: OutlineInputBorder(),
                           ),
@@ -694,7 +594,7 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                 monHocId: monHocId,
                                 dsMonHoc: dsMonHocDangMo,
                                 hocKy: hocKy,
-                                namHoc: khoaHoc,
+                                namHoc: namHoc,
                               ),
                             ),
                           ),
@@ -770,7 +670,8 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                   onPressed: dangLuu
                       ? null
                       : () {
-                          Navigator.pop(dialogContext);
+                          unfocusCurrentInput();
+                          Navigator.of(dialogContext, rootNavigator: true).pop();
                         },
                   child: const Text('Hủy'),
                 ),
@@ -791,18 +692,13 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                               ? null
                               : int.parse(siSoText);
 
-                          final namHoc = _namHocTheoKhoaHocVaHocKy(
-                            khoaHoc,
-                            hocKy,
-                          );
-
                           final tenLopTuDong = _taoTenLopHocPhanTuDong(
                             lopId: lopId,
                             dsLop: dsLopDangHoc,
                             monHocId: monHocId,
                             dsMonHoc: dsMonHocDangMo,
                             hocKy: hocKy,
-                            namHoc: khoaHoc,
+                            namHoc: namHoc,
                           );
 
                           final maLopHocPhan = lopHocPhan == null
@@ -822,7 +718,6 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                   giangVienId: giangVienId,
                                   hocKy: hocKy,
                                   namHoc: namHoc,
-                                  khoaHoc: khoaHoc,
                                   siSoToiDa: siSoToiDa,
                                   trangThai: trangThai,
                                   lopId: lopId,
@@ -835,12 +730,11 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                   giangVienId: giangVienId,
                                   hocKy: hocKy,
                                   namHoc: namHoc,
-                                  khoaHoc: khoaHoc,
                                   siSoToiDa: siSoToiDa,
                                   trangThai: trangThai,
                                 );
 
-                          if (!mounted) return;
+                          if (!mounted || !dialogContext.mounted) return;
 
                           setDialogState(() {
                             dangLuu = false;
@@ -854,7 +748,8 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                   : 'Thao tác thất bại');
 
                           if (success) {
-                            Navigator.pop(dialogContext);
+                            unfocusCurrentInput();
+                            Navigator.of(dialogContext, rootNavigator: true).pop();
                           }
 
                           _showSnackBar(
@@ -881,15 +776,14 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
       },
     );
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    maLopHocPhanController.dispose();
-    tenLopController.dispose();
-    siSoToiDaController.dispose();
+    await disposeControllersAfterModal([
+      maLopHocPhanController,
+      tenLopController,
+      siSoToiDaController,
+    ]);
   }
 
   Future<void> _hienThiDanhSachSinhVienLopHocPhan(LopHocPhan lopHocPhan) async {
-    final timKiemSinhVienController = TextEditingController();
     final provider = context.read<SinhVienLopHocPhanProvider>();
 
     await provider.init(lopHocPhan.id);
@@ -903,7 +797,6 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
       ),
     );
 
-    timKiemSinhVienController.dispose();
 
     if (mounted) {
       await context.read<LopHocPhanProvider>().taiLaiDanhSach();
@@ -981,7 +874,7 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
     final dangCoBoLoc =
         provider.monHocId != 0 ||
         provider.giangVienId != 0 ||
-        provider.khoaHoc.isNotEmpty ||
+        provider.namHoc.isNotEmpty ||
         provider.hocKy.isNotEmpty ||
         provider.trangThai.isNotEmpty ||
         _timKiemLopHocPhanController.text.trim().isNotEmpty;
@@ -1155,26 +1048,25 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                             SizedBox(
                               width: filterWidth,
                               child: DropdownButtonFormField<String>(
-                                value: provider.khoaHoc,
+                                value: provider.namHoc,
                                 isExpanded: true,
                                 decoration: _dropdownFilterDecoration(
-                                  label: 'Khóa học',
+                                  label: 'Năm học',
                                   icon: Icons.date_range,
                                 ),
                                 items: [
                                   const DropdownMenuItem<String>(
                                     value: '',
-                                    child: Text('Tất cả khóa'),
+                                    child: Text('Tất cả năm học'),
                                   ),
-                                  ..._taoDanhSachKhoaHoc().map((khoaHoc) {
-                                    return DropdownMenuItem<String>(
-                                      value: khoaHoc,
-                                      child: Text('Khóa $khoaHoc'),
-                                    );
-                                  }),
+                                  ..._taoDanhSachNamHoc().map((namHoc) =>
+                                      DropdownMenuItem<String>(
+                                        value: namHoc,
+                                        child: Text(namHoc),
+                                      )),
                                 ],
                                 onChanged: (value) {
-                                  provider.locTheoKhoaHoc(value ?? '');
+                                  provider.locTheoNamHoc(value ?? '');
                                 },
                               ),
                             ),
@@ -1184,36 +1076,26 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                                 value: provider.hocKy,
                                 isExpanded: true,
                                 decoration: _dropdownFilterDecoration(
-                                  label: 'Học kỳ theo khóa',
+                                  label: 'Học kỳ',
                                   icon: Icons.event,
                                 ),
-                                items: provider.khoaHoc.isEmpty
-                                    ? const [
-                                        DropdownMenuItem<String>(
-                                          value: '',
-                                          child: Text('Chọn khóa trước'),
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: '',
+                                    child: Text('Tất cả học kỳ'),
+                                  ),
+                                  ..._dsHocKyTheoKhoa().map((hocKy) =>
+                                      DropdownMenuItem<String>(
+                                        value: hocKy,
+                                        child: Text(
+                                          _labelHocKyTheoKhoa(hocKy),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ]
-                                    : [
-                                        const DropdownMenuItem<String>(
-                                          value: '',
-                                          child: Text('Tất cả học kỳ'),
-                                        ),
-                                        ..._dsHocKyTheoKhoa().map((hocKy) {
-                                          return DropdownMenuItem<String>(
-                                            value: hocKy,
-                                            child: Text(
-                                              _labelHocKyTheoKhoa(hocKy),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          );
-                                        }),
-                                      ],
-                                onChanged: provider.khoaHoc.isEmpty
-                                    ? null
-                                    : (value) {
-                                        provider.locTheoHocKy(value ?? '');
-                                      },
+                                      )),
+                                ],
+                                onChanged: (value) {
+                                  provider.locTheoHocKy(value ?? '');
+                                },
                               ),
                             ),
                             SizedBox(
@@ -1402,12 +1284,12 @@ class _QuanLyLopHocPhanState extends State<QuanLyLopHocPhan> {
                     ),
                     _dongThongTinLopHocPhan('Khoa', lopHocPhan.tenKhoaHienThi),
                     _dongThongTinLopHocPhan(
-                      'Khóa học',
-                      _khoaHocTuLopHocPhan(lopHocPhan),
+                      'Năm học',
+                      lopHocPhan.namHoc,
                     ),
                     _dongThongTinLopHocPhan(
                       'Học kỳ',
-                      '${lopHocPhan.hocKy} - ${lopHocPhan.namHoc}',
+                      _labelHocKyTheoKhoa(lopHocPhan.hocKy),
                     ),
                     _dongThongTinLopHocPhan('Sĩ số', lopHocPhan.siSoHienThi),
 

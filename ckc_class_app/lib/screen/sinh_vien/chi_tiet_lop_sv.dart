@@ -43,6 +43,7 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
 
       p.layDanhSachThongBao(widget.lop.id);
       p.layDanhSachBaiTap(widget.lop.id);
+      p.layDanhSachBinhLuan(widget.lop.id);
       p.layThanhVienLop(widget.lop.id);
     });
   }
@@ -60,6 +61,7 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
     await Future.wait([
       p.layDanhSachThongBao(widget.lop.id),
       p.layDanhSachBaiTap(widget.lop.id),
+      p.layDanhSachBinhLuan(widget.lop.id),
       p.layThanhVienLop(widget.lop.id),
     ]);
   }
@@ -69,12 +71,7 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
     return Scaffold(
       // AppBar tối giản giống Google Classroom.
       appBar: AppBar(
-        title: Text(
-          widget.lop.tenHienThi,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: Text(widget.lop.tenHienThi),
         actions: [
           IconButton(
             tooltip: 'Làm mới',
@@ -84,14 +81,6 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
           tabs: const [
             Tab(icon: Icon(Icons.forum_outlined), text: 'Bảng tin'),
             Tab(
@@ -103,17 +92,59 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
         ),
       ),
 
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Bảng tin: chỉ hiển thị thông báo của giảng viên.
-          BangTinSVPage(lop: widget.lop, onRefresh: taiLaiDuLieu),
+          if (widget.lop.isDaLuu) _buildThongBaoChiDoc(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+          // Bảng tin: hiển thị thông báo + card bài tập + bình luận.
+          BangTinSVPage(
+            lop: widget.lop,
+            onRefresh: taiLaiDuLieu,
+            chiDoc: widget.lop.isDaLuu,
+          ),
 
           // Bài tập trên lớp: dùng lại màn hình bài tập hiện có.
-          BaiTapSVPage(lopHocPhanId: widget.lop.id),
+          BaiTapSVPage(
+            lopHocPhanId: widget.lop.id,
+            chiDoc: widget.lop.isDaLuu,
+          ),
 
           // Mọi người: hiển thị giáo viên trước, sinh viên sẽ thêm API sau.
           MoiNguoiSVPage(lop: widget.lop),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThongBaoChiDoc() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.archive_rounded, color: Color(0xFFC2410C)),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Lớp học phần đã được lưu. Bạn chỉ có thể xem nội dung.',
+              style: TextStyle(
+                color: Color(0xFF9A3412),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );

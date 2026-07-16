@@ -27,6 +27,9 @@ class LamQuizSV extends StatefulWidget {
 class _LamQuizSVState extends State<LamQuizSV> {
   final Map<int, Set<int>> _chon = {};
   final Map<int, String> _tuLuan = {};
+  Timer? _dongHo;
+  int? _soGiayConLai;
+  bool _dangTuDongNop = false;
 
   @override
   void initState() {
@@ -34,12 +37,68 @@ class _LamQuizSVState extends State<LamQuizSV> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _taiQuiz());
   }
 
-  void _taiQuiz() {
+  Future<void> _taiQuiz() async {
+    _dongHo?.cancel();
     final sv = context.read<SinhVienProvider>();
-    context.read<QuizProvider>().layQuizSinhVien(
+    final provider = context.read<QuizProvider>();
+    await provider.batDauVaLayQuizSinhVien(
       sinhVienId: sv.sinhVienId,
       baiTapId: widget.baiTapId,
     );
+    if (!mounted || provider.deQuiz == null) return;
+    _batDauDongHo(provider.deQuiz!);
+  }
+
+  void _batDauDongHo(DeQuiz de) {
+    _dongHo?.cancel();
+    final soGiay = de.thoiGianConLaiGiay;
+    if (soGiay == null) return;
+    setState(() => _soGiayConLai = soGiay.clamp(0, 864000).toInt());
+    if (_soGiayConLai == 0) {
+      _tuDongNopKhiHetGio();
+      return;
+    }
+    _dongHo = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final next = (_soGiayConLai ?? 0) - 1;
+      setState(() => _soGiayConLai = next < 0 ? 0 : next);
+      if (next <= 0) {
+        timer.cancel();
+        _tuDongNopKhiHetGio();
+      }
+    });
+  }
+
+  Future<void> _tuDongNopKhiHetGio() async {
+    if (_dangTuDongNop || !mounted) return;
+    _dangTuDongNop = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã hết thời gian. Hệ thống đang tự động nộp bài.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    await _nopQuiz(tuDong: true);
+  }
+
+  String _dinhDangConLai(int seconds) {
+    final safe = seconds < 0 ? 0 : seconds;
+    final hours = safe ~/ 3600;
+    final minutes = (safe % 3600) ~/ 60;
+    final secs = safe % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _dongHo?.cancel();
+    super.dispose();
   }
 
   int _soCauDaLam(DeQuiz de) {
@@ -331,7 +390,12 @@ class _LamQuizSVState extends State<LamQuizSV> {
                 runSpacing: 8,
                 children: [
                   _chip(Icons.quiz_outlined, '${de.cauHoi.length} câu'),
-                  if (de.thoiGianLam != null)
+                  if (_soGiayConLai != null)
+                    _chip(
+                      Icons.timer_rounded,
+                      'Còn ${_dinhDangConLai(_soGiayConLai!)}',
+                    ),
+                  if (_soGiayConLai == null && de.thoiGianLam != null)
                     _chip(Icons.timer_outlined, '${de.thoiGianLam} phút'),
                   if (de.hanNop != null)
                     _chip(Icons.event_outlined, dinhDangNgayGio(de.hanNop)),
@@ -562,7 +626,7 @@ class _LamQuizSVState extends State<LamQuizSV> {
     if (dongY == true) await _nopQuiz();
   }
 
-  Future<void> _nopQuiz() async {
+  Future<void> _nopQuiz({bool tuDong = false}) async {
     final sv = context.read<SinhVienProvider>();
     final result = await context.read<QuizProvider>().nopQuizSinhVien(
       sinhVienId: sv.sinhVienId,
@@ -572,15 +636,21 @@ class _LamQuizSVState extends State<LamQuizSV> {
     );
 
     if (!mounted) return;
+    if (result['success'] != true) _dangTuDongNop = false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result['message'] ?? ''),
+        content: Text(
+          tuDong && result['success'] == true
+              ? 'Đã hết giờ và nộp bài thành công'
+              : (result['message'] ?? ''),
+        ),
         backgroundColor: result['success'] == true ? Colors.green : Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
     );
 
     if (result['success'] == true) {
+      _dongHo?.cancel();
       if (widget.lopHocPhanId != null) {
         await context.read<SinhVienProvider>().layDanhSachBaiTap(
           widget.lopHocPhanId!,

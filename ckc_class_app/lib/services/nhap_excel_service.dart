@@ -65,13 +65,13 @@ class NhapExcelService {
       ma: 'lop_hanh_chinh',
       ten: 'Lớp hành chính',
       templateFile: 'mau_nhap_lop_hanh_chinh.xlsx',
-      moTa: 'Nhập lớp hành chính theo mã khoa và khóa học.',
-      headers: ['Mã lớp', 'Tên lớp', 'Mã khoa', 'Khóa học', 'Trạng thái'],
+      moTa: 'Nhập lớp hành chính theo mã khoa và năm nhập học.',
+      headers: ['Mã lớp', 'Tên lớp', 'Mã khoa', 'Năm nhập học', 'Trạng thái'],
       headerMap: {
         'Mã lớp': 'ma_lop',
         'Tên lớp': 'ten_lop',
         'Mã khoa': 'ma_khoa',
-        'Khóa học': 'khoa_hoc',
+        'Năm nhập học': 'nam_nhap_hoc',
         'Trạng thái': 'trang_thai',
       },
     ),
@@ -80,7 +80,7 @@ class NhapExcelService {
       ten: 'Sinh viên',
       templateFile: 'mau_nhap_sinh_vien.xlsx',
       moTa:
-          'Tạo tài khoản và hồ sơ sinh viên. Chỉ nhập Mã lớp; hệ thống tự lấy Khoa và Khóa học từ lớp. Tài khoản mặc định Đang hoạt động.',
+          'Tạo tài khoản và hồ sơ sinh viên. Chỉ nhập Mã lớp; hệ thống tự lấy Khoa và khóa sinh viên từ năm nhập học của lớp. Tài khoản mặc định Đang hoạt động.',
       headers: [
         'Mã sinh viên',
         'Họ tên',
@@ -116,7 +116,7 @@ class NhapExcelService {
       labelDoiTuongDich: 'Mã lớp hành chính đích',
       keyDoiTuongDich: 'ma_lop',
       moTa:
-          'Tạo sinh viên cho lớp hành chính đã chọn. File không cần Mã lớp/Mã khoa; hệ thống tự lấy Khoa và Khóa học. Tài khoản mặc định Đang hoạt động.',
+          'Tạo sinh viên cho lớp hành chính đã chọn. File không cần Mã lớp/Mã khoa; hệ thống tự lấy Khoa và khóa sinh viên từ năm nhập học của lớp. Tài khoản mặc định Đang hoạt động.',
       headers: [
         'Mã sinh viên',
         'Họ tên',
@@ -181,13 +181,13 @@ class NhapExcelService {
       ten: 'Lớp học phần',
       templateFile: 'mau_nhap_lop_hoc_phan.xlsx',
       moTa:
-          'Nhập lớp học phần theo mã môn học, mã giảng viên, khóa học và học kỳ.',
+          'Nhập lớp học phần theo mã môn học, mã giảng viên, năm học và học kỳ.',
       headers: [
         'Mã lớp học phần',
         'Tên lớp học phần',
         'Mã môn học',
         'Mã giảng viên',
-        'Khóa học',
+        'Năm học',
         'Học kỳ',
         'Sĩ số tối đa',
         'Trạng thái',
@@ -197,7 +197,7 @@ class NhapExcelService {
         'Tên lớp học phần': 'ten_lop',
         'Mã môn học': 'ma_mon',
         'Mã giảng viên': 'ma_giang_vien',
-        'Khóa học': 'khoa_hoc',
+        'Năm học': 'nam_hoc',
         'Học kỳ': 'hoc_ky',
         'Sĩ số tối đa': 'si_so_toi_da',
         'Trạng thái': 'trang_thai',

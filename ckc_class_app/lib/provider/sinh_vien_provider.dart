@@ -59,7 +59,7 @@ class SinhVienProvider extends ChangeNotifier {
   String _lopTuKhoa = '';
   String _lopTrangThai = '';
   String _lopHocKy = '';
-  String _lopKhoaHoc = '';
+  String _lopNamHoc = '';
 
   List<LopHocPhanSVModel> get dsLop => _dsLop;
   bool get lopLoading => _lopLoading;
@@ -67,15 +67,15 @@ class SinhVienProvider extends ChangeNotifier {
   String get lopTuKhoa => _lopTuKhoa;
   String get lopTrangThai => _lopTrangThai;
   String get lopHocKy => _lopHocKy;
-  String get lopKhoaHoc => _lopKhoaHoc;
+  String get lopNamHoc => _lopNamHoc;
 
-  List<String> get dsKhoaHocLop {
+  List<String> get dsNamHocLop {
     final set = <String>{};
     for (final lop in _dsLop) {
-      final value = lop.khoaHoc?.trim();
+      final value = lop.namHoc?.trim();
       if (value != null && value.isNotEmpty) set.add(value);
     }
-    if (_lopKhoaHoc.isNotEmpty) set.add(_lopKhoaHoc);
+    if (_lopNamHoc.isNotEmpty) set.add(_lopNamHoc);
     final list = set.toList()..sort();
     return list;
   }
@@ -95,12 +95,12 @@ class SinhVienProvider extends ChangeNotifier {
     String? tuKhoa,
     String? trangThai,
     String? hocKy,
-    String? khoaHoc,
+    String? namHoc,
   }) async {
     if (tuKhoa != null) _lopTuKhoa = tuKhoa;
     if (trangThai != null) _lopTrangThai = trangThai;
     if (hocKy != null) _lopHocKy = hocKy;
-    if (khoaHoc != null) _lopKhoaHoc = khoaHoc;
+    if (namHoc != null) _lopNamHoc = namHoc;
     _lopLoading = true;
     _lopError = null;
     notifyListeners();
@@ -110,7 +110,7 @@ class SinhVienProvider extends ChangeNotifier {
         tuKhoa: _lopTuKhoa,
         trangThai: _lopTrangThai,
         hocKy: _lopHocKy,
-        khoaHoc: _lopKhoaHoc,
+        namHoc: _lopNamHoc,
       );
     } catch (e) {
       _lopError = _err(e);
@@ -124,7 +124,7 @@ class SinhVienProvider extends ChangeNotifier {
     _lopTuKhoa = '';
     _lopTrangThai = '';
     _lopHocKy = '';
-    _lopKhoaHoc = '';
+    _lopNamHoc = '';
     await layDanhSachLop();
   }
 
@@ -380,44 +380,6 @@ class SinhVienProvider extends ChangeNotifier {
     }
   }
 
-
-  Future<void> layDanhSachBinhLuanThongBao(int thongBaoId) async {
-    _blLoading = true;
-    _blError = null;
-    notifyListeners();
-    try {
-      _dsBinhLuan = await _service.layDanhSachBinhLuanThongBao(thongBaoId);
-    } catch (e) {
-      _blError = _err(e);
-    } finally {
-      _blLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<Map<String, dynamic>> dangBinhLuanThongBao({
-    required int thongBaoId,
-    required String noiDung,
-  }) async {
-    _blProcessing = true;
-    notifyListeners();
-    try {
-      final bl = await _service.dangBinhLuanThongBao(
-        nguoiDungId: _nguoiDungId,
-        thongBaoId: thongBaoId,
-        noiDung: noiDung,
-      );
-      _dsBinhLuan.add(bl);
-      notifyListeners();
-      return {'success': true, 'message': 'Đăng bình luận thành công'};
-    } catch (e) {
-      return {'success': false, 'message': _err(e)};
-    } finally {
-      _blProcessing = false;
-      notifyListeners();
-    }
-  }
-
   Future<Map<String, dynamic>> suaBinhLuan({
     required int binhLuanId,
     required String noiDung,
@@ -562,27 +524,6 @@ class SinhVienProvider extends ChangeNotifier {
       final msg = await _service.thamGiaLopHocPhan(
         sinhVienId: _sinhVienId,
         maLopHocPhan: maLopHocPhan.trim(),
-      );
-
-      return {'success': true, 'message': msg};
-    } catch (e) {
-      return {'success': false, 'message': _err(e)};
-    }
-  }
-
-  Future<Map<String, dynamic>> huyThamGiaLopHocPhan(int lopHocPhanId) async {
-    if (_sinhVienId <= 0) {
-      return {'success': false, 'message': 'Chưa khởi tạo ID sinh viên'};
-    }
-
-    if (lopHocPhanId <= 0) {
-      return {'success': false, 'message': 'ID lớp học phần không hợp lệ'};
-    }
-
-    try {
-      final msg = await _service.huyThamGiaLopHocPhan(
-        sinhVienId: _sinhVienId,
-        lopHocPhanId: lopHocPhanId,
       );
 
       return {'success': true, 'message': msg};

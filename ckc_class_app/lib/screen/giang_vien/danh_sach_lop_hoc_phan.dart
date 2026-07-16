@@ -8,7 +8,9 @@ import '../../provider/giang_vien_provider.dart';
 import 'chi_tiet_lop_hoc_phan.dart';
 
 class DanhSachLopHocPhan extends StatefulWidget {
-  const DanhSachLopHocPhan({super.key});
+  final bool chiLuuTru;
+
+  const DanhSachLopHocPhan({super.key, this.chiLuuTru = false});
 
   @override
   State<DanhSachLopHocPhan> createState() => _DanhSachLopHocPhanState();
@@ -31,7 +33,7 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
       if (!mounted) return;
       final provider = context.read<GiangVienProvider>();
       _timKiemController.text = provider.lopTuKhoa;
-      provider.layDanhSachLop();
+      provider.layDanhSachLop(trangThai: '');
     });
   }
 
@@ -60,9 +62,8 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
 
   int _demBoLoc(GiangVienProvider provider) {
     var count = 0;
-    if (provider.lopKhoaHoc.isNotEmpty) count++;
+    if (provider.lopNamHoc.isNotEmpty) count++;
     if (provider.lopHocKy.isNotEmpty) count++;
-    if (provider.lopTrangThai.isNotEmpty) count++;
     return count;
   }
 
@@ -71,9 +72,9 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text(
-          'Lớp của tôi',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        title: Text(
+          widget.chiLuuTru ? 'Lưu trữ' : 'Lớp của tôi',
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
           IconButton(
@@ -87,13 +88,13 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
         builder: (context, provider, _) {
           return Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                 child: Align(
                   alignment: Alignment.center,
                   child: Text(
-                    'Lớp học phần',
-                    style: TextStyle(
+                    widget.chiLuuTru ? 'Lớp học phần đã lưu' : 'Lớp học phần',
+                    style: const TextStyle(
                       color: _text,
                       fontSize: 23,
                       fontWeight: FontWeight.w900,
@@ -299,13 +300,13 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
     GiangVienProvider provider,
     bool dangCoBoLoc,
   ) {
-    final dsKhoaHoc = [...provider.dsKhoaHocLop];
+    final dsNamHoc = [...provider.dsNamHocLop];
     final dsHocKy = [...provider.dsHocKyLop];
 
-    if (provider.lopKhoaHoc.isNotEmpty &&
-        !dsKhoaHoc.contains(provider.lopKhoaHoc)) {
-      dsKhoaHoc.add(provider.lopKhoaHoc);
-      dsKhoaHoc.sort();
+    if (provider.lopNamHoc.isNotEmpty &&
+        !dsNamHoc.contains(provider.lopNamHoc)) {
+      dsNamHoc.add(provider.lopNamHoc);
+      dsNamHoc.sort();
     }
     if (provider.lopHocKy.isNotEmpty &&
         !dsHocKy.contains(provider.lopHocKy)) {
@@ -335,13 +336,13 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
                   SizedBox(
                     width: width,
                     child: _dropdown(
-                      value: provider.lopKhoaHoc,
-                      label: 'Khóa học',
+                      value: provider.lopNamHoc,
+                      label: 'Năm học',
                       icon: Icons.school_outlined,
-                      allLabel: 'Tất cả khóa học',
-                      values: dsKhoaHoc,
+                      allLabel: 'Tất cả năm học',
+                      values: dsNamHoc,
                       onChanged: (value) {
-                        provider.layDanhSachLop(khoaHoc: value ?? '');
+                        provider.layDanhSachLop(namHoc: value ?? '');
                       },
                     ),
                   ),
@@ -355,24 +356,6 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
                       values: dsHocKy,
                       onChanged: (value) {
                         provider.layDanhSachLop(hocKy: value ?? '');
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: _dropdown(
-                      value: provider.lopTrangThai,
-                      label: 'Trạng thái',
-                      icon: Icons.toggle_on_outlined,
-                      allLabel: 'Tất cả trạng thái',
-                      values: const ['dang_mo', 'da_khoa', 'da_ket_thuc'],
-                      labels: const {
-                        'dang_mo': 'Đang mở',
-                        'da_khoa': 'Đã khóa',
-                        'da_ket_thuc': 'Đã kết thúc',
-                      },
-                      onChanged: (value) {
-                        provider.layDanhSachLop(trangThai: value ?? '');
                       },
                     ),
                   ),
@@ -443,6 +426,9 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
   }
 
   Widget _buildDanhSach(GiangVienProvider provider) {
+    final danhSach = provider.dsLopHocPhan
+        .where((lop) => lop.isDaLuu == widget.chiLuuTru)
+        .toList();
     if (provider.lopLoading && provider.dsLopHocPhan.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -457,13 +443,17 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
       );
     }
 
-    if (provider.dsLopHocPhan.isEmpty) {
+    if (danhSach.isEmpty) {
       return _TrangThaiThongBao(
-        icon: Icons.class_outlined,
-        title: 'Không có lớp phù hợp',
-        message: 'Hãy thử thay đổi từ khóa hoặc xóa bộ lọc.',
-        buttonLabel: 'Xóa bộ lọc',
-        onPressed: () => _xoaBoLoc(provider),
+        icon: widget.chiLuuTru ? Icons.archive_outlined : Icons.class_outlined,
+        title: widget.chiLuuTru
+            ? 'Chưa có lớp học phần đã lưu'
+            : 'Không có lớp đang hoạt động',
+        message: widget.chiLuuTru
+            ? 'Lớp đã khóa hoặc kết thúc sẽ xuất hiện tại mục Lưu trữ.'
+            : 'Hãy thử thay đổi từ khóa hoặc xóa bộ lọc.',
+        buttonLabel: 'Làm mới',
+        onPressed: provider.layDanhSachLop,
       );
     }
 
@@ -472,9 +462,9 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
-        itemCount: provider.dsLopHocPhan.length,
+        itemCount: danhSach.length,
         itemBuilder: (context, index) {
-          return _buildTheLop(provider.dsLopHocPhan[index]);
+          return _buildTheLop(danhSach[index]);
         },
       ),
     );
@@ -571,7 +561,7 @@ class _DanhSachLopHocPhanState extends State<DanhSachLopHocPhan> {
                   ),
                   _chip(
                     Icons.school_outlined,
-                    lop.khoaHocHienThi,
+                    lop.namHocHienThi,
                     const Color(0xFF0F766E),
                     const Color(0xFFECFDF5),
                   ),

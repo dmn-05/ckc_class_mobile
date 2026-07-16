@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../model/sinh_vien_model.dart';
 import '../../provider/sinh_vien_provider.dart';
+import '../../utils/modal_lifecycle.dart';
 import '../../widget/widget_sinhvien.dart';
 
 class ThaoLuanSVPage extends StatefulWidget {
   final int lopHocPhanId;
-  const ThaoLuanSVPage({super.key, required this.lopHocPhanId});
+  final bool chiDoc;
+  const ThaoLuanSVPage({
+    super.key,
+    required this.lopHocPhanId,
+    this.chiDoc = false,
+  });
 
   @override
   State<ThaoLuanSVPage> createState() => _ThaoLuanSVPageState();
@@ -50,7 +56,8 @@ class _ThaoLuanSVPageState extends State<ThaoLuanSVPage> {
           return Column(
             children: [
               Expanded(child: _buildList(p)),
-              SafeArea(
+              if (!widget.chiDoc)
+                SafeArea(
                 top: false,
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -252,7 +259,7 @@ class _BinhLuanTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (mine)
+            if (mine && !widget.chiDoc)
               PopupMenuButton<String>(
                 icon: Icon(
                   Icons.more_vert_rounded,
@@ -273,36 +280,39 @@ class _BinhLuanTile extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, SinhVienProvider p) {
-    showDialog(
+  Future<void> _confirmDelete(
+    BuildContext context,
+    SinhVienProvider p,
+  ) async {
+    final dongY = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Xóa bình luận'),
         content: const Text('Bạn chắc chắn muốn xóa bình luận này?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Hủy'),
           ),
           FilledButton(
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              await p.xoaBinhLuan(bl.id);
-              nav.pop();
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Xóa'),
           ),
         ],
       ),
     );
+
+    if (dongY == true) {
+      await p.xoaBinhLuan(bl.id);
+    }
   }
 
-  void _showEdit(BuildContext context, SinhVienProvider p) {
+  Future<void> _showEdit(BuildContext context, SinhVienProvider p) async {
     final ctrl = TextEditingController(text: bl.noiDung);
-    showDialog(
+    final noiDungMoi = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Sửa bình luận'),
         content: TextField(
@@ -316,21 +326,27 @@ class _BinhLuanTile extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              unfocusCurrentInput();
+              Navigator.of(dialogContext).pop();
+            },
             child: const Text('Hủy'),
           ),
           FilledButton(
-            onPressed: () async {
-              final nav = Navigator.of(context);
+            onPressed: () {
               final text = ctrl.text.trim();
               if (text.isEmpty) return;
-              await p.suaBinhLuan(binhLuanId: bl.id, noiDung: text);
-              nav.pop();
+              unfocusCurrentInput();
+              Navigator.of(dialogContext).pop(text);
             },
             child: const Text('Lưu'),
           ),
         ],
       ),
     );
+
+    await disposeControllersAfterModal([ctrl]);
+    if (noiDungMoi == null || noiDungMoi.isEmpty) return;
+    await p.suaBinhLuan(binhLuanId: bl.id, noiDung: noiDungMoi);
   }
 }

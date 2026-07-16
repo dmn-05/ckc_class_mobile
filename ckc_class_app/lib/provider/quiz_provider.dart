@@ -232,6 +232,33 @@ class QuizProvider extends ChangeNotifier {
     }
   }
 
+  // ─── SINH VIÊN: BẮT ĐẦU VÀ LẤY ĐỀ QUIZ ────────────────────
+  Future<void> batDauVaLayQuizSinhVien({
+    required int sinhVienId,
+    required int baiTapId,
+  }) async {
+    _loading = true;
+    _error = null;
+    _deQuiz = null;
+    notifyListeners();
+
+    try {
+      await _service.batDauQuizSinhVien(
+        sinhVienId: sinhVienId,
+        baiTapId: baiTapId,
+      );
+      _deQuiz = await _service.layQuizSinhVien(
+        sinhVienId: sinhVienId,
+        baiTapId: baiTapId,
+      );
+    } catch (e) {
+      _error = _err(e);
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   // ─── SINH VIÊN: LẤY ĐỀ QUIZ ────────────────────────────────
   Future<void> layQuizSinhVien({
     required int sinhVienId,

@@ -303,64 +303,6 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
     );
   }
 
-  Future<void> _xacNhanHuyThamGiaLop(
-    SinhVienProvider provider,
-    dynamic lop,
-  ) async {
-    final dongY = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: const Text('Hủy tham gia lớp'),
-          content: Text(
-            'Bạn chắc chắn muốn hủy tham gia lớp "${lop.tenHienThi}"?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Không'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.logout),
-              label: const Text('Hủy tham gia'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (dongY != true) return;
-
-    final result = await provider.huyThamGiaLopHocPhan(lop.id);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message'] ?? ''),
-        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
-      ),
-    );
-
-    if (result['success'] == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        await provider.layDanhSachLop();
-        await provider.layThongTin();
-        await provider.layBaiTapChuaNop();
-      });
-    }
-  }
-
   // ── Bài tập chờ nộp ──────────────────────────────────────────
   Widget _buildBaiTapChuaNop(SinhVienProvider provider) {
     if (provider.bcnLoading) return const SizedBox.shrink();
@@ -457,7 +399,11 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
       return const SizedBox.shrink();
     }
 
-    final dsHienThi = provider.dsLop.take(3).toList();
+    final dsHienThi = provider.dsLop
+        .where((lop) => !lop.isDaLuu)
+        .take(3)
+        .toList();
+    if (dsHienThi.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -478,7 +424,6 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
               context,
               MaterialPageRoute(builder: (_) => ChiTietLopSV(lop: lop)),
             ),
-            onCancel: () => _xacNhanHuyThamGiaLop(provider, lop),
           ),
         ),
       ],
@@ -799,16 +744,18 @@ class _PendingAssignmentTile extends StatelessWidget {
 class _CourseCard extends StatelessWidget {
   final dynamic lop;
   final VoidCallback onTap;
-  final VoidCallback onCancel;
 
   const _CourseCard({
     required this.lop,
     required this.onTap,
-    required this.onCancel,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hocKy = lop.hocKy?.toString().trim() ?? '';
+    final namHoc = lop.namHoc?.toString().trim() ?? '';
+    final thoiGian = [hocKy, namHoc].where((e) => e.isNotEmpty).join(' • ');
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -851,11 +798,12 @@ class _CourseCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
-                        if (lop.hocKy != null)
-                          ChipTrangThai(nhan: lop.hocKy!, mau: Colors.blue),
-                        const SizedBox(width: 6),
+                        if (thoiGian.isNotEmpty)
+                          ChipTrangThai(nhan: thoiGian, mau: Colors.blue),
                         ChipTrangThai(
                           nhan: '${lop.soBaiTap} bài tập',
                           mau: Colors.orange,
@@ -865,23 +813,10 @@ class _CourseCard extends StatelessWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (value) {
-                  if (value == 'huy') onCancel();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem<String>(
-                    value: 'huy',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Colors.red, size: 18),
-                        SizedBox(width: 8),
-                        Text('Hủy tham gia lớp'),
-                      ],
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF94A3B8),
               ),
             ],
           ),

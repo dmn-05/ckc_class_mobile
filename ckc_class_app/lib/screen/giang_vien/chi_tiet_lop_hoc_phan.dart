@@ -61,7 +61,14 @@ class _ChiTietLopHocPhanState extends State<ChiTietLopHocPhan>
       ),
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(child: _buildThongTinLop(lop)),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _buildThongTinLop(lop),
+                if (lop.isDaLuu) _buildThongBaoChiDoc(),
+              ],
+            ),
+          ),
           SliverPersistentHeader(
             pinned: true,
             delegate: _TabHeaderDelegate(
@@ -79,11 +86,39 @@ class _ChiTietLopHocPhanState extends State<ChiTietLopHocPhan>
         body: TabBarView(
           controller: _tabController,
           children: [
-            QuanLyThongBao(lop: lop),
-            QuanLyBaiTap(lop: lop),
+            QuanLyThongBao(lop: lop, chiDoc: lop.isDaLuu),
+            QuanLyBaiTap(lop: lop, chiDoc: lop.isDaLuu),
             DanhSachSinhVienLop(lop: lop),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildThongBaoChiDoc() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.archive_rounded, color: Color(0xFFC2410C)),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Lớp học phần đã được lưu. Bạn vẫn xem được toàn bộ nội dung nhưng không thể thêm, sửa hoặc xóa dữ liệu.',
+              style: TextStyle(
+                color: Color(0xFF9A3412),
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -255,29 +290,16 @@ class _InfoPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withOpacity(0.18)),
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width - 84,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 15),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }

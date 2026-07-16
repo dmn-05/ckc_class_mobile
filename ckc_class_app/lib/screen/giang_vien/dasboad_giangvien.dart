@@ -353,7 +353,10 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final dsLop = provider.dsLopHocPhan.take(3).toList();
+    final dsLop = provider.dsLopHocPhan
+        .where((lop) => !lop.isDaLuu)
+        .take(3)
+        .toList();
     if (dsLop.isEmpty) return const SizedBox.shrink();
 
     return Column(

@@ -261,6 +261,10 @@ class _MainScaffoldState extends State<MainScaffold> {
           title = 'Lớp học phần';
           body = const DanhSachLopHocPhan();
           break;
+        case 2:
+          title = 'Lưu trữ';
+          body = const DanhSachLopHocPhan(chiLuuTru: true);
+          break;
         default:
           title = 'Giảng viên';
           body = const DashboardGiangVien();
@@ -272,8 +276,12 @@ class _MainScaffoldState extends State<MainScaffold> {
           body = const DashboardSinhVien();
           break;
         case 1:
-          title = 'Lớp của tôi';
+          title = 'Lớp học phần';
           body = const LopHocPhanSV();
+          break;
+        case 2:
+          title = 'Lưu trữ';
+          body = const LopHocPhanSV(chiLuuTru: true);
           break;
         default:
           title = 'Sinh viên';
@@ -428,6 +436,12 @@ class _MainScaffoldState extends State<MainScaffold> {
                         selected: _selectedIndex == 1,
                         onTap: () => _chonMenu(1),
                       ),
+                      _NavTile(
+                        icon: Icons.archive_outlined,
+                        title: 'Lưu trữ',
+                        selected: _selectedIndex == 2,
+                        onTap: () => _chonMenu(2),
+                      ),
                     ],
 
                     if (user.isSinhVien) ...[
@@ -435,9 +449,15 @@ class _MainScaffoldState extends State<MainScaffold> {
                       _DrawerSectionLabel(label: 'Học tập'),
                       _NavTile(
                         icon: Icons.school_rounded,
-                        title: 'Lớp của tôi',
+                        title: 'Lớp học phần',
                         selected: _selectedIndex == 1,
                         onTap: () => _chonMenu(1),
+                      ),
+                      _NavTile(
+                        icon: Icons.archive_outlined,
+                        title: 'Lưu trữ',
+                        selected: _selectedIndex == 2,
+                        onTap: () => _chonMenu(2),
                       ),
                     ],
                   ],

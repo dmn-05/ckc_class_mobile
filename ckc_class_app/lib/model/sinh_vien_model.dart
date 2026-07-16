@@ -24,6 +24,19 @@ String? _toStr(dynamic v) {
   return (s.isEmpty || s.toLowerCase() == 'null') ? null : s;
 }
 
+String _chuanHoaTrangThaiBaiTap(dynamic value) {
+  switch (value?.toString().trim()) {
+    case 'dang_mo':
+    case 'hien_thi':
+      return 'hien_thi';
+    case 'da_dong':
+    case 'an':
+      return 'an';
+    default:
+      return 'hien_thi';
+  }
+}
+
 // ─── THÔNG KÊ NHANH ───────────────────────────────────────────
 class ThongKeSinhVienModel {
   final int soLopDangHoc;
@@ -59,6 +72,7 @@ class HoSoSinhVienModel {
   final String? soDienThoai;
   final String? cccd;
   final String? diaChi;
+  final String? khoaHoc;
   final String trangThai;
   final String trangThaiSinhVien;
   final DateTime? ngayTao;
@@ -83,6 +97,7 @@ class HoSoSinhVienModel {
     this.soDienThoai,
     this.cccd,
     this.diaChi,
+    this.khoaHoc,
     this.trangThai = 'dang_hoat_dong',
     this.trangThaiSinhVien = 'dang_hoc',
     this.ngayTao,
@@ -109,6 +124,7 @@ class HoSoSinhVienModel {
         soDienThoai: _toStr(j['so_dien_thoai']),
         cccd: _toStr(j['cccd']),
         diaChi: _toStr(j['dia_chi']),
+        khoaHoc: _toStr(j['khoa_hoc']),
         trangThai: j['trang_thai']?.toString() ?? 'dang_hoat_dong',
         trangThaiSinhVien: j['trang_thai_sinh_vien']?.toString() ?? 'dang_hoc',
         ngayTao: _toDateTime(j['ngay_tao']),
@@ -149,7 +165,6 @@ class LopHocPhanSVModel {
   final String? tenLop;
   final String? hocKy;
   final String? namHoc;
-  final String? khoaHoc;
   final String trangThai;
   final String trangThaiDangKy;
   final DateTime? ngayDangKy;
@@ -170,7 +185,6 @@ class LopHocPhanSVModel {
     this.tenLop,
     this.hocKy,
     this.namHoc,
-    this.khoaHoc,
     this.trangThai = 'dang_mo',
     this.trangThaiDangKy = 'dang_hoc',
     this.ngayDangKy,
@@ -193,7 +207,6 @@ class LopHocPhanSVModel {
         tenLop: _toStr(j['ten_lop']),
         hocKy: _toStr(j['hoc_ky']),
         namHoc: _toStr(j['nam_hoc']),
-        khoaHoc: _toStr(j['khoa_hoc']),
         trangThai: j['trang_thai']?.toString() ?? 'dang_mo',
         trangThaiDangKy: j['trang_thai_dang_ky']?.toString() ?? 'dang_hoc',
         ngayDangKy: _toDateTime(j['ngay_dang_ky']),
@@ -211,6 +224,8 @@ class LopHocPhanSVModel {
 
   String get tenHienThi => tenLop ?? maLopHocPhan;
   bool get isDangHoc => trangThaiDangKy == 'dang_hoc';
+  bool get isDaLuu => trangThai == 'da_khoa' || trangThai == 'da_ket_thuc';
+  String get namHocHienThi => namHoc ?? 'Chưa cập nhật';
 }
 
 // ─── TÀI LIỆU (góc nhìn sinh viên) ───────────────────────────
@@ -254,46 +269,6 @@ class TaiLieuSVModel {
   }
 }
 
-
-class ThongBaoFileSVModel {
-  final int id;
-  final String tenFile;
-  final String duongDan;
-  final String? loaiFile;
-  final int kichThuoc;
-  final DateTime? ngayTao;
-
-  const ThongBaoFileSVModel({
-    required this.id,
-    required this.tenFile,
-    required this.duongDan,
-    this.loaiFile,
-    this.kichThuoc = 0,
-    this.ngayTao,
-  });
-
-  factory ThongBaoFileSVModel.fromJson(Map<String, dynamic> j) {
-    final url = _toStr(j['duong_dan_file']) ?? _toStr(j['duong_dan']) ?? _toStr(j['url']) ?? '';
-    final name = _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']) ?? (url.isEmpty ? 'File đính kèm' : url.split('/').last.split('\\').last);
-    return ThongBaoFileSVModel(
-      id: _toInt(j['id']) ?? 0,
-      tenFile: name,
-      duongDan: url,
-      loaiFile: _toStr(j['loai_file']),
-      kichThuoc: _toInt(j['kich_thuoc']) ?? 0,
-      ngayTao: _toDateTime(j['ngay_tao']),
-    );
-  }
-
-  String get kichThuocHienThi {
-    if (kichThuoc <= 0) return '';
-    final kb = kichThuoc / 1024;
-    if (kb < 1024) return '${kb.toStringAsFixed(kb < 100 ? 1 : 0)} KB';
-    final mb = kb / 1024;
-    return '${mb.toStringAsFixed(mb < 100 ? 1 : 0)} MB';
-  }
-}
-
 // ─── THÔNG BÁO (góc nhìn sinh viên) ──────────────────────────
 class ThongBaoSVModel {
   final int id;
@@ -303,8 +278,6 @@ class ThongBaoSVModel {
   final DateTime? ngayTao;
   final DateTime? ngayCapNhat;
   final int soBinhLuan;
-  final int? baiVietId;
-  final List<ThongBaoFileSVModel> files;
 
   const ThongBaoSVModel({
     required this.id,
@@ -314,27 +287,17 @@ class ThongBaoSVModel {
     this.ngayTao,
     this.ngayCapNhat,
     this.soBinhLuan = 0,
-    this.baiVietId,
-    this.files = const [],
   });
 
-  factory ThongBaoSVModel.fromJson(Map<String, dynamic> j) {
-    final rawFiles = j['files'];
-    final dsFiles = rawFiles is List
-        ? rawFiles.map((e) => ThongBaoFileSVModel.fromJson(Map<String, dynamic>.from(e))).toList()
-        : <ThongBaoFileSVModel>[];
-    return ThongBaoSVModel(
-      id: _toInt(j['id']) ?? 0,
-      tieuDe: j['tieu_de']?.toString() ?? '',
-      noiDung: _toStr(j['noi_dung']),
-      tenNguoiTao: _toStr(j['ten_nguoi_tao']),
-      ngayTao: _toDateTime(j['ngay_tao']),
-      ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
-      soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
-      baiVietId: _toInt(j['bai_viet_id']),
-      files: dsFiles,
-    );
-  }
+  factory ThongBaoSVModel.fromJson(Map<String, dynamic> j) => ThongBaoSVModel(
+    id: _toInt(j['id']) ?? 0,
+    tieuDe: j['tieu_de']?.toString() ?? '',
+    noiDung: _toStr(j['noi_dung']),
+    tenNguoiTao: _toStr(j['ten_nguoi_tao']),
+    ngayTao: _toDateTime(j['ngay_tao']),
+    ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
+    soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
+  );
 }
 
 // ─── FILE ĐÃ NỘP CỦA SINH VIÊN ─────────────────────────────
@@ -430,7 +393,7 @@ class BaiTapSVModel {
     this.moTa,
     this.duongDanFile,
     this.hanNop,
-    this.trangThai = 'dang_mo',
+    this.trangThai = 'hien_thi',
     this.ngayTao,
     this.tenNguoiTao,
     this.yeuCauNopFile = true,
@@ -463,14 +426,13 @@ class BaiTapSVModel {
     moTa: _toStr(j['mo_ta']),
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
     hanNop: _toDateTime(j['han_nop']),
-    trangThai: j['trang_thai']?.toString() ?? 'dang_mo',
+    trangThai: _chuanHoaTrangThaiBaiTap(j['trang_thai']),
     ngayTao: _toDateTime(j['ngay_tao']),
     tenNguoiTao: _toStr(j['ten_nguoi_tao']),
     yeuCauNopFile: _toBool(j['yeu_cau_nop_file'], def: true),
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    soFileToiDa: (_toInt(j['so_file_toi_da']) ?? 1) <= 0
-        ? 1
-        : (_toInt(j['so_file_toi_da']) ?? 1),
+    // CSDL bai_nop hiện chỉ lưu một đường dẫn file cho mỗi bài nộp.
+    soFileToiDa: 1,
     dungLuongToiDaMb: (_toInt(j['dung_luong_toi_da_mb']) ?? 25) <= 0
         ? 25
         : (_toInt(j['dung_luong_toi_da_mb']) ?? 25),
@@ -542,11 +504,13 @@ class BaiTapSVModel {
 
   bool get daDuocNop => baiNopId != null;
   bool get daDuocCham => diem != null;
-  bool get daDong => trangThai == 'da_dong';
+  bool get daDong => trangThai == 'an';
 
   bool get daLamQuiz =>
       baiLamQuizId != null &&
-      (trangThaiQuiz == 'da_nop' || trangThaiQuiz == 'qua_han');
+      (trangThaiQuiz == 'da_nop' ||
+          trangThaiQuiz == 'da_cham' ||
+          trangThaiQuiz == 'qua_han');
 
   bool get daQuaHan {
     if (hanNop == null) return false;

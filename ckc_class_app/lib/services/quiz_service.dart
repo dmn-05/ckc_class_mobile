@@ -246,6 +246,31 @@ class QuizService {
     }
   }
 
+  // ─── SINH VIÊN: BẮT ĐẦU QUIZ ──────────────────────────────
+  Future<Map<String, dynamic>> batDauQuizSinhVien({
+    required int sinhVienId,
+    required int baiTapId,
+  }) async {
+    try {
+      final res = await _api.post(
+        '/sinh_vien/quiz_sinh_vien.php',
+        data: {
+          'action': 'bat_dau_quiz',
+          'sinh_vien_id': sinhVienId,
+          'bai_tap_id': baiTapId,
+        },
+      );
+      final b = _body(res);
+      if (!_ok(b)) {
+        throw Exception(_message(b, fallback: 'Không thể bắt đầu quiz'));
+      }
+      final raw = b['data'];
+      return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    } catch (e) {
+      throw Exception(_err(e));
+    }
+  }
+
   // ─── SINH VIÊN: LẤY ĐỀ QUIZ ────────────────────────────────
   Future<DeQuiz> layQuizSinhVien({
     required int sinhVienId,

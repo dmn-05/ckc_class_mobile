@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../model/giang_vien_model.dart';
@@ -9,8 +8,13 @@ import 'chi_tiet_thong_bao_giang_vien.dart';
 
 class QuanLyThongBao extends StatefulWidget {
   final LopHocPhan lop;
+  final bool chiDoc;
 
-  const QuanLyThongBao({super.key, required this.lop});
+  const QuanLyThongBao({
+    super.key,
+    required this.lop,
+    this.chiDoc = false,
+  });
 
   @override
   State<QuanLyThongBao> createState() => _QuanLyThongBaoState();
@@ -101,7 +105,8 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
               ],
             ),
           ),
-          FilledButton.icon(
+          if (!widget.chiDoc)
+            FilledButton.icon(
             onPressed: provider.tbProcessing
                 ? null
                 : () => _hienThiForm(provider),
@@ -137,8 +142,8 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
       return TrangThaiRong(
         thongDiep: 'Chưa có thông báo nào',
         icon: Icons.campaign_outlined,
-        nhanNut: 'Đăng thông báo',
-        onNutNhan: () => _hienThiForm(provider),
+        nhanNut: widget.chiDoc ? null : 'Đăng thông báo',
+        onNutNhan: widget.chiDoc ? null : () => _hienThiForm(provider),
       );
     }
 
@@ -163,8 +168,12 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
         builder: (_) => ChiTietThongBaoGiangVien(
           lop: widget.lop,
           thongBao: tb,
-          onEdit: () async => _hienThiForm(provider, thongBao: tb),
-          onDelete: () async => _xacNhanXoa(tb, provider),
+          onEdit: widget.chiDoc
+              ? null
+              : () async => _hienThiForm(provider, thongBao: tb),
+          onDelete: widget.chiDoc
+              ? null
+              : () async => _xacNhanXoa(tb, provider),
         ),
       ),
     );
@@ -258,7 +267,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  PopupMenuButton<String>(
+                  if (!widget.chiDoc) PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert_rounded),
                     onSelected: (v) {
                       if (v == 'sua') _hienThiForm(provider, thongBao: tb);
@@ -338,12 +347,6 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                     color: _primary,
                     icon: Icons.comment_outlined,
                   ),
-                  if (tb.files.isNotEmpty)
-                    _TrangThaiBadge(
-                      text: '${tb.files.length} file',
-                      color: const Color(0xFF7C3AED),
-                      icon: Icons.attach_file_rounded,
-                    ),
                 ],
               ),
             ],
@@ -376,7 +379,6 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
             noiDung: data['noi_dung']?.toString() ?? '',
             thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
-            filePaths: (data['file_paths'] as List?)?.map((e) => e.toString()).toList() ?? const [],
           )
         : await provider.suaThongBao(
             id: thongBao.id,
@@ -385,7 +387,6 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
             noiDung: data['noi_dung']?.toString() ?? '',
             thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
-            filePaths: (data['file_paths'] as List?)?.map((e) => e.toString()).toList() ?? const [],
           );
 
     if (!mounted) return;
@@ -464,7 +465,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _tieuDeCtrl;
   late final TextEditingController _noiDungCtrl;
-  final List<PlatformFile> _files = [];
 
   String _trangThai = 'hien_thi';
   DateTime? _thoiGianGui;
@@ -507,26 +507,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
     return DateTime(ngay.year, ngay.month, ngay.day, gio.hour, gio.minute);
   }
 
-  Future<void> _chonFiles() async {
-    final result = await FilePicker.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: const [
-        'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
-        'zip', 'rar', 'png', 'jpg', 'jpeg', 'txt', 'sql'
-      ],
-    );
-    if (result == null || result.files.isEmpty) return;
-    setState(() {
-      _files.addAll(result.files.where((f) => (f.path ?? '').trim().isNotEmpty));
-    });
-    if (mounted && result.files.any((f) => (f.path ?? '').trim().isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Một số file không có đường dẫn nên chưa thể upload trên nền tảng này')),
-      );
-    }
-  }
-
   void _luu() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -535,7 +515,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
       'noi_dung': _noiDungCtrl.text.trim(),
       'trang_thai': _trangThai,
       'thoi_gian_gui': _thoiGianGui,
-      'file_paths': _files.map((e) => e.path).whereType<String>().toList(),
     });
   }
 
@@ -622,14 +601,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                         alignLabelWithHint: true,
                       ),
                 ),
-
-                const SizedBox(height: 14),
-                _FilePickerCard(
-                  existingFiles: widget.thongBao?.files ?? const [],
-                  selectedFiles: _files,
-                  onPick: _chonFiles,
-                  onRemove: (i) => setState(() => _files.removeAt(i)),
-                ),
                 const SizedBox(height: 14),
                 InputDecorator(
                   decoration: _inputDecoration(
@@ -666,8 +637,9 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                           OutlinedButton.icon(
                             onPressed: () async {
                               final picked = await _chonNgayGio(_thoiGianGui);
-                              if (picked != null)
+                              if (picked != null && mounted) {
                                 setState(() => _thoiGianGui = picked);
+                              }
                             },
                             icon: const Icon(
                               Icons.calendar_month_rounded,
@@ -727,118 +699,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
           ),
         ),
       ],
-    );
-  }
-}
-
-
-class _FilePickerCard extends StatelessWidget {
-  final List<ThongBaoFile> existingFiles;
-  final List<PlatformFile> selectedFiles;
-  final VoidCallback onPick;
-  final void Function(int index) onRemove;
-
-  const _FilePickerCard({
-    required this.existingFiles,
-    required this.selectedFiles,
-    required this.onPick,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.attach_file_rounded, color: Color(0xFF2563EB)),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'File đính kèm',
-                  style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: onPick,
-                icon: const Icon(Icons.upload_file_rounded, size: 16),
-                label: const Text('Chọn file'),
-              ),
-            ],
-          ),
-          if (existingFiles.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            const Text('Đã đăng:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            ...existingFiles.map((f) => _MiniFileRow(name: f.tenFile, sub: f.kichThuocHienThi, icon: Icons.cloud_done_rounded)),
-          ],
-          if (selectedFiles.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            const Text('Sẽ tải lên:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            ...selectedFiles.asMap().entries.map((e) => _MiniFileRow(
-                  name: e.value.name,
-                  sub: e.value.size > 0 ? '${(e.value.size / 1024).toStringAsFixed(1)} KB' : '',
-                  icon: Icons.insert_drive_file_rounded,
-                  onRemove: () => onRemove(e.key),
-                )),
-          ],
-          if (existingFiles.isEmpty && selectedFiles.isEmpty) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Có thể đính kèm PDF, Word, PowerPoint, Excel, hình ảnh hoặc file nén để sinh viên tải về.',
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 12, height: 1.35),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniFileRow extends StatelessWidget {
-  final String name;
-  final String sub;
-  final IconData icon;
-  final VoidCallback? onRemove;
-  const _MiniFileRow({required this.name, required this.sub, required this.icon, this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF2563EB)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                if (sub.isNotEmpty) Text(sub, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-              ],
-            ),
-          ),
-          if (onRemove != null)
-            IconButton(onPressed: onRemove, icon: const Icon(Icons.close_rounded, size: 18), visualDensity: VisualDensity.compact),
-        ],
-      ),
     );
   }
 }
