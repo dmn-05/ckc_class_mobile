@@ -9,6 +9,7 @@ echo json_encode([
     'cloudinary_ready' => ckc_cloudinary_ready(),
     'curl_enabled' => function_exists('curl_init'),
     'curlfile_enabled' => class_exists('CURLFile'),
+    'config_source' => $cfg['source'] ?? 'none',
     'cloud_name_set' => $cfg['cloud_name'] !== '',
     'api_key_set' => $cfg['api_key'] !== '',
     'api_secret_set' => $cfg['api_secret'] !== '',
@@ -16,6 +17,6 @@ echo json_encode([
     'post_max_size' => ini_get('post_max_size'),
     'message' => ckc_cloudinary_ready()
         ? (function_exists('curl_init') ? 'Cloudinary và curl đã sẵn sàng' : 'Cloudinary đã cấu hình nhưng PHP chưa bật curl')
-        : 'Chưa cấu hình Cloudinary. Cần backend/upload/cloudinary_local.php hoặc CLOUDINARY_URL',
+        : ckc_cloudinary_config_message(),
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 ?>

@@ -17,55 +17,131 @@
  *   ];
  */
 
+function ckc_cloudinary_env(string $name): string
+{
+    $value = getenv($name);
+    if ($value === false || $value === null || $value === '') {
+        $value = $_ENV[$name] ?? ($_SERVER[$name] ?? '');
+    }
+    return trim((string)$value);
+}
+
+function ckc_cloudinary_is_placeholder(string $value): bool
+{
+    $normalized = strtoupper(trim($value));
+    if ($normalized === '') return true;
+
+    $normalized = trim($normalized, "<>[]{} \\t\\n\\r\\0\\x0B");
+    $placeholders = [
+        'API_KEY', 'YOUR_API_KEY', 'CLOUDINARY_API_KEY',
+        'API_SECRET', 'YOUR_API_SECRET', 'CLOUDINARY_API_SECRET',
+        'CLOUD_NAME', 'YOUR_CLOUD_NAME', 'CLOUDINARY_CLOUD_NAME',
+        'CHANGE_ME', 'CHANGEME', 'REPLACE_ME', 'REPLACEME',
+    ];
+    if (in_array($normalized, $placeholders, true)) return true;
+
+    return str_contains($normalized, 'YOUR_')
+        || str_contains($normalized, 'REPLACE_')
+        || str_contains($normalized, '<API_')
+        || str_contains($normalized, '<CLOUD_');
+}
+
+function ckc_cloudinary_candidate(array $cfg, string $source): array
+{
+    return [
+        'cloud_name' => trim((string)($cfg['cloud_name'] ?? '')),
+        'api_key' => trim((string)($cfg['api_key'] ?? '')),
+        'api_secret' => trim((string)($cfg['api_secret'] ?? '')),
+        'source' => $source,
+    ];
+}
+
+function ckc_cloudinary_candidate_valid(array $cfg): bool
+{
+    return !ckc_cloudinary_is_placeholder((string)($cfg['cloud_name'] ?? ''))
+        && !ckc_cloudinary_is_placeholder((string)($cfg['api_key'] ?? ''))
+        && !ckc_cloudinary_is_placeholder((string)($cfg['api_secret'] ?? ''));
+}
+
+function ckc_cloudinary_from_url(string $url, string $source): ?array
+{
+    $url = trim($url);
+    if ($url === '') return null;
+
+    $parts = parse_url($url);
+    if (!$parts || !isset($parts['host'], $parts['user'], $parts['pass'])) {
+        return null;
+    }
+
+    return ckc_cloudinary_candidate([
+        'cloud_name' => rawurldecode((string)$parts['host']),
+        'api_key' => rawurldecode((string)$parts['user']),
+        'api_secret' => rawurldecode((string)$parts['pass']),
+    ], $source);
+}
+
 function ckc_cloudinary_config(): array
 {
+    $candidates = [];
+
+    // Railway/production: ưu tiên biến môi trường. Giá trị mẫu như
+    // cloudinary://API_KEY:API_SECRET@CLOUD_NAME sẽ bị bỏ qua.
+    $envUrl = ckc_cloudinary_from_url(
+        ckc_cloudinary_env('CLOUDINARY_URL'),
+        'CLOUDINARY_URL'
+    );
+    if ($envUrl !== null) $candidates[] = $envUrl;
+
+    $candidates[] = ckc_cloudinary_candidate([
+        'cloud_name' => ckc_cloudinary_env('CLOUDINARY_CLOUD_NAME'),
+        'api_key' => ckc_cloudinary_env('CLOUDINARY_API_KEY'),
+        'api_secret' => ckc_cloudinary_env('CLOUDINARY_API_SECRET'),
+    ], 'CLOUDINARY_*');
+
+    // XAMPP/local: chỉ dùng khi không có cấu hình môi trường hợp lệ.
     $localFile = __DIR__ . '/cloudinary_local.php';
     if (is_file($localFile)) {
-        $cfg = require $localFile;
-        if (is_array($cfg)) {
-            $localUrl = trim((string)($cfg['cloudinary_url'] ?? ''));
-            if ($localUrl !== '') {
-                $parts = parse_url($localUrl);
-                if ($parts && isset($parts['host'], $parts['user'], $parts['pass'])) {
-                    return [
-                        'cloud_name' => trim((string)$parts['host']),
-                        'api_key' => trim((string)$parts['user']),
-                        'api_secret' => trim((string)$parts['pass']),
-                    ];
-                }
-            }
-
-            return [
-                'cloud_name' => trim((string)($cfg['cloud_name'] ?? '')),
-                'api_key' => trim((string)($cfg['api_key'] ?? '')),
-                'api_secret' => trim((string)($cfg['api_secret'] ?? '')),
-            ];
+        $local = require $localFile;
+        if (is_array($local)) {
+            $localUrl = ckc_cloudinary_from_url(
+                (string)($local['cloudinary_url'] ?? ''),
+                'cloudinary_local.php:cloudinary_url'
+            );
+            if ($localUrl !== null) $candidates[] = $localUrl;
+            $candidates[] = ckc_cloudinary_candidate($local, 'cloudinary_local.php');
         }
     }
 
-    $cloudinaryUrl = getenv('CLOUDINARY_URL') ?: ($_ENV['CLOUDINARY_URL'] ?? '');
-    if ($cloudinaryUrl) {
-        $parts = parse_url($cloudinaryUrl);
-        if ($parts && isset($parts['host'], $parts['user'], $parts['pass'])) {
-            return [
-                'cloud_name' => $parts['host'],
-                'api_key' => $parts['user'],
-                'api_secret' => $parts['pass'],
-            ];
+    foreach ($candidates as $candidate) {
+        if (ckc_cloudinary_candidate_valid($candidate)) {
+            return $candidate;
         }
     }
 
     return [
-        'cloud_name' => trim((string)(getenv('CLOUDINARY_CLOUD_NAME') ?: ($_ENV['CLOUDINARY_CLOUD_NAME'] ?? ''))),
-        'api_key' => trim((string)(getenv('CLOUDINARY_API_KEY') ?: ($_ENV['CLOUDINARY_API_KEY'] ?? ''))),
-        'api_secret' => trim((string)(getenv('CLOUDINARY_API_SECRET') ?: ($_ENV['CLOUDINARY_API_SECRET'] ?? ''))),
+        'cloud_name' => '',
+        'api_key' => '',
+        'api_secret' => '',
+        'source' => 'none',
     ];
 }
 
 function ckc_cloudinary_ready(): bool
 {
-    $cfg = ckc_cloudinary_config();
-    return $cfg['cloud_name'] !== '' && $cfg['api_key'] !== '' && $cfg['api_secret'] !== '';
+    return ckc_cloudinary_candidate_valid(ckc_cloudinary_config());
+}
+
+function ckc_cloudinary_config_message(): string
+{
+    $url = ckc_cloudinary_env('CLOUDINARY_URL');
+    if ($url !== '') {
+        $candidate = ckc_cloudinary_from_url($url, 'CLOUDINARY_URL');
+        if ($candidate === null || !ckc_cloudinary_candidate_valid($candidate)) {
+            return 'CLOUDINARY_URL đang sai hoặc còn dùng giá trị mẫu API_KEY/API_SECRET/CLOUD_NAME.';
+        }
+    }
+
+    return 'Chưa có cấu hình Cloudinary hợp lệ. Hãy đặt CLOUDINARY_URL hoặc ba biến CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.';
 }
 
 function ckc_cloudinary_signature(array $params, string $apiSecret): string
@@ -101,7 +177,7 @@ function ckc_upload_error_message(int $code): string
 function ckc_upload_to_cloudinary(array $file, string $folder): array
 {
     if (!ckc_cloudinary_ready()) {
-        throw new RuntimeException('Thiếu cấu hình Cloudinary. Hãy tạo backend/upload/cloudinary_local.php hoặc cấu hình CLOUDINARY_URL');
+        throw new RuntimeException(ckc_cloudinary_config_message());
     }
 
     if (!function_exists('curl_init') || !class_exists('CURLFile')) {

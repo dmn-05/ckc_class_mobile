@@ -44,7 +44,7 @@ try {
     $hasMap = db_has_table($conn, 'giang_vien_lop_hoc_phan');
     $cond = gv_lhp_condition($hasMap);
 
-    $tongLop = (int)scalar_query($conn, "SELECT COUNT(*) FROM lop_hoc_phan lhp WHERE $cond", $giangVienId, $hasMap);
+    $tongLop = (int)scalar_query($conn, "SELECT COUNT(*) FROM lop_hoc_phan lhp WHERE $cond AND lhp.trang_thai='dang_mo'", $giangVienId, $hasMap);
 
     $lopDangMo = (int)scalar_query($conn, "SELECT COUNT(*) FROM lop_hoc_phan lhp WHERE $cond AND lhp.trang_thai='dang_mo'", $giangVienId, $hasMap);
 
@@ -56,7 +56,7 @@ try {
     $tongBaiTap = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM bai_tap bt
         JOIN lop_hoc_phan lhp ON bt.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND COALESCE(bt.loai_bai_tap, 'nop_file') = 'nop_file' AND bt.trang_thai <> 'an'", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND COALESCE(bt.loai_bai_tap, 'nop_file') = 'nop_file' AND bt.trang_thai <> 'an'", $giangVienId, $hasMap);
 
     $chooCham = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM bai_nop bn
@@ -67,12 +67,12 @@ try {
     $tongTaiLieu = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM tai_lieu tl
         JOIN lop_hoc_phan lhp ON tl.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND tl.trang_thai <> 'an'", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND tl.trang_thai <> 'an'", $giangVienId, $hasMap);
 
     $tongThongBao = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM thong_bao tb
         JOIN lop_hoc_phan lhp ON tb.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND tb.trang_thai <> 'an'", $giangVienId, $hasMap);
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND tb.trang_thai <> 'an'", $giangVienId, $hasMap);
 
     $binhLuanMoi = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM binh_luan bl
