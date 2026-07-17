@@ -82,6 +82,12 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
   Widget _buildChaoHoi(SinhVienProvider provider) {
     final hoSo = provider.hoSo;
     final tk = hoSo?.thongKe;
+    final authUser = context.watch<AuthProvider>().user;
+    final avatarUrl = authUser?.avatar?.trim() ?? '';
+    final avatarUri = Uri.tryParse(avatarUrl);
+    final hasAvatar = avatarUri != null &&
+        (avatarUri.scheme == 'http' || avatarUri.scheme == 'https') &&
+        avatarUri.host.isNotEmpty;
 
     return Container(
       width: double.infinity,
@@ -124,13 +130,29 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
                       shape: BoxShape.circle,
                       color: Colors.white.withOpacity(0.22),
                     ),
-                    child: hoSo != null
-                        ? AvatarTen(ten: hoSo.hoTen, radius: 27)
-                        : const CircleAvatar(
-                            radius: 27,
-                            backgroundColor: Colors.white,
-                            child: Icon(Icons.person, color: _primary),
-                          ),
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: 54,
+                        height: 54,
+                        child: hasAvatar
+                            ? Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => hoSo != null
+                                    ? AvatarTen(ten: hoSo.hoTen, radius: 27)
+                                    : const ColoredBox(
+                                        color: Colors.white,
+                                        child: Icon(Icons.person, color: _primary),
+                                      ),
+                              )
+                            : hoSo != null
+                                ? AvatarTen(ten: hoSo.hoTen, radius: 27)
+                                : const ColoredBox(
+                                    color: Colors.white,
+                                    child: Icon(Icons.person, color: _primary),
+                                  ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(

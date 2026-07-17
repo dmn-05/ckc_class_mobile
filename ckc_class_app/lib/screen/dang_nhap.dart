@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../provider/xac_thuc.dart';
 
@@ -77,149 +76,41 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-
   Future<void> _showForgotPasswordDialog() async {
-    final maSinhVienController = TextEditingController();
-    final emailController = TextEditingController();
-    final cccdController = TextEditingController();
-    bool submitting = false;
-
-    try {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              Future<void> submit() async {
-                final maSinhVien = maSinhVienController.text.trim();
-                final email = emailController.text.trim();
-                final cccd = cccdController.text.replaceAll(RegExp(r'\D'), '');
-
-                if (maSinhVien.isEmpty || email.isEmpty || cccd.isEmpty) {
-                  _showSnackBar('Vui lòng nhập đủ MSSV, Gmail và CCCD', Colors.orange);
-                  return;
-                }
-                if (!email.contains('@')) {
-                  _showSnackBar('Gmail không hợp lệ', Colors.orange);
-                  return;
-                }
-                if (!RegExp(r'^\d{12}$').hasMatch(cccd)) {
-                  _showSnackBar('CCCD phải gồm đúng 12 chữ số', Colors.orange);
-                  return;
-                }
-
-                setDialogState(() => submitting = true);
-                final result = await context.read<AuthProvider>().quenMatKhauSinhVien(
-                      maSinhVien: maSinhVien,
-                      email: email,
-                      cccd: cccd,
-                    );
-                if (!mounted) return;
-                setDialogState(() => submitting = false);
-
-                final success = result['success'] == true;
-                if (success) {
-                  Navigator.of(dialogContext).pop();
-                  _passwordController.text = cccd;
-                }
-                _showSnackBar(
-                  result['message']?.toString() ??
-                      (success ? 'Đặt lại mật khẩu thành công' : 'Đặt lại mật khẩu thất bại'),
-                  success ? Colors.green : Colors.red,
-                );
-              }
-
-              return AlertDialog(
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                title: const Row(
-                  children: [
-                    Icon(Icons.lock_reset_rounded, color: Colors.blue),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Quên mật khẩu',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ],
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_reset_rounded, color: Colors.blue),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Quên mật khẩu',
+                  style: TextStyle(fontWeight: FontWeight.w900),
                 ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Nhập đúng mã sinh viên, Gmail và CCCD. Nếu khớp, mật khẩu sẽ được đặt lại bằng số CCCD.',
-                        style: TextStyle(color: Colors.black54, height: 1.35),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: maSinhVienController,
-                        enabled: !submitting,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          labelText: 'Mã sinh viên / MSSV',
-                          prefixIcon: Icon(Icons.badge_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: emailController,
-                        enabled: !submitting,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Gmail',
-                          prefixIcon: Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: cccdController,
-                        enabled: !submitting,
-                        keyboardType: TextInputType.number,
-                        maxLength: 12,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        decoration: const InputDecoration(
-                          labelText: 'CCCD 12 số',
-                          prefixIcon: Icon(Icons.credit_card_rounded),
-                          border: OutlineInputBorder(),
-                          counterText: '',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: submitting ? null : () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Hủy'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: submitting ? null : submit,
-                    icon: submitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.restart_alt_rounded),
-                    label: Text(submitting ? 'Đang xử lý...' : 'Đặt lại'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      maSinhVienController.dispose();
-      emailController.dispose();
-      cccdController.dispose();
-    }
+              ),
+            ],
+          ),
+          content: const Text(
+            'Vui lòng liên hệ Văn Phòng Khoa để đổi mật khẩu.',
+            style: TextStyle(color: Colors.black87, height: 1.45, fontSize: 15),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Đã hiểu'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showSnackBar(String message, Color color) {
@@ -385,11 +276,18 @@ class _LoginScreenState extends State<LoginScreen>
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton.icon(
-                                  onPressed: isLoading ? null : _showForgotPasswordDialog,
-                                  icon: const Icon(Icons.help_outline_rounded, size: 18),
+                                  onPressed: isLoading
+                                      ? null
+                                      : _showForgotPasswordDialog,
+                                  icon: const Icon(
+                                    Icons.help_outline_rounded,
+                                    size: 18,
+                                  ),
                                   label: const Text(
                                     'Quên mật khẩu?',
-                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -438,7 +336,7 @@ class _LoginScreenState extends State<LoginScreen>
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
-                          'Tài khoản dùng thử:\nadmin@gmail.com / gv1@gmail.com / sv1@gmail.com',
+                          'Tài khoản dùng thử:\nadmin@ckc.edu.vn/dat.nv20@ckc.edu.vn/thang.nd2@student.ckc.edu.vn',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),

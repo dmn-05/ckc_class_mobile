@@ -360,6 +360,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                 roleName: _roleName(user),
                 roleIcon: _roleIcon(user),
                 roleColor: _roleColor(user),
+                avatarUrl: user.avatar,
               ),
 
               Expanded(
@@ -507,6 +508,7 @@ class _DrawerHeaderModern extends StatelessWidget {
   final String roleName;
   final IconData roleIcon;
   final Color roleColor;
+  final String? avatarUrl;
 
   const _DrawerHeaderModern({
     required this.name,
@@ -514,12 +516,36 @@ class _DrawerHeaderModern extends StatelessWidget {
     required this.roleName,
     required this.roleIcon,
     required this.roleColor,
+    this.avatarUrl,
   });
 
   String get _initial {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return '?';
     return trimmed.characters.first.toUpperCase();
+  }
+
+  bool get _hasAvatar {
+    final value = avatarUrl?.trim() ?? '';
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+  }
+
+  Widget _avatarFallback() {
+    return Container(
+      color: Colors.white,
+      alignment: Alignment.center,
+      child: Text(
+        _initial,
+        style: const TextStyle(
+          color: Color(0xFF2563EB),
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
   }
 
   @override
@@ -565,16 +591,17 @@ class _DrawerHeaderModern extends StatelessWidget {
                       color: Colors.white.withOpacity(0.22),
                       shape: BoxShape.circle,
                     ),
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        _initial,
-                        style: const TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: _hasAvatar
+                            ? Image.network(
+                                avatarUrl!.trim(),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _avatarFallback(),
+                              )
+                            : _avatarFallback(),
                       ),
                     ),
                   ),

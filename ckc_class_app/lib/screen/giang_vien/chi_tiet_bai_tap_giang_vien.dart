@@ -294,7 +294,7 @@ class _FileDownloadRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('File đính kèm', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const Text('File đính kèm', style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(tenFile, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w900)),
                   ],

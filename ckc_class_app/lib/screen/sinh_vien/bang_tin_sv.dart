@@ -1,4 +1,3 @@
-import 'package:ckc_class_app/screen/sinh_vien/chi_tiet_bai_tap_sv.dart';
 import 'package:ckc_class_app/screen/sinh_vien/chi_tiet_thong_bao_sv.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -29,72 +28,30 @@ class BangTinSVPage extends StatefulWidget {
 }
 
 class _BangTinSVPageState extends State<BangTinSVPage> {
-  final _binhLuanCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _binhLuanCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _guiBinhLuan(SinhVienProvider provider) async {
-    final noiDung = _binhLuanCtrl.text.trim();
-    if (noiDung.isEmpty) return;
-
-    final kq = await provider.dangBinhLuan(
-      lopHocPhanId: widget.lop.id,
-      noiDung: noiDung,
-    );
-
-    if (!mounted) return;
-
-    if (kq['success'] == true) {
-      _binhLuanCtrl.clear();
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(kq['message']?.toString() ?? 'Đã xử lý')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<SinhVienProvider>(
       builder: (context, provider, _) {
-        final dangTai =
-            provider.tbLoading || provider.btLoading || provider.blLoading;
-
-        if (dangTai) {
+        if (provider.tbLoading) {
           return const ColoredBox(
             color: _bg,
             child: Center(child: CircularProgressIndicator()),
           );
         }
 
-        final items = <_BangTinItem>[
-          ...provider.dsThongBao.map((e) => _BangTinItem.thongBao(e)),
-          ...provider.dsBaiTap.map((e) => _BangTinItem.baiTap(e)),
-        ];
-
-        // Sắp xếp bài mới nhất lên đầu giống Google Classroom.
-        items.sort((a, b) {
-          final da = a.ngayTao ?? DateTime(2000);
-          final db = b.ngayTao ?? DateTime(2000);
-          return db.compareTo(da);
-        });
+        final thongBao = [...provider.dsThongBao]
+          ..sort((a, b) {
+            final da = a.ngayTao ?? DateTime(2000);
+            final db = b.ngayTao ?? DateTime(2000);
+            return db.compareTo(da);
+          });
 
         return ColoredBox(
           color: _bg,
           child: RefreshIndicator(
             onRefresh:
                 widget.onRefresh ??
-                () async {
-                  await Future.wait([
-                    provider.layDanhSachThongBao(widget.lop.id),
-                    provider.layDanhSachBaiTap(widget.lop.id),
-                    provider.layDanhSachBinhLuan(widget.lop.id),
-                  ]);
-                },
+                () => provider.layDanhSachThongBao(widget.lop.id),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 26),
               children: [
@@ -106,7 +63,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Hoạt động mới nhất',
+                        'Thông báo mới nhất',
                         style: TextStyle(
                           color: _text,
                           fontSize: 18,
@@ -125,7 +82,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
-                        '${items.length} mục',
+                        '${thongBao.length} thông báo',
                         style: const TextStyle(
                           color: _primary,
                           fontWeight: FontWeight.w800,
@@ -136,78 +93,24 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                if (items.isEmpty)
+                if (thongBao.isEmpty)
                   const TrangRong(
-                    thongDiep: 'Chưa có thông báo hoặc bài tập',
+                    thongDiep: 'Chưa có thông báo nào',
                     icon: Icons.forum_outlined,
                   )
                 else
-                  ...items.map((item) {
-                    if (item.loai == _LoaiBangTin.baiTap) {
-                      return _CardBaiTapBangTin(
-                        baiTap: item.baiTap!,
-                        onTap: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChiTietBaiTapSV(
-                                baiTap: item.baiTap!,
-                                lopHocPhanId: widget.lop.id,
-                                chiDoc: widget.chiDoc,
-                              ),
-                            ),
-                          );
-
-                          if (result == true && context.mounted) {
-                            await provider.layDanhSachBaiTap(widget.lop.id);
-                          }
-                        },
-                      );
-                    }
-
-                    return _CardThongBaoBangTin(
-                      thongBao: item.thongBao!,
+                  ...thongBao.map(
+                    (item) => _CardThongBaoBangTin(
+                      thongBao: item,
                       chiDoc: widget.chiDoc,
-                    );
-                  }),
-                const SizedBox(height: 6),
-                _KhuVucBinhLuan(
-                  provider: provider,
-                  controller: _binhLuanCtrl,
-                  onGui: () => _guiBinhLuan(provider),
-                  chiDoc: widget.chiDoc,
-                ),
+                    ),
+                  ),
               ],
             ),
           ),
         );
       },
     );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MODEL NỘI BỘ DÙNG ĐỂ TRỘN THÔNG BÁO + BÀI TẬP
-// ═══════════════════════════════════════════════════════════════
-
-enum _LoaiBangTin { thongBao, baiTap }
-
-class _BangTinItem {
-  final _LoaiBangTin loai;
-  final ThongBaoSVModel? thongBao;
-  final BaiTapSVModel? baiTap;
-
-  _BangTinItem.thongBao(this.thongBao)
-    : loai = _LoaiBangTin.thongBao,
-      baiTap = null;
-
-  _BangTinItem.baiTap(this.baiTap)
-    : loai = _LoaiBangTin.baiTap,
-      thongBao = null;
-
-  DateTime? get ngayTao {
-    if (loai == _LoaiBangTin.thongBao) return thongBao?.ngayTao;
-    return baiTap?.ngayTao;
   }
 }
 
@@ -242,7 +145,7 @@ class _OThongBaoMoi extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Theo dõi thông báo, bài tập và nhận xét mới trong lớp học.',
+              'Theo dõi các thông báo mới từ giảng viên trong lớp học.',
               style: TextStyle(color: Colors.grey.shade700, height: 1.35),
             ),
           ),
@@ -354,31 +257,6 @@ class _CardThongBaoBangTin extends StatelessWidget {
                   style: const TextStyle(color: Color(0xFF334155), height: 1.4),
                 ),
               ],
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 16,
-                      color: _muted,
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      '${thongBao.soBinhLuan} nhận xét trong lớp học',
-                      style: const TextStyle(color: _muted, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -388,117 +266,6 @@ class _CardThongBaoBangTin extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CARD BÀI TẬP HIỂN THỊ TRÊN BẢNG TIN
-// ═══════════════════════════════════════════════════════════════
-
-class _CardBaiTapBangTin extends StatelessWidget {
-  final BaiTapSVModel baiTap;
-  final VoidCallback onTap;
-
-  const _CardBaiTapBangTin({required this.baiTap, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final mau = baiTap.daDuocNop
-        ? Colors.green
-        : baiTap.daQuaHan
-        ? Colors.red
-        : Colors.orange;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: mau.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                child: Icon(
-                  baiTap.laQuiz
-                      ? Icons.quiz_rounded
-                      : Icons.assignment_outlined,
-                  color: mau,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      baiTap.tenNguoiTao != null
-                          ? '${baiTap.tenNguoiTao} đã đăng một bài tập mới'
-                          : 'Giảng viên đã đăng một bài tập mới',
-                      style: const TextStyle(
-                        color: _text,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      baiTap.tieuDe,
-                      style: const TextStyle(
-                        color: _text,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if ((baiTap.moTa ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        baiTap.moTa!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF475569),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
-                      children: [
-                        ChipTrangThai(nhan: baiTap.tenTrangThaiNop, mau: mau),
-                        ChipTrangThai(
-                          nhan: baiTap.tenLoaiBaiTap,
-                          mau: baiTap.laQuiz ? Colors.purple : Colors.orange,
-                        ),
-                        if (baiTap.hanNop != null)
-                          ChipTrangThai(
-                            nhan: 'Hạn: ${dinhDangNgayGio(baiTap.hanNop)}',
-                            mau: Colors.blue,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: _muted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _TypeBadge extends StatelessWidget {
   final String label;
@@ -538,198 +305,3 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// KHU VỰC BÌNH LUẬN / NHẬN XÉT CUỐI BẢNG TIN
-// ═══════════════════════════════════════════════════════════════
-
-class _KhuVucBinhLuan extends StatelessWidget {
-  final SinhVienProvider provider;
-  final TextEditingController controller;
-  final VoidCallback onGui;
-  final bool chiDoc;
-
-  const _KhuVucBinhLuan({
-    required this.provider,
-    required this.controller,
-    required this.onGui,
-    required this.chiDoc,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(top: 4),
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.forum_rounded,
-                    color: _primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Nhận xét trong lớp học',
-                        style: TextStyle(
-                          color: _text,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Trao đổi nhanh với giảng viên và bạn học',
-                        style: TextStyle(color: _muted, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (provider.dsBinhLuan.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Text(
-                  'Chưa có nhận xét nào',
-                  style: TextStyle(color: _muted),
-                ),
-              )
-            else
-              ...provider.dsBinhLuan.map(
-                (bl) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AvatarTen(
-                        ten: bl.tenNguoiDung,
-                        radius: 17,
-                        mauNen: Colors.grey,
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                bl.tenNguoiDung,
-                                style: const TextStyle(
-                                  color: _text,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                bl.noiDung,
-                                style: const TextStyle(
-                                  color: Color(0xFF334155),
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (!chiDoc) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    minLines: 1,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Thêm nhận xét trong lớp học...',
-                      isDense: true,
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: const BorderSide(
-                          color: _primary,
-                          width: 1.4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: provider.blProcessing ? null : onGui,
-                  icon: provider.blProcessing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_rounded),
-                ),
-              ],
-            ),
-            ] else ...[
-              const SizedBox(height: 10),
-              const Row(
-                children: [
-                  Icon(Icons.visibility_rounded, size: 18, color: _muted),
-                  SizedBox(width: 7),
-                  Text(
-                    'Lớp đã lưu · Không thể thêm nhận xét',
-                    style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}

@@ -47,7 +47,6 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
       final provider = context.read<SinhVienProvider>();
       provider.layDanhSachThongBao(widget.lop.id);
       provider.layDanhSachBaiTap(widget.lop.id);
-      provider.layDanhSachBinhLuan(widget.lop.id);
       provider.layThanhVienLop(widget.lop.id);
     });
   }
@@ -63,7 +62,6 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
     await Future.wait([
       provider.layDanhSachThongBao(widget.lop.id),
       provider.layDanhSachBaiTap(widget.lop.id),
-      provider.layDanhSachBinhLuan(widget.lop.id),
       provider.layThanhVienLop(widget.lop.id),
     ]);
   }
