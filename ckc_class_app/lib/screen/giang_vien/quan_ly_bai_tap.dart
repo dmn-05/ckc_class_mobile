@@ -1095,7 +1095,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
     bool yeuCauNopFile = baiTap?.yeuCauNopFile ?? true;
     final Set<String> dinhDangDaChon = {...?baiTap?.dsDinhDangChoPhep};
-    int soFileToiDa = 1;
+    int soFileToiDa = ((baiTap?.soFileToiDa ?? 1).clamp(1, 10)).toInt();
     int dungLuongToiDaMb = baiTap?.dungLuongToiDaMb ?? 25;
     bool choPhepNopLai = baiTap?.choPhepNopLai ?? true;
     bool choPhepNopMuon = baiTap?.choPhepNopMuon ?? true;
@@ -1268,6 +1268,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       yeuCauNopFile: yeuCauNopFile,
                       dinhDangPhoBien: dinhDangPhoBien,
                       dinhDangDaChon: dinhDangDaChon,
+                      soFileToiDa: soFileToiDa,
                       dungLuongToiDaMb: dungLuongToiDaMb,
                       choPhepNopLai: choPhepNopLai,
                       choPhepNopMuon: choPhepNopMuon,
@@ -1283,6 +1284,7 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                           }
                         });
                       },
+                      onDoiSoFile: (v) => setS(() => soFileToiDa = v),
                       onDoiDungLuong: (v) => setS(() => dungLuongToiDaMb = v),
                       onDoiNopLai: (v) => setS(() => choPhepNopLai = v),
                       onDoiNopMuon: (v) => setS(() => choPhepNopMuon = v),
@@ -1450,7 +1452,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
-                                      dungLuongToiDaMb: dungLuongToiDaMb,
+                              soFileToiDa: soFileToiDa,
+                              dungLuongToiDaMb: dungLuongToiDaMb,
                               choPhepNopLai: choPhepNopLai,
                               choPhepNopMuon: choPhepNopMuon,
                               diemToiDa:
@@ -1472,7 +1475,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
-                                      dungLuongToiDaMb: dungLuongToiDaMb,
+                              soFileToiDa: soFileToiDa,
+                              dungLuongToiDaMb: dungLuongToiDaMb,
                               choPhepNopLai: choPhepNopLai,
                               choPhepNopMuon: choPhepNopMuon,
                               diemToiDa:
@@ -1757,6 +1761,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
   final bool yeuCauNopFile;
   final List<String> dinhDangPhoBien;
   final Set<String> dinhDangDaChon;
+  final int soFileToiDa;
   final int dungLuongToiDaMb;
   final bool choPhepNopLai;
   final bool choPhepNopMuon;
@@ -1764,6 +1769,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
   final bool dangLuu;
   final ValueChanged<bool> onDoiYeuCauNopFile;
   final void Function(String ext, bool selected) onToggleDinhDang;
+  final ValueChanged<int> onDoiSoFile;
   final ValueChanged<int> onDoiDungLuong;
   final ValueChanged<bool> onDoiNopLai;
   final ValueChanged<bool> onDoiNopMuon;
@@ -1772,6 +1778,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
     required this.yeuCauNopFile,
     required this.dinhDangPhoBien,
     required this.dinhDangDaChon,
+    required this.soFileToiDa,
     required this.dungLuongToiDaMb,
     required this.choPhepNopLai,
     required this.choPhepNopMuon,
@@ -1779,6 +1786,7 @@ class _CaiDatNopBaiBox extends StatelessWidget {
     required this.dangLuu,
     required this.onDoiYeuCauNopFile,
     required this.onToggleDinhDang,
+    required this.onDoiSoFile,
     required this.onDoiDungLuong,
     required this.onDoiNopLai,
     required this.onDoiNopMuon,
@@ -1860,19 +1868,29 @@ class _CaiDatNopBaiBox extends StatelessWidget {
             const SizedBox(height: 14),
             LayoutBuilder(
               builder: (context, constraints) {
+                final soFileValue = soFileToiDa.clamp(1, 10).toInt();
                 final soFileDropdown = DropdownButtonFormField<int>(
-                  value: 1,
+                  value: soFileValue,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Số file',
-                    helperText: 'Mỗi sinh viên nộp tối đa 1 file',
+                    labelText: 'Số file tối đa',
+                    helperText: 'Mỗi sinh viên được nộp từ 1 đến 10 file',
                     prefixIcon: Icon(Icons.file_copy_rounded),
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 1, child: Text('1 file')),
-                  ],
-                  onChanged: null,
+                  items: List.generate(
+                    10,
+                    (index) {
+                      final value = index + 1;
+                      return DropdownMenuItem(
+                        value: value,
+                        child: Text('$value file'),
+                      );
+                    },
+                  ),
+                  onChanged: dangLuu
+                      ? null
+                      : (value) => onDoiSoFile(value ?? 1),
                 );
 
                 final dungLuongDropdown = DropdownButtonFormField<int>(

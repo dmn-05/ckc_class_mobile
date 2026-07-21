@@ -144,6 +144,68 @@ function collect_uploaded_files() {
 }
 
 
+/**
+ * Đọc danh sách file bài nộp từ cột bai_nop.duong_dan_file.
+ * - Dữ liệu cũ: một URL thuần.
+ * - Dữ liệu mới khi nộp nhiều file: JSON array chứa metadata từng file.
+ * Cách này không cần tạo bảng mới và vẫn tương thích bài nộp cũ.
+ */
+function decode_submission_files($raw, $fallbackName, int $baiNopId, $ngayNop = null): array {
+    $raw = trim((string)$raw);
+    if ($raw === '') return [];
+
+    $decoded = json_decode($raw, true);
+    $items = is_array($decoded) && array_is_list($decoded) ? $decoded : null;
+    if ($items === null) {
+        $name = trim((string)$fallbackName);
+        if ($name === '') {
+            $path = parse_url($raw, PHP_URL_PATH) ?: $raw;
+            $name = basename(str_replace('\\', '/', $path));
+        }
+        return [[
+            'id' => $baiNopId,
+            'bai_nop_id' => $baiNopId,
+            'ten_file_goc' => $name !== '' ? $name : 'file_nop_bai',
+            'duong_dan_file' => $raw,
+            'loai_file' => strtolower(pathinfo($name !== '' ? $name : $raw, PATHINFO_EXTENSION)),
+            'kich_thuoc' => 0,
+            'public_id' => null,
+            'ngay_tao' => $ngayNop,
+        ]];
+    }
+
+    $result = [];
+    foreach ($items as $index => $item) {
+        if (!is_array($item)) continue;
+        $url = trim((string)($item['duong_dan_file'] ?? $item['duong_dan'] ?? $item['secure_url'] ?? $item['url'] ?? ''));
+        if ($url === '') continue;
+        $name = trim((string)($item['ten_file_goc'] ?? $item['ten_file'] ?? ''));
+        if ($name === '') {
+            $path = parse_url($url, PHP_URL_PATH) ?: $url;
+            $name = basename(str_replace('\\', '/', $path));
+        }
+        $result[] = [
+            'id' => (int)($item['id'] ?? ($baiNopId * 100 + $index + 1)),
+            'bai_nop_id' => $baiNopId,
+            'ten_file_goc' => $name !== '' ? $name : 'file_nop_bai',
+            'duong_dan_file' => $url,
+            'loai_file' => strtolower((string)($item['loai_file'] ?? pathinfo($name, PATHINFO_EXTENSION))),
+            'kich_thuoc' => (int)($item['kich_thuoc'] ?? $item['bytes'] ?? 0),
+            'public_id' => $item['public_id'] ?? null,
+            'ngay_tao' => $item['ngay_tao'] ?? $ngayNop,
+        ];
+    }
+    return $result;
+}
+
+function encode_submission_files(array $files): string {
+    if (count($files) === 1) {
+        return (string)($files[0]['duong_dan_file'] ?? '');
+    }
+    return json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+
 function lay_files_bai_tap_sv(PDO $conn, int $baiTapId): array {
     if ($baiTapId <= 0 || !db_has_table($conn, 'tep_tin') || !db_has_table($conn, 'tep_tin_bai_tap')) return [];
     $stmt = $conn->prepare("SELECT tt.id, tt.ten_file, tt.duong_dan, tt.loai_file, tt.kich_thuoc, tt.ngay_tao
@@ -264,9 +326,13 @@ try {
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Host Web không còn bảng bai_nop_file. Tạo mảng files_da_nop từ chính bai_nop.
+        // bai_nop.duong_dan_file có thể là URL cũ hoặc JSON nhiều file.
         $result = array_map(function ($r) use ($conn) {
             $baiNopId = $r["bai_nop_id"] !== null ? (int)$r["bai_nop_id"] : null;
+            $filesDaNop = $baiNopId !== null
+                ? decode_submission_files($r["file_da_nop"] ?? '', $r["ten_file_goc_da_nop"] ?? '', $baiNopId, $r["ngay_nop"] ?? null)
+                : [];
+            $fileDauDaNop = !empty($filesDaNop) ? ($filesDaNop[0]['duong_dan_file'] ?? null) : null;
             return [
                 "id" => (int)$r["id"],
                 "tieu_de" => $r["tieu_de"],
@@ -276,8 +342,7 @@ try {
                 "file_name" => $r["file_name"],
                 "yeu_cau_nop_file" => (int)($r["yeu_cau_nop_file"] ?? 1),
                 "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"],
-                // CSDL bai_nop hiện chỉ lưu được một file cho mỗi sinh viên/bài tập.
-                "so_file_toi_da" => 1,
+                "so_file_toi_da" => max(1, min(10, (int)($r["so_file_toi_da"] ?? 1))),
                 "dung_luong_toi_da_mb" => max(1, (int)($r["dung_luong_toi_da_mb"] ?? 25)),
                 "cho_phep_nop_lai" => (int)($r["cho_phep_nop_lai"] ?? 1),
                 "cho_phep_nop_muon" => (int)($r["cho_phep_nop_muon"] ?? 1),
@@ -295,15 +360,8 @@ try {
                 "ngay_tao" => $r["ngay_tao"],
                 "ten_nguoi_tao" => $r["ten_nguoi_tao"],
                 "bai_nop_id" => $baiNopId,
-                "file_da_nop" => $r["file_da_nop"],
-                "files_da_nop" => ($baiNopId !== null && trim((string)$r["file_da_nop"]) !== "") ? [[
-                    "id" => $baiNopId,
-                    "ten_file_goc" => $r["ten_file_goc_da_nop"] ?: basename(parse_url($r["file_da_nop"], PHP_URL_PATH) ?: $r["file_da_nop"]),
-                    "duong_dan_file" => $r["file_da_nop"],
-                    "loai_file" => strtolower(pathinfo(parse_url($r["file_da_nop"], PHP_URL_PATH) ?: $r["file_da_nop"], PATHINFO_EXTENSION)),
-                    "kich_thuoc" => 0,
-                    "ngay_tao" => $r["ngay_nop"],
-                ]] : [],
+                "file_da_nop" => $fileDauDaNop,
+                "files_da_nop" => $filesDaNop,
                 "diem" => $r["diem"] !== null ? (float)$r["diem"] : null,
                 "nhan_xet" => $r["nhan_xet"],
                 "trang_thai_nop" => $r["trang_thai_nop"],
@@ -487,9 +545,10 @@ try {
         if ($isMultipart && empty($uploaded)) respond("error", "Vui lòng chọn file để nộp");
         if (!$isMultipart && $duongDanFileCu === "") respond("error", "Vui lòng chọn file để nộp");
 
-        // Host Web đã gộp bai_nop_file vào bai_nop nên mỗi lần nộp chỉ lưu 1 file.
-        $maxFiles = 1;
-        if (!empty($uploaded) && count($uploaded) > 1) respond("error", "Hệ thống host hiện chỉ hỗ trợ nộp 1 file cho mỗi bài. Vui lòng chọn 1 file.");
+        $maxFiles = max(1, min(10, (int)($bt["so_file_toi_da"] ?? 1)));
+        if (!empty($uploaded) && count($uploaded) > $maxFiles) {
+            respond("error", "Bài tập chỉ cho phép nộp tối đa {$maxFiles} file");
+        }
 
         $allowed = normalize_ext_list($bt["dinh_dang_file_cho_phep"] ?? "");
         $maxBytes = max(1, (int)$bt["dung_luong_toi_da_mb"]) * 1024 * 1024;
@@ -498,7 +557,6 @@ try {
 
         if ($baiNopCu) {
             $baiNopId = (int)$baiNopCu["id"];
-            // Giữ ID bài nộp cũ, thông tin file sẽ cập nhật sau khi upload thành công.
         } else {
             $stmt = $conn->prepare("INSERT INTO bai_nop (bai_tap_id, sinh_vien_id, ten_file_goc, duong_dan_file, trang_thai) VALUES (?, ?, NULL, NULL, ?)");
             $stmt->execute([$baiTapId, $sinhVienId, $trangThaiNop]);
@@ -506,51 +564,64 @@ try {
         }
 
         $savedFiles = [];
-        $firstPath = $duongDanFileCu;
-
-        $tenFileGoc = null;
-        $loaiFile = null;
-        $kichThuocFile = 0;
 
         if (!empty($uploaded)) {
-            $file = $uploaded[0];
-            if ((int)$file["error"] !== UPLOAD_ERR_OK) throw new RuntimeException("Upload file thất bại");
-            if ((int)$file["size"] > $maxBytes) throw new RuntimeException("File {$file['name']} vượt quá dung lượng cho phép {$bt['dung_luong_toi_da_mb']}MB");
+            foreach ($uploaded as $index => $file) {
+                if ((int)$file["error"] !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException("Upload file thất bại: " . ($file['name'] ?? 'không rõ tên'));
+                }
+                if ((int)$file["size"] > $maxBytes) {
+                    throw new RuntimeException("File {$file['name']} vượt quá dung lượng cho phép {$bt['dung_luong_toi_da_mb']}MB");
+                }
 
-            $tenGoc = basename($file["name"] ?? "");
-            $ext = strtolower(pathinfo($tenGoc, PATHINFO_EXTENSION));
-            if ($ext === "") throw new RuntimeException("File {$tenGoc} không có định dạng");
-            if (!empty($allowed) && !in_array($ext, $allowed, true)) {
-                throw new RuntimeException("File {$tenGoc} không đúng định dạng cho phép: " . implode(', ', $allowed));
+                $tenGoc = basename((string)($file["name"] ?? ""));
+                $ext = strtolower(pathinfo($tenGoc, PATHINFO_EXTENSION));
+                if ($ext === "") throw new RuntimeException("File {$tenGoc} không có định dạng");
+                if (!empty($allowed) && !in_array($ext, $allowed, true)) {
+                    throw new RuntimeException("File {$tenGoc} không đúng định dạng cho phép: " . implode(', ', $allowed));
+                }
+
+                $uploadedCloud = ckc_upload_to_cloudinary($file, 'submissions');
+                $url = (string)$uploadedCloud['secure_url'];
+                $savedFiles[] = [
+                    "id" => $baiNopId * 100 + $index + 1,
+                    "bai_nop_id" => $baiNopId,
+                    // Giữ tên đầy đủ trong JSON; cột ten_file_goc chỉ giữ file đầu để tương thích cũ.
+                    "ten_file_goc" => $tenGoc,
+                    "duong_dan_file" => $url,
+                    "loai_file" => $ext,
+                    "kich_thuoc" => (int)($uploadedCloud['bytes'] ?? $file["size"]),
+                    "public_id" => $uploadedCloud['public_id'] ?? null,
+                    "ngay_tao" => date('Y-m-d H:i:s'),
+                ];
             }
-
-            $uploadedCloud = ckc_upload_to_cloudinary($file, 'submissions');
-            $firstPath = $uploadedCloud['secure_url'];
-            $tenFileGoc = ten_file_host($tenGoc);
-            $loaiFile = $ext;
-            $kichThuocFile = (int)($uploadedCloud['bytes'] ?? $file["size"]);
-            $savedFiles[] = [
-                "id" => $baiNopId,
-                "ten_file_goc" => $tenFileGoc,
-                "duong_dan_file" => $firstPath,
-                "loai_file" => $loaiFile,
-                "kich_thuoc" => $kichThuocFile,
-                "public_id" => $uploadedCloud['public_id'] ?? null,
-            ];
         } else {
-            // Tương thích cũ: nếu Flutter vẫn gửi đường dẫn text thay vì upload thật.
-            $ext = strtolower(pathinfo($duongDanFileCu, PATHINFO_EXTENSION));
+            // Tương thích client cũ gửi một URL thay vì multipart.
+            $ext = strtolower(pathinfo(parse_url($duongDanFileCu, PHP_URL_PATH) ?: $duongDanFileCu, PATHINFO_EXTENSION));
             if (!empty($allowed) && !in_array($ext, $allowed, true)) {
                 throw new RuntimeException("File không đúng định dạng cho phép: " . implode(', ', $allowed));
             }
-            $firstPath = $duongDanFileCu;
-            $tenFileGoc = ten_file_host($duongDanFileCu);
-            $loaiFile = $ext ?: null;
-            $savedFiles[] = ["id" => $baiNopId, "ten_file_goc" => $tenFileGoc, "duong_dan_file" => $firstPath, "loai_file" => $loaiFile, "kich_thuoc" => 0];
+            $tenGoc = basename(parse_url($duongDanFileCu, PHP_URL_PATH) ?: $duongDanFileCu);
+            $savedFiles[] = [
+                "id" => $baiNopId * 100 + 1,
+                "bai_nop_id" => $baiNopId,
+                "ten_file_goc" => $tenGoc !== '' ? $tenGoc : 'file_nop_bai',
+                "duong_dan_file" => $duongDanFileCu,
+                "loai_file" => $ext ?: null,
+                "kich_thuoc" => 0,
+                "public_id" => null,
+                "ngay_tao" => date('Y-m-d H:i:s'),
+            ];
         }
 
+        if (empty($savedFiles)) throw new RuntimeException("Không có file hợp lệ để nộp");
+
+        $firstPath = (string)$savedFiles[0]["duong_dan_file"];
+        $tenFileGoc = ten_file_host((string)$savedFiles[0]["ten_file_goc"]);
+        $storageValue = encode_submission_files($savedFiles);
+
         $stmt = $conn->prepare("UPDATE bai_nop SET ten_file_goc = ?, duong_dan_file = ?, trang_thai = ?, ngay_cap_nhat = NOW() WHERE id = ?");
-        $stmt->execute([$tenFileGoc, $firstPath, $trangThaiNop, $baiNopId]);
+        $stmt->execute([$tenFileGoc, $storageValue, $trangThaiNop, $baiNopId]);
 
         $conn->commit();
 

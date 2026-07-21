@@ -293,10 +293,6 @@ class SinhVienProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Vui lòng chọn file để nộp'};
     }
 
-    if (paths.length != 1) {
-      return {'success': false, 'message': 'Mỗi lần chỉ được nộp 1 file'};
-    }
-
     _btProcessing = true;
     notifyListeners();
 

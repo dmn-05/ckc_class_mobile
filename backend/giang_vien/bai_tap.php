@@ -405,7 +405,7 @@ try {
             "file_name"        => $r["file_name"] ?: ($r["tep_tin_ten_dau"] ?? null),
             "yeu_cau_nop_file" => isset($r["yeu_cau_nop_file"]) ? (int)$r["yeu_cau_nop_file"] : 1,
             "dinh_dang_file_cho_phep" => $r["dinh_dang_file_cho_phep"] ?? null,
-            "so_file_toi_da" => 1,
+            "so_file_toi_da" => max(1, min(10, (int)($r["so_file_toi_da"] ?? 1))),
             "dung_luong_toi_da_mb" => isset($r["dung_luong_toi_da_mb"]) ? (int)$r["dung_luong_toi_da_mb"] : 25,
             "cho_phep_nop_lai" => isset($r["cho_phep_nop_lai"]) ? (int)$r["cho_phep_nop_lai"] : 1,
             "cho_phep_nop_muon" => isset($r["cho_phep_nop_muon"]) ? (int)$r["cho_phep_nop_muon"] : 1,
@@ -539,7 +539,7 @@ try {
             $trangThai     = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
-            $soFileToiDa = 1;
+            $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
             $dungLuongToiDaMb = clamp_int($data["dung_luong_toi_da_mb"] ?? 25, 25, 1, 100);
             $choPhepNopLai = bool_int($data["cho_phep_nop_lai"] ?? 1);
             $choPhepNopMuon = bool_int($data["cho_phep_nop_muon"] ?? 1);
@@ -804,7 +804,7 @@ try {
             $trangThai    = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
-            $soFileToiDa = 1;
+            $soFileToiDa = clamp_int($data["so_file_toi_da"] ?? 1, 1, 1, 10);
             $dungLuongToiDaMb = clamp_int($data["dung_luong_toi_da_mb"] ?? 25, 25, 1, 100);
             $choPhepNopLai = bool_int($data["cho_phep_nop_lai"] ?? 1);
             $choPhepNopMuon = bool_int($data["cho_phep_nop_muon"] ?? 1);

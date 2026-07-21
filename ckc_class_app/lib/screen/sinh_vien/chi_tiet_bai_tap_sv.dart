@@ -58,7 +58,7 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
   Future<void> _chonVaNopFile(dynamic bt) async {
     final allowed = List<String>.from(bt.dsDinhDangChoPhep);
     final result = await FilePicker.pickFiles(
-      allowMultiple: false,
+      allowMultiple: bt.soFileToiDa > 1,
       type: allowed.isEmpty ? FileType.any : FileType.custom,
       allowedExtensions: allowed.isEmpty ? null : allowed,
       withData: false,
@@ -68,9 +68,13 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
     final files = result.files.where((f) => f.path != null).toList();
     if (files.isEmpty || !mounted) return;
 
-    if (files.length != 1) {
+    if (files.length > bt.soFileToiDa) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mỗi lần chỉ được nộp 1 file')),
+        SnackBar(
+          content: Text(
+            'Bài tập chỉ cho phép nộp tối đa ${bt.soFileToiDa} file',
+          ),
+        ),
       );
       return;
     }
@@ -94,9 +98,9 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
 
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<SinhVienProvider>();
-    final rs = await provider.nopBai(
+    final rs = await provider.nopBaiNhieuFile(
       baiTapId: bt.id,
-      filePath: files.single.path!,
+      filePaths: files.map((file) => file.path!).toList(),
       lopHocPhanId: widget.lopHocPhanId,
     );
 
@@ -678,7 +682,7 @@ class _HintCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = bt.laQuiz
         ? 'Kiểm tra kỹ thời gian làm bài trước khi bắt đầu. Khi đã nộp quiz, bạn có thể quay lại để xem kết quả.'
-        : 'Bạn có thể nộp file hoặc nộp lại file trước khi bài tập đóng. Hãy kiểm tra đúng file trước khi gửi.';
+        : 'Bạn có thể nộp tối đa ${bt.soFileToiDa} file hoặc nộp lại trước khi bài tập đóng. Hãy kiểm tra đúng file trước khi gửi.';
 
     return Container(
       padding: const EdgeInsets.all(14),

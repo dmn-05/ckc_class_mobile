@@ -62,25 +62,36 @@ class NguoiDungProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      final results = await Future.wait([
-        _nguoiDungService.layDanhSachVaiTro(),
-        _nguoiDungService.layDanhSachNguoiDung(
-          tuKhoa: _tuKhoa,
-          vaiTroId: _vaiTroId,
-          trangThai: _trangThai,
-        ),
-        _nguoiDungService.layDanhSachKhoa(),
-        _nguoiDungService.layDanhSachLopHanhChinh(),
-        _nguoiDungService.layDanhSachBoMon(),
-      ]);
-
-      _dsVaiTro = results[0] as List<VaiTro>;
-      _dsNguoiDung = results[1] as List<NguoiDung>;
-      _dsKhoa = results[2] as List<KhoaNguoiDung>;
-      _dsLopHanhChinh = results[3] as List<LopHanhChinhNguoiDung>;
-      _dsBoMon = results[4] as List<BoMonNguoiDung>;
-
+      // Danh sách người dùng là dữ liệu chính của màn hình. Không để lỗi của
+      // một danh mục phụ (ví dụ danh sách lớp) làm xóa toàn bộ người dùng.
+      _dsNguoiDung = await _nguoiDungService.layDanhSachNguoiDung(
+        tuKhoa: _tuKhoa,
+        vaiTroId: _vaiTroId,
+        trangThai: _trangThai,
+      );
       _error = null;
+
+      try {
+        _dsVaiTro = await _nguoiDungService.layDanhSachVaiTro();
+      } catch (_) {
+        _dsVaiTro = [];
+      }
+      try {
+        _dsKhoa = await _nguoiDungService.layDanhSachKhoa();
+      } catch (_) {
+        _dsKhoa = [];
+      }
+      try {
+        _dsLopHanhChinh =
+            await _nguoiDungService.layDanhSachLopHanhChinh();
+      } catch (_) {
+        _dsLopHanhChinh = [];
+      }
+      try {
+        _dsBoMon = await _nguoiDungService.layDanhSachBoMon();
+      } catch (_) {
+        _dsBoMon = [];
+      }
     } catch (error) {
       _error = _xuLyLoi(error);
       _dsNguoiDung = [];
@@ -90,21 +101,35 @@ class NguoiDungProvider extends ChangeNotifier {
   }
 
   Future<void> layDanhSachDanhMuc() async {
-    try {
-      final results = await Future.wait([
-        _nguoiDungService.layDanhSachKhoa(),
-        _nguoiDungService.layDanhSachLopHanhChinh(),
-        _nguoiDungService.layDanhSachBoMon(),
-      ]);
+    String? loiDanhMuc;
 
-      _dsKhoa = results[0] as List<KhoaNguoiDung>;
-      _dsLopHanhChinh = results[1] as List<LopHanhChinhNguoiDung>;
-      _dsBoMon = results[2] as List<BoMonNguoiDung>;
-      notifyListeners();
+    try {
+      _dsKhoa = await _nguoiDungService.layDanhSachKhoa();
     } catch (error) {
-      _error = _xuLyLoi(error);
-      notifyListeners();
+      _dsKhoa = [];
+      loiDanhMuc ??= _xuLyLoi(error);
     }
+
+    try {
+      _dsLopHanhChinh =
+          await _nguoiDungService.layDanhSachLopHanhChinh();
+    } catch (error) {
+      _dsLopHanhChinh = [];
+      loiDanhMuc ??= _xuLyLoi(error);
+    }
+
+    try {
+      _dsBoMon = await _nguoiDungService.layDanhSachBoMon();
+    } catch (error) {
+      _dsBoMon = [];
+      loiDanhMuc ??= _xuLyLoi(error);
+    }
+
+    // Chỉ báo lỗi danh mục khi màn hình chưa có dữ liệu người dùng chính.
+    if (_dsNguoiDung.isEmpty && loiDanhMuc != null) {
+      _error = loiDanhMuc;
+    }
+    notifyListeners();
   }
 
   Future<void> layDanhSachVaiTro() async {

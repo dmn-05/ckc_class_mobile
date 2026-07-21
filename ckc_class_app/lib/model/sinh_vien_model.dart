@@ -504,7 +504,7 @@ class BaiTapSVModel {
     tenNguoiTao: _toStr(j['ten_nguoi_tao']),
     yeuCauNopFile: _toBool(j['yeu_cau_nop_file'], def: true),
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    soFileToiDa: 1,
+    soFileToiDa: ((_toInt(j['so_file_toi_da']) ?? 1).clamp(1, 10)).toInt(),
     dungLuongToiDaMb: (_toInt(j['dung_luong_toi_da_mb']) ?? 25) <= 0
         ? 25
         : (_toInt(j['dung_luong_toi_da_mb']) ?? 25),

@@ -250,23 +250,23 @@ class SinhVienService {
         throw Exception('Vui lòng chọn file để nộp');
       }
 
-      if (paths.length != 1) {
-        throw Exception('Mỗi lần chỉ được nộp 1 file');
-      }
-
       final formData = FormData();
       formData.fields
         ..add(MapEntry('action', 'nop_bai'))
         ..add(MapEntry('sinh_vien_id', sinhVienId.toString()))
         ..add(MapEntry('bai_tap_id', baiTapId.toString()));
 
-      final path = paths.single;
-      formData.files.add(
-        MapEntry(
-          'file',
-          await MultipartFile.fromFile(path, filename: _tenFileTuPath(path)),
-        ),
-      );
+      for (final path in paths) {
+        formData.files.add(
+          MapEntry(
+            'files[]',
+            await MultipartFile.fromFile(
+              path,
+              filename: _tenFileTuPath(path),
+            ),
+          ),
+        );
+      }
 
       final res = await _api.post(
         '/sinh_vien/bai_tap_sinh_vien.php',

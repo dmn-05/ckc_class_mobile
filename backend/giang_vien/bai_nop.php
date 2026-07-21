@@ -45,6 +45,49 @@ function file_ext_from_name(string $name): string {
     return strtolower(pathinfo($name, PATHINFO_EXTENSION));
 }
 
+
+function decode_submission_files($raw, $fallbackName, int $baiNopId, $ngayNop = null): array {
+    $raw = trim((string)$raw);
+    if ($raw === '') return [];
+
+    $decoded = json_decode($raw, true);
+    $items = is_array($decoded) && array_is_list($decoded) ? $decoded : null;
+    if ($items === null) {
+        $name = trim((string)$fallbackName);
+        if ($name === '') $name = file_name_from_url($raw);
+        return [[
+            'id' => $baiNopId,
+            'bai_nop_id' => $baiNopId,
+            'ten_file_goc' => $name,
+            'duong_dan_file' => $raw,
+            'loai_file' => file_ext_from_name($name !== '' ? $name : $raw),
+            'kich_thuoc' => 0,
+            'public_id' => null,
+            'ngay_tao' => $ngayNop,
+        ]];
+    }
+
+    $result = [];
+    foreach ($items as $index => $item) {
+        if (!is_array($item)) continue;
+        $url = trim((string)($item['duong_dan_file'] ?? $item['duong_dan'] ?? $item['secure_url'] ?? $item['url'] ?? ''));
+        if ($url === '') continue;
+        $name = trim((string)($item['ten_file_goc'] ?? $item['ten_file'] ?? ''));
+        if ($name === '') $name = file_name_from_url($url);
+        $result[] = [
+            'id' => (int)($item['id'] ?? ($baiNopId * 100 + $index + 1)),
+            'bai_nop_id' => $baiNopId,
+            'ten_file_goc' => $name,
+            'duong_dan_file' => $url,
+            'loai_file' => strtolower((string)($item['loai_file'] ?? file_ext_from_name($name))),
+            'kich_thuoc' => (int)($item['kich_thuoc'] ?? $item['bytes'] ?? 0),
+            'public_id' => $item['public_id'] ?? null,
+            'ngay_tao' => $item['ngay_tao'] ?? $ngayNop,
+        ];
+    }
+    return $result;
+}
+
 try {
     if ($action === 'cham_diem') {
         ckc_require_lhp_mutable($conn, ckc_lhp_id_from_bai_nop($conn, (int)($data['id'] ?? 0)));
@@ -101,21 +144,15 @@ try {
 
         $result = array_map(function ($r) {
             $id = (int)$r["id"];
-            $fileUrl = trim((string)($r["duong_dan_file"] ?? ''));
-            $tenFile = trim((string)($r["ten_file_goc"] ?? ''));
-            if ($tenFile === '' && $fileUrl !== '') $tenFile = file_name_from_url($fileUrl);
-            $files = [];
-            if ($fileUrl !== '') {
-                $files[] = [
-                    "id" => $id,
-                    "bai_nop_id" => $id,
-                    "ten_file_goc" => $tenFile,
-                    "duong_dan_file" => $fileUrl,
-                    "loai_file" => file_ext_from_name($tenFile !== '' ? $tenFile : $fileUrl),
-                    "kich_thuoc" => 0,
-                    "ngay_tao" => $r["ngay_nop"],
-                ];
-            }
+            $files = decode_submission_files(
+                $r["duong_dan_file"] ?? '',
+                $r["ten_file_goc"] ?? '',
+                $id,
+                $r["ngay_nop"] ?? null
+            );
+            $firstFile = !empty($files) ? $files[0] : null;
+            $fileUrl = $firstFile['duong_dan_file'] ?? null;
+            $tenFile = $firstFile['ten_file_goc'] ?? trim((string)($r["ten_file_goc"] ?? ''));
             return [
                 "id" => $id,
                 "bai_tap_id" => (int)$r["bai_tap_id"],
@@ -124,7 +161,7 @@ try {
                 "ten_sinh_vien" => $r["ten_sinh_vien"] ?? "",
                 "email_sinh_vien" => $r["email_sinh_vien"] ?? "",
                 "ten_file_goc" => $tenFile,
-                "duong_dan_file" => $fileUrl !== '' ? $fileUrl : null,
+                "duong_dan_file" => $fileUrl,
                 "files" => $files,
                 "diem" => $r["diem"] !== null ? (float)$r["diem"] : null,
                 "nhan_xet" => $r["nhan_xet"],

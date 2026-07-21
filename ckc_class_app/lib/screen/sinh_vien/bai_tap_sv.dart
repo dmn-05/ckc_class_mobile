@@ -809,7 +809,7 @@ class _BaiTapCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Bạn sẽ nộp 1 file cho bài tập này.',
+                  'Bạn sẽ nộp ${files.length} file cho bài tập này.',
                   style: const TextStyle(color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 12),
@@ -910,7 +910,7 @@ class _BaiTapCard extends StatelessWidget {
 
     final allowed = bt.dsDinhDangChoPhep;
     final result = await FilePicker.pickFiles(
-      allowMultiple: false,
+      allowMultiple: bt.soFileToiDa > 1,
       type: allowed.isEmpty ? FileType.any : FileType.custom,
       allowedExtensions: allowed.isEmpty ? null : allowed,
       withData: false,
@@ -924,8 +924,13 @@ class _BaiTapCard extends StatelessWidget {
       return;
     }
 
-    if (files.length != 1) {
-      if (context.mounted) _baoLoi(context, 'Mỗi lần chỉ được nộp 1 file');
+    if (files.length > bt.soFileToiDa) {
+      if (context.mounted) {
+        _baoLoi(
+          context,
+          'Bài tập chỉ cho phép nộp tối đa ${bt.soFileToiDa} file',
+        );
+      }
       return;
     }
 
@@ -954,9 +959,9 @@ class _BaiTapCard extends StatelessWidget {
     if (!confirmed || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final rs = await context.read<SinhVienProvider>().nopBai(
+    final rs = await context.read<SinhVienProvider>().nopBaiNhieuFile(
       baiTapId: bt.id,
-      filePath: files.single.path!,
+      filePaths: files.map((file) => file.path!).toList(),
       lopHocPhanId: lopHocPhanId,
     );
 

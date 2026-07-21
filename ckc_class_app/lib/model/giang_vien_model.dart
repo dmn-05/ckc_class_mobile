@@ -328,7 +328,7 @@ class BaiTap {
         : const [],
     yeuCauNopFile: (_toInt(j['yeu_cau_nop_file']) ?? 1) == 1,
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
-    soFileToiDa: 1,
+    soFileToiDa: ((_toInt(j['so_file_toi_da']) ?? 1).clamp(1, 10)).toInt(),
     dungLuongToiDaMb: _toInt(j['dung_luong_toi_da_mb']) ?? 25,
     choPhepNopLai: (_toInt(j['cho_phep_nop_lai']) ?? 1) == 1,
     choPhepNopMuon: (_toInt(j['cho_phep_nop_muon']) ?? 1) == 1,
