@@ -1,6 +1,7 @@
 import 'package:ckc_class_app/screen/giang_vien/ket_qua_quiz_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/chi_tiet_bai_tap_giang_vien.dart';
 import 'package:ckc_class_app/screen/giang_vien/tao_quiz_giang_vien.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1086,9 +1087,8 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
     final formKey = GlobalKey<FormState>();
     final tieuDeCtrl = TextEditingController(text: baiTap?.tieuDe ?? '');
     final moTaCtrl = TextEditingController(text: baiTap?.moTa ?? '');
-    PlatformFile? fileDaChon;
-    String? duongDanFile = baiTap?.duongDanFile;
-    String? fileName = baiTap?.fileName;
+    final List<PlatformFile> tepTinMoi = <PlatformFile>[];
+    final Set<int> tepTinXoa = <int>{};
     final diemToiDaCtrl = TextEditingController(
       text: _fmtSo(baiTap?.diemToiDa ?? 10),
     );
@@ -1188,48 +1188,60 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    _FilePickerBox(
-                      fileDaChon: fileDaChon,
-                      duongDanFile: duongDanFile,
-                      fileName: fileName,
+                    _MultiFilePickerBox(
+                      filesHienTai: baiTap?.files ?? const [],
+                      tepTinMoi: tepTinMoi,
+                      tepTinXoa: tepTinXoa,
                       enabled: !dangLuu,
                       onChonFile: () async {
                         final result = await FilePicker.pickFiles(
                           type: FileType.custom,
-                          allowMultiple: false,
+                          allowMultiple: true,
+                          withData: kIsWeb,
                           allowedExtensions: const [
-                            'pdf',
-                            'doc',
-                            'docx',
-                            'ppt',
-                            'pptx',
-                            'xls',
-                            'xlsx',
-                            'zip',
-                            'rar',
-                            'png',
-                            'jpg',
-                            'jpeg',
-                            'txt',
-                            'sql',
+                            'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+                            'zip', 'rar', 'png', 'jpg', 'jpeg', 'txt', 'sql',
                           ],
                         );
-
                         if (result == null || result.files.isEmpty) return;
 
-                        setS(() {
-                          fileDaChon = result.files.single;
-                          fileName = result.files.single.name;
-                          duongDanFile = null;
-                        });
+                        final soFileDangCo =
+                            (baiTap?.files.where((f) => !tepTinXoa.contains(f.id)).length ?? 0) +
+                            tepTinMoi.length;
+                        final conLai = 10 - soFileDangCo;
+                        if (conLai <= 0) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(content: Text('Mỗi bài tập chỉ được đính kèm tối đa 10 file')),
+                            );
+                          }
+                          return;
+                        }
+
+                        final hopLe = <PlatformFile>[];
+                        for (final file in result.files.take(conLai)) {
+                          if ((file.path == null || file.path!.trim().isEmpty) &&
+                              (file.bytes == null || file.bytes!.isEmpty)) {
+                            continue;
+                          }
+                          if (file.size > 50 * 1024 * 1024) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('File ${file.name} vượt quá 50MB')),
+                              );
+                            }
+                            continue;
+                          }
+                          final daCo = tepTinMoi.any(
+                            (item) => item.name == file.name && item.size == file.size,
+                          );
+                          if (!daCo) hopLe.add(file);
+                        }
+                        setS(() => tepTinMoi.addAll(hopLe));
                       },
-                      onXoaFile: () {
-                        setS(() {
-                          fileDaChon = null;
-                          fileName = null;
-                          duongDanFile = null;
-                        });
-                      },
+                      onXoaFileCu: (id) => setS(() => tepTinXoa.add(id)),
+                      onKhoiPhucFileCu: (id) => setS(() => tepTinXoa.remove(id)),
+                      onXoaFileMoi: (index) => setS(() => tepTinMoi.removeAt(index)),
                     ),
                     const SizedBox(height: 14),
                     _CaiDatNopBaiBox(
@@ -1406,39 +1418,15 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
 
                       setS(() => dangLuu = true);
 
-                      String duongDanFileCuoi = duongDanFile?.trim() ?? '';
-
-                      if (fileDaChon != null) {
-                        final uploadResult = await _uploadFileBaiTap(
-                          fileDaChon!,
-                        );
-
-                        if (!mounted || !ctx.mounted) return;
-
-                        if (uploadResult['success'] != true) {
-                          setS(() => dangLuu = false);
-                          hienThiSnackBar(
-                            context,
-                            uploadResult['message']?.toString() ??
-                                'Không upload được file',
-                            laThanh: false,
-                          );
-                          return;
-                        }
-
-                        duongDanFileCuoi =
-                            uploadResult['duong_dan_file']?.toString() ?? '';
-                        fileName = uploadResult['file_name']?.toString() ?? fileDaChon?.name;
-                      }
-
                       final result = baiTap == null
                           ? await provider.themBaiTap(
                               tieuDe: tieuDeCtrl.text,
                               lopHocPhanId: widget.lop.id,
                               chuDeId: chuDeId,
                               moTa: moTaCtrl.text,
-                              duongDanFile: duongDanFileCuoi,
-                              fileName: fileName ?? '',
+                              duongDanFile: '',
+                              fileName: '',
+                              tepTinMoi: List<PlatformFile>.from(tepTinMoi),
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
@@ -1457,8 +1445,10 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                               lopHocPhanId: widget.lop.id,
                               chuDeId: chuDeId,
                               moTa: moTaCtrl.text,
-                              duongDanFile: duongDanFileCuoi,
-                              fileName: fileName ?? '',
+                              duongDanFile: '',
+                              fileName: '',
+                              tepTinMoi: List<PlatformFile>.from(tepTinMoi),
+                              tepTinXoa: tepTinXoa.toList(),
                               hanNop: hanNop,
                               yeuCauNopFile: yeuCauNopFile,
                               dinhDangFileChoPhep: dinhDangDaChon.join(','),
@@ -1977,146 +1967,130 @@ class _CaiDatNopBaiBox extends StatelessWidget {
   }
 }
 
-class _FilePickerBox extends StatelessWidget {
-  final PlatformFile? fileDaChon;
-  final String? duongDanFile;
-  final String? fileName;
+class _MultiFilePickerBox extends StatelessWidget {
+  final List<dynamic> filesHienTai;
+  final List<PlatformFile> tepTinMoi;
+  final Set<int> tepTinXoa;
   final bool enabled;
   final VoidCallback onChonFile;
-  final VoidCallback onXoaFile;
+  final ValueChanged<int> onXoaFileCu;
+  final ValueChanged<int> onKhoiPhucFileCu;
+  final ValueChanged<int> onXoaFileMoi;
 
-  const _FilePickerBox({
-    required this.fileDaChon,
-    required this.duongDanFile,
-    required this.fileName,
+  const _MultiFilePickerBox({
+    required this.filesHienTai,
+    required this.tepTinMoi,
+    required this.tepTinXoa,
     required this.enabled,
     required this.onChonFile,
-    required this.onXoaFile,
+    required this.onXoaFileCu,
+    required this.onKhoiPhucFileCu,
+    required this.onXoaFileMoi,
   });
-
-  String get _tenHienThi {
-    if (fileDaChon != null) return fileDaChon!.name;
-    final provided = fileName?.trim() ?? '';
-    if (provided.isNotEmpty) return provided;
-    final path = duongDanFile?.trim() ?? '';
-    if (path.isEmpty) return 'Chưa chọn file đính kèm';
-    final normalized = path.replaceAll('\\', '/');
-    return normalized.split('/').last;
-  }
-
-  String get _moTa {
-    if (fileDaChon != null) {
-      final size = fileDaChon!.size;
-      if (size <= 0) return 'File mới từ máy của bạn';
-      final kb = size / 1024;
-      if (kb < 1024) return '${kb.toStringAsFixed(1)} KB · sẽ upload khi lưu';
-      return '${(kb / 1024).toStringAsFixed(1)} MB · sẽ upload khi lưu';
-    }
-
-    final path = duongDanFile?.trim() ?? '';
-    if (path.isEmpty)
-      return 'Hỗ trợ PDF, Word, Excel, PowerPoint, ZIP, ảnh, TXT, SQL';
-    return 'File đã tải lên';
-  }
-
-  bool get _coFile =>
-      fileDaChon != null || (duongDanFile?.trim().isNotEmpty ?? false);
 
   @override
   Widget build(BuildContext context) {
-    final color = _coFile ? const Color(0xFF2563EB) : const Color(0xFF64748B);
+    final soConLai = filesHienTai.where((f) => !tepTinXoa.contains(f.id)).length;
+    final tong = soConLai + tepTinMoi.length;
 
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: enabled ? onChonFile : null,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _coFile
-                  ? const Color(0xFFBFDBFE)
-                  : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: Row(
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _coFile
-                      ? const Color(0xFFEFF6FF)
-                      : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  _coFile
-                      ? Icons.insert_drive_file_rounded
-                      : Icons.upload_file_rounded,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _tenHienThi,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _moTa,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const Icon(Icons.attach_file_rounded, color: Color(0xFF2563EB)),
               const SizedBox(width: 8),
-              if (_coFile)
-                IconButton(
-                  tooltip: 'Xóa file',
-                  onPressed: enabled ? onXoaFile : null,
-                  icon: const Icon(Icons.close_rounded, color: Colors.red),
-                )
-              else
-                FilledButton.icon(
-                  onPressed: enabled ? onChonFile : null,
-                  icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  label: const Text('Chọn'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              Expanded(
+                child: Text(
+                  'File đề bài ($tong/10)',
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
+              ),
+              FilledButton.icon(
+                onPressed: enabled && tong < 10 ? onChonFile : null,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Chọn file'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
           ),
-        ),
+          if (tong == 0) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Có thể chọn nhiều file, tối đa 10 file và 50MB mỗi file.',
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+            ),
+          ],
+          ...filesHienTai.map((file) {
+            final daXoa = tepTinXoa.contains(file.id);
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                daXoa ? Icons.delete_outline_rounded : Icons.insert_drive_file_rounded,
+                color: daXoa ? Colors.red : const Color(0xFF2563EB),
+              ),
+              title: Text(
+                file.tenFile,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  decoration: daXoa ? TextDecoration.lineThrough : null,
+                  color: daXoa ? Colors.red : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: file.kichThuocHienThi.toString().isEmpty
+                  ? const Text('File đã tải lên')
+                  : Text(file.kichThuocHienThi),
+              trailing: IconButton(
+                tooltip: daXoa ? 'Khôi phục' : 'Bỏ file',
+                onPressed: !enabled
+                    ? null
+                    : () => daXoa
+                        ? onKhoiPhucFileCu(file.id)
+                        : onXoaFileCu(file.id),
+                icon: Icon(daXoa ? Icons.undo_rounded : Icons.close_rounded),
+                color: daXoa ? const Color(0xFF2563EB) : Colors.red,
+              ),
+            );
+          }),
+          ...tepTinMoi.asMap().entries.map(
+            (entry) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.upload_file_rounded, color: Color(0xFF16A34A)),
+              title: Text(
+                entry.value.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '${(entry.value.size / 1024 / 1024).toStringAsFixed(2)} MB • sẽ tải lên khi lưu',
+              ),
+              trailing: IconButton(
+                tooltip: 'Bỏ file',
+                onPressed: enabled ? () => onXoaFileMoi(entry.key) : null,
+                icon: const Icon(Icons.close_rounded, color: Colors.red),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

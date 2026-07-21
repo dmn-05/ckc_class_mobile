@@ -1,3 +1,4 @@
+import 'tep_tin_dinh_kem_model.dart';
 int? _toInt(dynamic v) => v == null ? null : int.tryParse(v.toString());
 
 double? _toDouble(dynamic v) =>
@@ -415,6 +416,7 @@ class BaiTapSVModel {
   final String? moTa;
   final String? duongDanFile;
   final String? fileName;
+  final List<TepTinDinhKem> files;
   final DateTime? hanNop;
   final String trangThai;
   final DateTime? ngayTao;
@@ -455,6 +457,7 @@ class BaiTapSVModel {
     this.moTa,
     this.duongDanFile,
     this.fileName,
+    this.files = const [],
     this.hanNop,
     this.trangThai = 'hien_thi',
     this.ngayTao,
@@ -489,6 +492,12 @@ class BaiTapSVModel {
     moTa: _toStr(j['mo_ta']),
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
     fileName: _toStr(j['file_name']) ?? _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']),
+    files: (j['files'] is List)
+        ? (j['files'] as List)
+              .map((e) => TepTinDinhKem.fromJson(Map<String, dynamic>.from(e)))
+              .where((e) => e.duongDan.trim().isNotEmpty)
+              .toList()
+        : const [],
     hanNop: _toDateTime(j['han_nop']),
     trangThai: _chuanHoaTrangThaiBaiTap(j['trang_thai']),
     ngayTao: _toDateTime(j['ngay_tao']),

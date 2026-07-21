@@ -1,3 +1,4 @@
+import 'tep_tin_dinh_kem_model.dart';
 // ═══════════════════════════════════════════════════════
 // MODEL PHÂN HỆ GIẢNG VIÊN
 // ═══════════════════════════════════════════════════════
@@ -246,6 +247,7 @@ class BaiTap {
   final String? moTa;
   final String? duongDanFile;
   final String? fileName;
+  final List<TepTinDinhKem> files;
   final bool yeuCauNopFile;
   final String? dinhDangFileChoPhep;
   final int soFileToiDa;
@@ -281,6 +283,7 @@ class BaiTap {
     this.moTa,
     this.duongDanFile,
     this.fileName,
+    this.files = const [],
     this.yeuCauNopFile = true,
     this.dinhDangFileChoPhep,
     this.soFileToiDa = 1,
@@ -317,6 +320,12 @@ class BaiTap {
     moTa: _toStr(j['mo_ta']),
     duongDanFile: _toStr(j['duong_dan_file']) ?? _toStr(j['file_url']) ?? _toStr(j['duong_dan']),
     fileName: _toStr(j['file_name']) ?? _toStr(j['ten_file_goc']) ?? _toStr(j['ten_file']),
+    files: (j['files'] is List)
+        ? (j['files'] as List)
+              .map((e) => TepTinDinhKem.fromJson(Map<String, dynamic>.from(e)))
+              .where((e) => e.duongDan.trim().isNotEmpty)
+              .toList()
+        : const [],
     yeuCauNopFile: (_toInt(j['yeu_cau_nop_file']) ?? 1) == 1,
     dinhDangFileChoPhep: _toStr(j['dinh_dang_file_cho_phep']),
     soFileToiDa: 1,
@@ -549,6 +558,7 @@ class ThongBao {
   final DateTime? ngayCapNhat;
   final int soBinhLuan;
   final DateTime? thoiGianGui;
+  final List<TepTinDinhKem> files;
 
   const ThongBao({
     required this.id,
@@ -562,6 +572,7 @@ class ThongBao {
     this.ngayCapNhat,
     this.soBinhLuan = 0,
     this.thoiGianGui,
+    this.files = const [],
   });
 
   factory ThongBao.fromJson(Map<String, dynamic> j) => ThongBao(
@@ -576,6 +587,12 @@ class ThongBao {
     ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
     soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
     thoiGianGui: _toDateTime(j['thoi_gian_gui']),
+    files: (j['files'] is List)
+        ? (j['files'] as List)
+              .map((e) => TepTinDinhKem.fromJson(Map<String, dynamic>.from(e)))
+              .where((e) => e.duongDan.trim().isNotEmpty)
+              .toList()
+        : const [],
   );
 
   bool get isHienThi => trangThai == 'hien_thi';

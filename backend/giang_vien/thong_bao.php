@@ -82,10 +82,19 @@ function ensure_bai_viet_for_thong_bao(PDO $conn, int $thongBaoId): int {
 }
 
 function luu_file_thong_bao(PDO $conn, int $baiVietId, int $nguoiTaoId, array $files): array {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM tep_tin_bai_viet tbv JOIN tep_tin tt ON tt.id=tbv.tep_tin_id WHERE tbv.bai_viet_id=? AND tt.trang_thai <> 'da_xoa'");
+    $stmt->execute([$baiVietId]);
+    $soFileHienTai = (int)$stmt->fetchColumn();
+    if ($soFileHienTai + count($files) > 10) throw new RuntimeException('Mỗi bài viết chỉ được đính kèm tối đa 10 file');
     $saved = [];
     foreach ($files as $file) {
+        if ((int)($file['size'] ?? 0) > 50 * 1024 * 1024) {
+            throw new RuntimeException('File ' . ($file['name'] ?? '') . ' vượt quá 50MB');
+        }
         $up = ckc_upload_to_cloudinary($file, 'posts');
-        $tenFile = $up['original_filename'] ?: ($file['name'] ?? 'file');
+        $tenFile = trim((string)($file['name'] ?? ''));
+        if ($tenFile === '') $tenFile = trim((string)($up['original_filename'] ?? 'file'));
+        if ($tenFile === '') $tenFile = 'file';
         $loaiFile = $up['format'] ?: strtolower(pathinfo($tenFile, PATHINFO_EXTENSION));
         $kichThuoc = (float)($up['bytes'] ?? ($file['size'] ?? 0));
         $url = $up['secure_url'];
@@ -128,6 +137,26 @@ function lay_files_thong_bao(PDO $conn, ?int $baiVietId): array {
         'kich_thuoc' => (int)$r['kich_thuoc'],
         'ngay_tao' => $r['ngay_tao'],
     ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+
+function parse_tep_tin_ids($raw): array {
+    if (is_array($raw)) $values = $raw;
+    else {
+        $decoded = json_decode((string)$raw, true);
+        $values = is_array($decoded) ? $decoded : explode(',', (string)$raw);
+    }
+    return array_values(array_unique(array_filter(array_map('intval', $values), static fn($v) => $v > 0)));
+}
+
+function xoa_file_thong_bao(PDO $conn, int $baiVietId, array $tepTinIds): void {
+    if (empty($tepTinIds)) return;
+    $placeholders = implode(',', array_fill(0, count($tepTinIds), '?'));
+    $params = array_merge([$baiVietId], $tepTinIds);
+    $stmt = $conn->prepare("DELETE FROM tep_tin_bai_viet WHERE bai_viet_id=? AND tep_tin_id IN ($placeholders)");
+    $stmt->execute($params);
+    $stmt = $conn->prepare("UPDATE tep_tin SET trang_thai='da_xoa' WHERE id IN ($placeholders)");
+    $stmt->execute($tepTinIds);
 }
 
 try {
@@ -230,6 +259,8 @@ try {
             cap_nhat_bai_viet_thong_bao($conn, $baiVietId, $tieuDe, $noiDung ?: null, $trangThai);
             $stmt = $conn->prepare("UPDATE thong_bao SET tieu_de=?, noi_dung=?, thoi_gian_gui=?, trang_thai=?, bai_viet_id=?, ngay_cap_nhat=NOW() WHERE id=?");
             $stmt->execute([$tieuDe, $noiDung ?: null, $thoiGianGui, $trangThai, $baiVietId, $id]);
+            $tepTinXoa = parse_tep_tin_ids($data['xoa_tep_tin_ids'] ?? []);
+            xoa_file_thong_bao($conn, $baiVietId, $tepTinXoa);
             $files = ckc_collect_uploads(['file', 'files', 'files[]']);
             $savedFiles = [];
             if (!empty($files)) $savedFiles = luu_file_thong_bao($conn, $baiVietId, $nguoiTaoId, $files);

@@ -143,6 +143,29 @@ function collect_uploaded_files() {
     return $result;
 }
 
+
+function lay_files_bai_tap_sv(PDO $conn, int $baiTapId): array {
+    if ($baiTapId <= 0 || !db_has_table($conn, 'tep_tin') || !db_has_table($conn, 'tep_tin_bai_tap')) return [];
+    $stmt = $conn->prepare("SELECT tt.id, tt.ten_file, tt.duong_dan, tt.loai_file, tt.kich_thuoc, tt.ngay_tao
+        FROM tep_tin_bai_tap ttbt
+        JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id
+        WHERE ttbt.bai_tap_id=? AND COALESCE(tt.trang_thai, 'dang_su_dung')='dang_su_dung'
+        ORDER BY ttbt.id ASC");
+    $stmt->execute([$baiTapId]);
+    return array_map(static function ($r) {
+        return [
+            'id' => (int)$r['id'],
+            'ten_file' => $r['ten_file'],
+            'ten_file_goc' => $r['ten_file'],
+            'duong_dan' => $r['duong_dan'],
+            'duong_dan_file' => $r['duong_dan'],
+            'loai_file' => $r['loai_file'],
+            'kich_thuoc' => (int)($r['kich_thuoc'] ?? 0),
+            'ngay_tao' => $r['ngay_tao'],
+        ];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
 if ($sinhVienId <= 0) {
     http_response_code(400);
     respond("error", "ID sinh viên không hợp lệ");
@@ -242,7 +265,7 @@ try {
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Host Web không còn bảng bai_nop_file. Tạo mảng files_da_nop từ chính bai_nop.
-        $result = array_map(function ($r) {
+        $result = array_map(function ($r) use ($conn) {
             $baiNopId = $r["bai_nop_id"] !== null ? (int)$r["bai_nop_id"] : null;
             return [
                 "id" => (int)$r["id"],
@@ -290,6 +313,7 @@ try {
                 "trang_thai_quiz" => $r["trang_thai_quiz"],
                 "thoi_gian_nop_quiz" => $r["thoi_gian_nop_quiz"],
                 "so_cau_hoi" => (int)$r["so_cau_hoi"],
+                "files" => lay_files_bai_tap_sv($conn, (int)$r["id"]),
             ];
         }, $rows);
 

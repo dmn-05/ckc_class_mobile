@@ -88,6 +88,11 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
 
   Widget _buildHero(GiangVienProvider provider) {
     final tk = provider.thongKe;
+    final tenTaiKhoan = context.watch<AuthProvider>().user?.hoTen.trim();
+
+    final loiChao = tenTaiKhoan != null && tenTaiKhoan.isNotEmpty
+        ? 'Xin chào, $tenTaiKhoan'
+        : 'Xin chào, giảng viên';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -138,20 +143,22 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Xin chào, giảng viên',
-                          style: TextStyle(
+                          loiChao,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(height: 3),
-                        Text(
+                        const SizedBox(height: 3),
+                        const Text(
                           'Quản lý lớp học hôm nay',
                           style: TextStyle(
                             color: Colors.white,
@@ -252,6 +259,7 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
     }
 
     final tk = provider.thongKe;
+
     if (tk == null) {
       return TrangThaiLoi(
         loi: provider.tkError ?? 'Không tải được thống kê',

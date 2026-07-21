@@ -222,14 +222,18 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
                 label: 'Người tạo',
                 value: baiTap.tenNguoiTao ?? 'Chưa cập nhật',
               ),
-              if (baiTap.duongDanFile == null || baiTap.duongDanFile!.trim().isEmpty)
-                const _InfoRow(
-                  icon: Icons.attach_file_rounded,
-                  label: 'File đính kèm',
-                  value: 'Không có file đính kèm',
-                  color: Color(0xFF0D9488),
+              if (baiTap.files.isNotEmpty)
+                ...baiTap.files.map(
+                  (file) => _FileDownloadRow(
+                    tenFile: file.tenFile,
+                    onTap: () => taiFileVeMay(
+                      context,
+                      duongDan: file.duongDan,
+                      tenFile: file.tenFile,
+                    ),
+                  ),
                 )
-              else
+              else if (baiTap.duongDanFile != null && baiTap.duongDanFile!.trim().isNotEmpty)
                 _FileDownloadRow(
                   tenFile: tenFileHienThi(
                     tenFile: baiTap.fileName,
@@ -240,6 +244,13 @@ class ChiTietBaiTapGiangVien extends StatelessWidget {
                     duongDan: baiTap.duongDanFile!,
                     tenFile: baiTap.fileName,
                   ),
+                )
+              else
+                const _InfoRow(
+                  icon: Icons.attach_file_rounded,
+                  label: 'File đính kèm',
+                  value: 'Không có file đính kèm',
+                  color: Color(0xFF0D9488),
                 ),
               if (baiTap.laQuiz) ...[
                 _InfoRow(

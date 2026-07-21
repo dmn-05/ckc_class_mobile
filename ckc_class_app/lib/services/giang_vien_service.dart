@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../model/giang_vien_model.dart';
 import 'ket_noi_api_service.dart';
 
@@ -16,6 +17,27 @@ class GiangVienService {
 
     return '${d.year}-${two(d.month)}-${two(d.day)} '
         '${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
+  }
+
+
+  Future<List<MultipartFile>> _taoMultipartFiles(List<PlatformFile> files) async {
+    final result = <MultipartFile>[];
+    for (final file in files) {
+      final path = file.path?.trim() ?? '';
+      if (path.isNotEmpty) {
+        result.add(await MultipartFile.fromFile(path, filename: file.name));
+        continue;
+      }
+
+      final bytes = file.bytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        result.add(MultipartFile.fromBytes(bytes, filename: file.name));
+        continue;
+      }
+
+      throw Exception('Không đọc được nội dung file ${file.name}');
+    }
+    return result;
   }
 
   Map<String, dynamic> _layBody(Response response) {
@@ -283,6 +305,7 @@ class GiangVienService {
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
   }) async {
     try {
       if (tieuDe.trim().isEmpty) {
@@ -313,7 +336,11 @@ class GiangVienService {
         data['chu_de_id'] = chuDeId;
       }
 
-      final res = await _api.post('/giang_vien/bai_tap.php', data: data);
+      final formData = FormData.fromMap({
+        ...data,
+        if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
+      });
+      final res = await _api.post('/giang_vien/bai_tap.php', data: formData);
 
       final body = _layBody(res);
       if (!_laThanhCong(body)) {
@@ -343,6 +370,9 @@ class GiangVienService {
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
+    List<int> tepTinXoa = const [],
+    int nguoiTaoId = 0,
   }) async {
     try {
       if (tieuDe.trim().isEmpty) {
@@ -367,12 +397,18 @@ class GiangVienService {
         'trang_thai': trangThai,
         'chu_de_id': chuDeId ?? 0,
         'thoi_gian_gui': _fmtMysql(thoiGianGui),
+        'nguoi_tao_id': nguoiTaoId,
+        'xoa_tep_tin_ids': jsonEncode(tepTinXoa),
       };
       if (chuDeId != null && chuDeId > 0) {
         data['chu_de_id'] = chuDeId;
       }
 
-      final res = await _api.post('/giang_vien/bai_tap.php', data: data);
+      final formData = FormData.fromMap({
+        ...data,
+        if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
+      });
+      final res = await _api.post('/giang_vien/bai_tap.php', data: formData);
 
       final body = _layBody(res);
       if (!_laThanhCong(body)) {
@@ -597,12 +633,11 @@ class GiangVienService {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
   }) async {
     try {
       if (tieuDe.trim().isEmpty) throw Exception('Tiêu đề không được để trống');
-      final res = await _api.post(
-        '/giang_vien/thong_bao.php',
-        data: {
+      final formData = FormData.fromMap({
           'action': 'them',
           'tieu_de': tieuDe.trim(),
           'noi_dung': noiDung.trim(),
@@ -610,8 +645,9 @@ class GiangVienService {
           'nguoi_tao_id': nguoiTaoId,
           'trang_thai': trangThai,
           'thoi_gian_gui': _fmtMysql(thoiGianGui),
-        },
-      );
+          if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
+      });
+      final res = await _api.post('/giang_vien/thong_bao.php', data: formData);
       final body = _layBody(res);
       if (!_laThanhCong(body))
         throw Exception(_layThongBao(body, macDinh: 'Đăng thông báo thất bại'));
@@ -627,20 +663,24 @@ class GiangVienService {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
+    List<int> tepTinXoa = const [],
+    int nguoiTaoId = 0,
   }) async {
     try {
       if (tieuDe.trim().isEmpty) throw Exception('Tiêu đề không được để trống');
-      final res = await _api.post(
-        '/giang_vien/thong_bao.php',
-        data: {
+      final formData = FormData.fromMap({
           'action': 'sua',
           'id': id,
           'tieu_de': tieuDe.trim(),
           'noi_dung': noiDung.trim(),
           'trang_thai': trangThai,
           'thoi_gian_gui': _fmtMysql(thoiGianGui),
-        },
-      );
+          'nguoi_tao_id': nguoiTaoId,
+          'xoa_tep_tin_ids': jsonEncode(tepTinXoa),
+          if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
+      });
+      final res = await _api.post('/giang_vien/thong_bao.php', data: formData);
       final body = _layBody(res);
       if (!_laThanhCong(body))
         throw Exception(

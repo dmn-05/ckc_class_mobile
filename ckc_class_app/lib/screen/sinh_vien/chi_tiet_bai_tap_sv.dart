@@ -233,7 +233,20 @@ class _ChiTietBaiTapSVState extends State<ChiTietBaiTapSV> {
                         value: '${bt.soCauHoi}',
                         color: Colors.blue,
                       ),
-                    if (bt.duongDanFile != null && bt.duongDanFile!.toString().isNotEmpty)
+                    if (bt.files.isNotEmpty)
+                      ...bt.files.map(
+                        (file) => _DownloadFileRow(
+                          label: 'File đề bài',
+                          tenFile: file.tenFile,
+                          color: Colors.indigo,
+                          onTap: () => taiFileVeMay(
+                            context,
+                            duongDan: file.duongDan,
+                            tenFile: file.tenFile,
+                          ),
+                        ),
+                      )
+                    else if (bt.duongDanFile != null && bt.duongDanFile!.toString().isNotEmpty)
                       _DownloadFileRow(
                         label: 'File đề bài',
                         tenFile: tenFileHienThi(

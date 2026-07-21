@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../model/giang_vien_model.dart';
 import '../../widget/widget_chung_giangvien.dart';
+import '../../utils/file_download_helper.dart';
 
 class ChiTietThongBaoGiangVien extends StatelessWidget {
   final LopHocPhan lop;
@@ -218,6 +219,39 @@ class ChiTietThongBaoGiangVien extends StatelessWidget {
               ),
             ],
           ),
+          if (thongBao.files.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _SectionCard(
+              title: 'File đính kèm',
+              icon: Icons.attach_file_rounded,
+              children: thongBao.files
+                  .map(
+                    (file) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFEFF6FF),
+                        child: Icon(Icons.insert_drive_file_rounded, color: _primary),
+                      ),
+                      title: Text(
+                        file.tenFile,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: _text),
+                      ),
+                      subtitle: file.kichThuocHienThi.isEmpty
+                          ? const Text('Nhấn để tải file')
+                          : Text('${file.kichThuocHienThi} • Nhấn để tải file'),
+                      trailing: const Icon(Icons.download_rounded, color: _primary),
+                      onTap: () => taiFileVeMay(
+                        context,
+                        duongDan: file.duongDan,
+                        tenFile: file.tenFile,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
           const SizedBox(height: 14),
           _SectionCard(
             title: 'Thông tin gửi',

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/giang_vien_service.dart';
 import '../model/giang_vien_model.dart';
 
@@ -412,6 +413,7 @@ class GiangVienProvider extends ChangeNotifier {
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
   }) async {
     _btProcessing = true;
     notifyListeners();
@@ -435,6 +437,7 @@ class GiangVienProvider extends ChangeNotifier {
         diemToiDa: diemToiDa,
         trangThai: trangThai,
         thoiGianGui: thoiGianGui,
+        tepTinMoi: tepTinMoi,
       );
 
       await layDanhSachBaiTap(lopHocPhanId, chuDeIds: _btChuDeIds);
@@ -466,6 +469,8 @@ class GiangVienProvider extends ChangeNotifier {
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
+    List<int> tepTinXoa = const [],
   }) async {
     _btProcessing = true;
     notifyListeners();
@@ -488,6 +493,9 @@ class GiangVienProvider extends ChangeNotifier {
         diemToiDa: diemToiDa,
         trangThai: trangThai,
         thoiGianGui: thoiGianGui,
+        tepTinMoi: tepTinMoi,
+        tepTinXoa: tepTinXoa,
+        nguoiTaoId: _nguoiDungId,
       );
 
       await layDanhSachBaiTap(lopHocPhanId, chuDeIds: _btChuDeIds);
@@ -644,6 +652,7 @@ class GiangVienProvider extends ChangeNotifier {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
@@ -655,6 +664,7 @@ class GiangVienProvider extends ChangeNotifier {
         noiDung: noiDung,
         trangThai: trangThai,
         thoiGianGui: thoiGianGui,
+        tepTinMoi: tepTinMoi,
       );
       await layDanhSachThongBao(lopHocPhanId);
       return {'success': true, 'message': msg};
@@ -673,6 +683,8 @@ class GiangVienProvider extends ChangeNotifier {
     String noiDung = '',
     String trangThai = 'hien_thi',
     DateTime? thoiGianGui,
+    List<PlatformFile> tepTinMoi = const [],
+    List<int> tepTinXoa = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
@@ -683,6 +695,9 @@ class GiangVienProvider extends ChangeNotifier {
         noiDung: noiDung,
         trangThai: trangThai,
         thoiGianGui: thoiGianGui,
+        tepTinMoi: tepTinMoi,
+        tepTinXoa: tepTinXoa,
+        nguoiTaoId: _nguoiDungId,
       );
       await layDanhSachThongBao(lopHocPhanId);
       return {'success': true, 'message': msg};

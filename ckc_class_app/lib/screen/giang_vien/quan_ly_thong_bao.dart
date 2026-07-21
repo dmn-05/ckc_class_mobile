@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../model/giang_vien_model.dart';
@@ -379,6 +381,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
             noiDung: data['noi_dung']?.toString() ?? '',
             thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
+            tepTinMoi: List<PlatformFile>.from(data['tep_tin_moi'] as List? ?? const []),
           )
         : await provider.suaThongBao(
             id: thongBao.id,
@@ -387,6 +390,8 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
             noiDung: data['noi_dung']?.toString() ?? '',
             thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
+            tepTinMoi: List<PlatformFile>.from(data['tep_tin_moi'] as List? ?? const []),
+            tepTinXoa: List<int>.from(data['tep_tin_xoa'] as List? ?? const []),
           );
 
     if (!mounted) return;
@@ -468,6 +473,8 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
 
   String _trangThai = 'hien_thi';
   DateTime? _thoiGianGui;
+  final List<PlatformFile> _tepTinMoi = [];
+  final Set<int> _tepTinXoa = <int>{};
 
   @override
   void initState() {
@@ -507,6 +514,123 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
     return DateTime(ngay.year, ngay.month, ngay.day, gio.hour, gio.minute);
   }
 
+  Future<void> _chonTepTin() async {
+    final conLai = 10 -
+        ((widget.thongBao?.files.length ?? 0) - _tepTinXoa.length) -
+        _tepTinMoi.length;
+    if (conLai <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mỗi bài viết chỉ được đính kèm tối đa 10 file')),
+      );
+      return;
+    }
+
+    final result = await FilePicker.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+      withData: kIsWeb,
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+
+    final hopLe = result.files.where((file) {
+      if ((file.path == null || file.path!.trim().isEmpty) &&
+          (file.bytes == null || file.bytes!.isEmpty)) {
+        return false;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File ${file.name} vượt quá 50MB')),
+        );
+        return false;
+      }
+      return true;
+    }).take(conLai);
+
+    setState(() {
+      for (final file in hopLe) {
+        final daCo = _tepTinMoi.any(
+          (item) => item.name == file.name && item.size == file.size,
+        );
+        if (!daCo) _tepTinMoi.add(file);
+      }
+    });
+  }
+
+  Widget _buildTepTinBox() {
+    final tepTinCu = widget.thongBao?.files
+            .where((file) => !_tepTinXoa.contains(file.id))
+            .toList() ??
+        const [];
+    final tongSo = tepTinCu.length + _tepTinMoi.length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.attach_file_rounded, color: _primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'File đính kèm ($tongSo/10)',
+                  style: const TextStyle(fontWeight: FontWeight.w900, color: _text),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: tongSo >= 10 ? null : _chonTepTin,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Chọn file'),
+              ),
+            ],
+          ),
+          if (tongSo == 0) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Có thể chọn nhiều file, tối đa 10 file và 50MB mỗi file.',
+              style: TextStyle(color: _muted, fontSize: 12),
+            ),
+          ],
+          ...tepTinCu.map(
+            (file) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.insert_drive_file_outlined, color: _primary),
+              title: Text(file.tenFile, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: file.kichThuocHienThi.isEmpty ? null : Text(file.kichThuocHienThi),
+              trailing: IconButton(
+                tooltip: 'Bỏ file',
+                onPressed: () => setState(() => _tepTinXoa.add(file.id)),
+                icon: const Icon(Icons.close_rounded, color: Colors.red),
+              ),
+            ),
+          ),
+          ..._tepTinMoi.asMap().entries.map(
+            (entry) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.upload_file_rounded, color: Color(0xFF16A34A)),
+              title: Text(entry.value.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('${(entry.value.size / 1024 / 1024).toStringAsFixed(2)} MB'),
+              trailing: IconButton(
+                tooltip: 'Bỏ file',
+                onPressed: () => setState(() => _tepTinMoi.removeAt(entry.key)),
+                icon: const Icon(Icons.close_rounded, color: Colors.red),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _luu() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -515,6 +639,8 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
       'noi_dung': _noiDungCtrl.text.trim(),
       'trang_thai': _trangThai,
       'thoi_gian_gui': _thoiGianGui,
+      'tep_tin_moi': List<PlatformFile>.from(_tepTinMoi),
+      'tep_tin_xoa': _tepTinXoa.toList(),
     });
   }
 
@@ -601,6 +727,8 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                         alignLabelWithHint: true,
                       ),
                 ),
+                const SizedBox(height: 14),
+                _buildTepTinBox(),
                 const SizedBox(height: 14),
                 InputDecorator(
                   decoration: _inputDecoration(

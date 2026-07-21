@@ -9,7 +9,9 @@ require_once __DIR__ . "/../ket_noi.php";
 require_once __DIR__ . "/../_lop_hoc_phan_guard.php";
 require_once __DIR__ . "/../upload/cloudinary_helper.php";
 
-$data   = json_decode(file_get_contents("php://input"), true) ?? [];
+$contentType = $_SERVER["CONTENT_TYPE"] ?? $_SERVER["HTTP_CONTENT_TYPE"] ?? "";
+$isMultipart = stripos($contentType, "multipart/form-data") !== false;
+$data = $isMultipart ? $_POST : (json_decode(file_get_contents("php://input"), true) ?? []);
 $action = trim($data["action"] ?? "");
 
 function respond($status, $message, $extra = []) {
@@ -197,6 +199,99 @@ function sync_bai_tap_file_metadata(PDO $conn, int $baiTapId, ?string $url, ?str
     }
 }
 
+
+function lay_files_bai_tap(PDO $conn, int $baiTapId): array {
+    if ($baiTapId <= 0 || !db_has_table($conn, 'tep_tin') || !db_has_table($conn, 'tep_tin_bai_tap')) return [];
+    $stmt = $conn->prepare("SELECT tt.id, tt.ten_file, tt.ten_file_luu, tt.duong_dan, tt.loai_file, tt.kich_thuoc, tt.ngay_tao
+        FROM tep_tin_bai_tap ttbt
+        JOIN tep_tin tt ON tt.id = ttbt.tep_tin_id
+        WHERE ttbt.bai_tap_id = ? AND COALESCE(tt.trang_thai, 'dang_su_dung') = 'dang_su_dung'
+        ORDER BY ttbt.id ASC");
+    $stmt->execute([$baiTapId]);
+    return array_map(static function ($r) {
+        return [
+            'id' => (int)$r['id'],
+            'ten_file' => $r['ten_file'],
+            'ten_file_goc' => $r['ten_file'],
+            'duong_dan' => $r['duong_dan'],
+            'duong_dan_file' => $r['duong_dan'],
+            'loai_file' => $r['loai_file'],
+            'kich_thuoc' => (int)($r['kich_thuoc'] ?? 0),
+            'ngay_tao' => $r['ngay_tao'],
+        ];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+function luu_files_bai_tap(PDO $conn, int $baiTapId, int $nguoiTaoId, array $files): array {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM tep_tin_bai_tap ttbt JOIN tep_tin tt ON tt.id=ttbt.tep_tin_id WHERE ttbt.bai_tap_id=? AND COALESCE(tt.trang_thai, 'dang_su_dung')='dang_su_dung'");
+    $stmt->execute([$baiTapId]);
+    $soFileHienTai = (int)$stmt->fetchColumn();
+    if ($soFileHienTai + count($files) > 10) throw new RuntimeException('Mỗi bài tập chỉ được đính kèm tối đa 10 file');
+    $saved = [];
+    foreach ($files as $file) {
+        if ((int)($file['size'] ?? 0) > 50 * 1024 * 1024) {
+            throw new RuntimeException('File ' . ($file['name'] ?? '') . ' vượt quá 50MB');
+        }
+        $up = ckc_upload_to_cloudinary($file, 'assignments');
+        $tenFile = trim((string)($file['name'] ?? ($up['original_filename'] ?? 'file')));
+        if ($tenFile === '') $tenFile = 'file';
+        $url = (string)$up['secure_url'];
+        $loaiFile = $up['format'] ?: strtolower(pathinfo($tenFile, PATHINFO_EXTENSION));
+        $kichThuoc = (int)($up['bytes'] ?? ($file['size'] ?? 0));
+
+        $stmt = $conn->prepare("INSERT INTO tep_tin
+            (ten_file, ten_file_luu, duong_dan, loai_file, kich_thuoc, nguoi_tao_id, trang_thai)
+            VALUES (?, ?, ?, ?, ?, ?, 'dang_su_dung')");
+        $stmt->execute([$tenFile, $up['public_id'] ?? null, $url, $loaiFile ?: null, $kichThuoc, $nguoiTaoId > 0 ? $nguoiTaoId : null]);
+        $tepTinId = (int)$conn->lastInsertId();
+
+        $stmt = $conn->prepare("INSERT INTO tep_tin_bai_tap (bai_tap_id, tep_tin_id, created_at, updated_at) VALUES (?, ?, NOW(), NOW())");
+        $stmt->execute([$baiTapId, $tepTinId]);
+
+        $saved[] = [
+            'id' => $tepTinId,
+            'ten_file' => $tenFile,
+            'ten_file_goc' => $tenFile,
+            'duong_dan' => $url,
+            'duong_dan_file' => $url,
+            'loai_file' => $loaiFile,
+            'kich_thuoc' => $kichThuoc,
+        ];
+    }
+    return $saved;
+}
+
+function parse_int_list($raw): array {
+    if (is_array($raw)) $values = $raw;
+    else {
+        $decoded = json_decode((string)$raw, true);
+        $values = is_array($decoded) ? $decoded : explode(',', (string)$raw);
+    }
+    return array_values(array_unique(array_filter(array_map('intval', $values), static fn($v) => $v > 0)));
+}
+
+function xoa_files_bai_tap(PDO $conn, int $baiTapId, array $tepTinIds): void {
+    if (empty($tepTinIds)) return;
+    $placeholders = implode(',', array_fill(0, count($tepTinIds), '?'));
+    $params = array_merge([$baiTapId], $tepTinIds);
+    $stmt = $conn->prepare("DELETE FROM tep_tin_bai_tap WHERE bai_tap_id=? AND tep_tin_id IN ($placeholders)");
+    $stmt->execute($params);
+    $stmt = $conn->prepare("UPDATE tep_tin SET trang_thai='da_xoa' WHERE id IN ($placeholders)");
+    $stmt->execute($tepTinIds);
+}
+
+function cap_nhat_file_dau_bai_tap(PDO $conn, int $baiTapId): void {
+    $files = lay_files_bai_tap($conn, $baiTapId);
+    $first = $files[0] ?? null;
+    $stmt = $conn->prepare("UPDATE bai_tap SET duong_dan_file=?, file_url=?, file_name=? WHERE id=?");
+    $stmt->execute([
+        $first['duong_dan_file'] ?? null,
+        $first['duong_dan_file'] ?? null,
+        $first['ten_file_goc'] ?? null,
+        $baiTapId,
+    ]);
+}
+
 try {
     if ($action === 'them' || $action === 'them_quiz') {
         ckc_require_lhp_mutable($conn, (int)($data['lop_hoc_phan_id'] ?? 0));
@@ -300,7 +395,7 @@ try {
     $stmt->execute();
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $result = array_map(function ($r) {
+    $result = array_map(function ($r) use ($conn) {
         return [
             "id"              => (int)$r["id"],
             "tieu_de"         => $r["tieu_de"],
@@ -337,6 +432,7 @@ try {
             "so_da_cham"      => (int)$r["so_da_cham"],
             "so_bai_lam_quiz" => (int)$r["so_bai_lam_quiz"],
             "so_cau_hoi"      => (int)$r["so_cau_hoi"],
+            "files"            => lay_files_bai_tap($conn, (int)$r["id"]),
         ];
     }, $rows);
 
@@ -488,9 +584,12 @@ try {
             ]);
             $newId = (int)$conn->lastInsertId();
             sync_bai_tap_file_metadata($conn, $newId, $duongDanFile ?: null, $fileName, $nguoiTaoId);
+            $uploadFiles = ckc_collect_uploads(['files', 'files[]', 'file']);
+            $savedFiles = !empty($uploadFiles) ? luu_files_bai_tap($conn, $newId, $nguoiTaoId, $uploadFiles) : [];
+            cap_nhat_file_dau_bai_tap($conn, $newId);
             $conn->commit();
 
-            respond("success", "Thêm bài tập thành công", ["id" => $newId]);
+            respond("success", "Thêm bài tập thành công", ["id" => $newId, "files" => $savedFiles]);
         }
 
         // ─── THÊM QUIZ / TRẮC NGHIỆM ───────────────────────────────
@@ -701,6 +800,7 @@ try {
             $hanNop       = norm_datetime($data["han_nop"] ?? "");
             $thoiGianGui  = norm_datetime($data["thoi_gian_gui"] ?? "");
             $chuDeId      = int_val($data, "chu_de_id");
+            $nguoiTaoId   = int_val($data, "nguoi_tao_id");
             $trangThai    = str_val($data, "trang_thai", "hien_thi");
             $yeuCauNopFile = bool_int($data["yeu_cau_nop_file"] ?? 1);
             $dinhDangFileChoPhep = clean_ext_csv($data["dinh_dang_file_cho_phep"] ?? "");
@@ -744,10 +844,15 @@ try {
                 $trangThai,
                 $id
             ]);
-            sync_bai_tap_file_metadata($conn, $id, $duongDanFile ?: null, $fileName, 0);
+            sync_bai_tap_file_metadata($conn, $id, $duongDanFile ?: null, $fileName, $nguoiTaoId);
+            $tepTinXoa = parse_int_list($data['xoa_tep_tin_ids'] ?? []);
+            xoa_files_bai_tap($conn, $id, $tepTinXoa);
+            $uploadFiles = ckc_collect_uploads(['files', 'files[]', 'file']);
+            $savedFiles = !empty($uploadFiles) ? luu_files_bai_tap($conn, $id, $nguoiTaoId, $uploadFiles) : [];
+            cap_nhat_file_dau_bai_tap($conn, $id);
             $conn->commit();
 
-            respond("success", "Cập nhật bài tập thành công");
+            respond("success", "Cập nhật bài tập thành công", ["files" => $savedFiles]);
         }
 
         // ─── XÓA MỀM BÀI TẬP: ẩn khỏi sinh viên, không mất bài nộp/kết quả quiz ───
