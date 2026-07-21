@@ -673,6 +673,10 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
 
     return AlertDialog(
       elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -696,9 +700,19 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
           ),
         ],
       ),
-      content: SizedBox(
-        width: 520,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.68,
+        ),
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            4,
+            16,
+            4,
+            MediaQuery.viewInsetsOf(context).bottom + 24,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -706,6 +720,9 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
               children: [
                 TextFormField(
                   controller: _tieuDeCtrl,
+                  scrollPadding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom + 160,
+                  ),
                   decoration: _inputDecoration(
                     'Tiêu đề *',
                     Icons.title_rounded,
@@ -718,6 +735,9 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                 TextFormField(
                   controller: _noiDungCtrl,
                   maxLines: 6,
+                  scrollPadding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom + 180,
+                  ),
                   decoration:
                       _inputDecoration(
                         'Nội dung',

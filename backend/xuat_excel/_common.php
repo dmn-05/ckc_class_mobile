@@ -15,6 +15,26 @@ function xuat_excel_cors_json(): void
     }
 }
 
+
+function xuat_excel_column_exists(PDO $conn, string $table, string $column): bool
+{
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+    $stmt->execute([$table, $column]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function xuat_excel_nam_nhap_hoc_expression(PDO $conn, string $alias = 'l'): string
+{
+    if (xuat_excel_column_exists($conn, 'lop', 'nam_nhap_hoc')) {
+        return $alias . '.nam_nhap_hoc';
+    }
+
+    // Tương thích CSDL cũ: khóa học thường có dạng 2023-2026.
+    return "CASE WHEN {$alias}.khoa_hoc REGEXP '^[0-9]{4}' "
+        . "THEN CAST(LEFT({$alias}.khoa_hoc, 4) AS UNSIGNED) ELSE NULL END";
+}
+
 function xuat_excel_json_input(): array
 {
     $raw = file_get_contents('php://input');
@@ -273,7 +293,13 @@ function xuat_excel_add_selected_ids(array &$where, array &$params, array $selec
     $where[] = $expression . ' IN (' . implode(',', $holders) . ')';
 }
 
-function xuat_excel_query_parts(string $type, string $scope, array $filters, array $selectedIds): array
+function xuat_excel_query_parts(
+    string $type,
+    string $scope,
+    array $filters,
+    array $selectedIds,
+    string $namNhapHocExpression = 'l.nam_nhap_hoc'
+): array
 {
     $where = ['1 = 1'];
     $params = [];
@@ -333,7 +359,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
             break;
 
         case 'lop_hanh_chinh':
-            $select = "l.id, l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa, l.nam_nhap_hoc,
+            $select = "l.id, l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa, {$namNhapHocExpression} AS nam_nhap_hoc,
                 (SELECT COUNT(*) FROM sinh_vien sv WHERE sv.lop_id = l.id) AS so_luong_sinh_vien,
                 l.trang_thai, l.ngay_tao";
             $from = "FROM lop l INNER JOIN khoa k ON k.id = l.khoa_id";
@@ -342,7 +368,7 @@ function xuat_excel_query_parts(string $type, string $scope, array $filters, arr
             if ($scope !== 'toan_bo') {
                 xuat_excel_add_like($where, $params, (string)($filters['tu_khoa'] ?? ''), ['l.ma_lop', 'l.ten_lop', 'k.ma_khoa', 'k.ten_khoa'], 'lop_keyword');
                 xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'l.khoa_id', 'lop_khoa_id');
-                xuat_excel_add_int_filter($where, $params, $filters['nam_nhap_hoc'] ?? 0, 'l.nam_nhap_hoc', 'lop_nam_nhap_hoc');
+                xuat_excel_add_int_filter($where, $params, $filters['nam_nhap_hoc'] ?? 0, $namNhapHocExpression, 'lop_nam_nhap_hoc');
                 xuat_excel_add_string_filter($where, $params, $filters['trang_thai'] ?? '', 'l.trang_thai', 'lop_trang_thai');
             }
             break;

@@ -511,6 +511,13 @@ class SinhVienProvider extends ChangeNotifier {
 
       await khoiTaoDuLieu();
 
+      if (_hoSo == null) {
+        return {
+          'success': false,
+          'message': _hoSoError ?? 'Không tải được hồ sơ sinh viên',
+        };
+      }
+
       return {'success': true, 'message': 'Khởi tạo sinh viên thành công'};
     } catch (e) {
       return {'success': false, 'message': _err(e)};

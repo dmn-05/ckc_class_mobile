@@ -65,7 +65,8 @@ try {
     [$type, $config, $scope, $filters, $selectedIds, $columns] =
         xuat_excel_validate_request($data);
 
-    $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds);
+    $namNhapHocExpr = xuat_excel_nam_nhap_hoc_expression($conn, 'l');
+    $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds, $namNhapHocExpr);
     $count = xuat_excel_count($conn, $parts);
 
     if ($count <= 0) {

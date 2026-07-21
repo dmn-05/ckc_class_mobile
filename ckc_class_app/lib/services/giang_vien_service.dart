@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../model/giang_vien_model.dart';
+import '../model/sinh_vien_model.dart';
 import 'ket_noi_api_service.dart';
 
 class GiangVienService {
@@ -702,6 +703,67 @@ class GiangVienService {
       if (!_laThanhCong(body))
         throw Exception(_layThongBao(body, macDinh: 'Xóa thông báo thất bại'));
       return _layThongBao(body, macDinh: 'Xóa thông báo thành công');
+    } catch (e) {
+      throw Exception(_xuLyLoi(e));
+    }
+  }
+
+
+  Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(
+    int thongBaoId,
+  ) async {
+    try {
+      final res = await _api.post(
+        '/sinh_vien/binh_luan.php',
+        data: {
+          'action': 'danh_sach',
+          'thong_bao_id': thongBaoId,
+          'nguoi_dung_id': 0,
+        },
+      );
+      final body = _layBody(res);
+      if (!_laThanhCong(body)) {
+        throw Exception(
+          _layThongBao(body, macDinh: 'Không lấy được bình luận thông báo'),
+        );
+      }
+      final raw = body['data'];
+      if (raw is! List) return [];
+      return raw
+          .map((e) => BinhLuanModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      throw Exception(_xuLyLoi(e));
+    }
+  }
+
+  Future<BinhLuanModel> dangBinhLuanThongBao({
+    required int nguoiDungId,
+    required int thongBaoId,
+    required String noiDung,
+  }) async {
+    try {
+      final text = noiDung.trim();
+      if (text.isEmpty) throw Exception('Nội dung bình luận không được trống');
+
+      final res = await _api.post(
+        '/sinh_vien/binh_luan.php',
+        data: {
+          'action': 'dang',
+          'nguoi_dung_id': nguoiDungId,
+          'thong_bao_id': thongBaoId,
+          'noi_dung': text,
+        },
+      );
+      final body = _layBody(res);
+      if (!_laThanhCong(body)) {
+        throw Exception(
+          _layThongBao(body, macDinh: 'Đăng bình luận thất bại'),
+        );
+      }
+      return BinhLuanModel.fromJson(
+        Map<String, dynamic>.from(body['data'] ?? const {}),
+      );
     } catch (e) {
       throw Exception(_xuLyLoi(e));
     }

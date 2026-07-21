@@ -10,7 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $data = xuat_excel_json_input();
     [$type, $config, $scope, $filters, $selectedIds, $columns] = xuat_excel_validate_request($data);
-    $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds);
+    $namNhapHocExpr = xuat_excel_nam_nhap_hoc_expression($conn, 'l');
+    $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds, $namNhapHocExpr);
     $count = xuat_excel_count($conn, $parts);
     $sampleRaw = xuat_excel_fetch($conn, $parts, 5);
 

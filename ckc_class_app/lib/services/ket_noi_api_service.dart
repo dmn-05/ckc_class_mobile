@@ -41,7 +41,10 @@ class ApiService {
         baseUrl: _baseUrl,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
-        sendTimeout: const Duration(seconds: 15),
+        // Dio Web không cho đặt sendTimeout cho GET/HEAD không có body.
+        // Giữ timeout gửi trên mobile/desktop, bỏ riêng trên Web để tránh
+        // cảnh báo và lỗi adapter khi chỉ gọi API lấy dữ liệu.
+        sendTimeout: kIsWeb ? null : const Duration(seconds: 15),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

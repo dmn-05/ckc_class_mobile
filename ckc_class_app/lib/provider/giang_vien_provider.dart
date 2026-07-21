@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/giang_vien_service.dart';
 import '../model/giang_vien_model.dart';
+import '../model/sinh_vien_model.dart';
 
 class GiangVienProvider extends ChangeNotifier {
   final GiangVienService _service = GiangVienService();
@@ -724,6 +725,59 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
+  // ─── BÌNH LUẬN THÔNG BÁO ─────────────────────────────────
+  List<BinhLuanModel> _dsBinhLuanThongBao = [];
+  bool _blThongBaoLoading = false;
+  bool _blThongBaoProcessing = false;
+  String? _blThongBaoError;
+
+  List<BinhLuanModel> get dsBinhLuanThongBao => _dsBinhLuanThongBao;
+  bool get blThongBaoLoading => _blThongBaoLoading;
+  bool get blThongBaoProcessing => _blThongBaoProcessing;
+  String? get blThongBaoError => _blThongBaoError;
+
+  Future<void> layDanhSachBinhLuanThongBao(int thongBaoId) async {
+    _blThongBaoLoading = true;
+    _blThongBaoError = null;
+    notifyListeners();
+    try {
+      _dsBinhLuanThongBao =
+          await _service.layDanhSachBinhLuanThongBao(thongBaoId);
+    } catch (e) {
+      _blThongBaoError = _xuLyLoi(e);
+    } finally {
+      _blThongBaoLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> dangBinhLuanThongBao({
+    required int thongBaoId,
+    required String noiDung,
+  }) async {
+    if (_nguoiDungId <= 0) {
+      return {'success': false, 'message': 'Chưa xác định tài khoản giảng viên'};
+    }
+
+    _blThongBaoProcessing = true;
+    notifyListeners();
+    try {
+      final binhLuan = await _service.dangBinhLuanThongBao(
+        nguoiDungId: _nguoiDungId,
+        thongBaoId: thongBaoId,
+        noiDung: noiDung,
+      );
+      _dsBinhLuanThongBao.add(binhLuan);
+      notifyListeners();
+      return {'success': true, 'message': 'Đăng bình luận thành công'};
+    } catch (e) {
+      return {'success': false, 'message': _xuLyLoi(e)};
+    } finally {
+      _blThongBaoProcessing = false;
+      notifyListeners();
+    }
+  }
+
   // ─── THỐNG KÊ ─────────────────────────────────────────────
   ThongKeGiangVien? _thongKe;
   bool _tkLoading = false;
@@ -885,6 +939,11 @@ class GiangVienProvider extends ChangeNotifier {
     _tbLoading = false;
     _tbProcessing = false;
     _tbError = null;
+
+    _dsBinhLuanThongBao = [];
+    _blThongBaoLoading = false;
+    _blThongBaoProcessing = false;
+    _blThongBaoError = null;
 
     _thongKe = null;
     _tkLoading = false;

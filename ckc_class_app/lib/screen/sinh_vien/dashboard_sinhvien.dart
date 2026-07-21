@@ -29,9 +29,9 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
 
       if (nguoiDungId <= 0) return;
 
-      sv.reset();
-
-      final result = await sv.khoiTaoTuNguoiDungId(nguoiDungId);
+      final result = sv.sinhVienId > 0
+          ? await _taiLaiDuLieuSinhVien(sv)
+          : await sv.khoiTaoTuNguoiDungId(nguoiDungId);
 
       if (!mounted) return;
 
@@ -44,6 +44,50 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
         );
       }
     });
+  }
+
+
+  Future<Map<String, dynamic>> _taiLaiDuLieuSinhVien(
+    SinhVienProvider provider,
+  ) async {
+    try {
+      await provider.khoiTaoDuLieu();
+      return {'success': true, 'message': 'Đã cập nhật dữ liệu sinh viên'};
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString().replaceFirst('Exception: ', ''),
+      };
+    }
+  }
+
+  _TongQuanDashboard _tongQuan(SinhVienProvider provider) {
+    final thongKe = provider.hoSo?.thongKe;
+    final lopDangHocTuDanhSach = provider.dsLop
+        .where(
+          (lop) =>
+              lop.trangThai == 'dang_mo' &&
+              lop.trangThaiDangKy == 'dang_hoc',
+        )
+        .length;
+    final baiDaNopTuDanhSach = provider.dsLop.fold<int>(
+      0,
+      (tong, lop) => tong + lop.soBaiDaNop,
+    );
+    final baiChuaNopTuDanhSach = provider.dsBaiChuaNop.length;
+
+    return _TongQuanDashboard(
+      soLop: (thongKe?.soLopDangHoc ?? 0) > 0
+          ? thongKe!.soLopDangHoc
+          : lopDangHocTuDanhSach,
+      soBaiDaNop: (thongKe?.soBaiDaNop ?? 0) > 0
+          ? thongKe!.soBaiDaNop
+          : baiDaNopTuDanhSach,
+      soBaiChuaNop: (thongKe?.soBaiChuaNop ?? 0) > 0
+          ? thongKe!.soBaiChuaNop
+          : baiChuaNopTuDanhSach,
+      diemTrungBinh: thongKe?.diemTrungBinh,
+    );
   }
 
   @override
@@ -81,8 +125,13 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
   // ── Chào hỏi ─────────────────────────────────────────────────
   Widget _buildChaoHoi(SinhVienProvider provider) {
     final hoSo = provider.hoSo;
-    final tk = hoSo?.thongKe;
+    final tongQuan = _tongQuan(provider);
     final authUser = context.watch<AuthProvider>().user;
+    final tenSinhVien = (hoSo?.hoTen.trim().isNotEmpty ?? false)
+        ? hoSo!.hoTen.trim()
+        : (authUser?.hoTen.trim().isNotEmpty ?? false)
+            ? authUser!.hoTen.trim()
+            : 'Sinh viên';
     final avatarUrl = authUser?.avatar?.trim() ?? '';
     final avatarUri = Uri.tryParse(avatarUrl);
     final hasAvatar = avatarUri != null &&
@@ -169,7 +218,7 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          hoSo?.hoTen ?? 'Sinh viên',
+                          tenSinhVien,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -215,7 +264,7 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Bạn có ${tk?.soBaiChuaNop ?? 0} bài cần nộp và ${tk?.soLopDangHoc ?? 0} lớp đang học.',
+                        'Bạn có ${tongQuan.soBaiChuaNop} bài cần nộp và ${tongQuan.soLop} lớp đang học.',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -242,7 +291,7 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
       );
     }
 
-    final tk = provider.hoSo?.thongKe;
+    final tongQuan = _tongQuan(provider);
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -253,7 +302,7 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
       children: [
         _StatCard(
           label: 'Lớp đang học',
-          value: '${tk?.soLopDangHoc ?? 0}',
+          value: '${tongQuan.soLop}',
           icon: Icons.class_rounded,
           color: _primary,
           onTap: () => Navigator.push(
@@ -263,20 +312,20 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
         ),
         _StatCard(
           label: 'Bài đã nộp',
-          value: '${tk?.soBaiDaNop ?? 0}',
+          value: '${tongQuan.soBaiDaNop}',
           icon: Icons.cloud_done_rounded,
           color: const Color(0xFF16A34A),
         ),
         _StatCard(
           label: 'Chờ nộp',
-          value: '${tk?.soBaiChuaNop ?? 0}',
+          value: '${tongQuan.soBaiChuaNop}',
           icon: Icons.pending_actions_rounded,
           color: const Color(0xFFF97316),
         ),
         _StatCard(
           label: 'Điểm TB',
-          value: tk?.diemTrungBinh != null
-              ? tk!.diemTrungBinh!.toStringAsFixed(1)
+          value: tongQuan.diemTrungBinh != null
+              ? tongQuan.diemTrungBinh!.toStringAsFixed(1)
               : '--',
           icon: Icons.bar_chart_rounded,
           color: const Color(0xFF9333EA),
@@ -532,6 +581,20 @@ class _SectionTitle extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TongQuanDashboard {
+  final int soLop;
+  final int soBaiDaNop;
+  final int soBaiChuaNop;
+  final double? diemTrungBinh;
+
+  const _TongQuanDashboard({
+    required this.soLop,
+    required this.soBaiDaNop,
+    required this.soBaiChuaNop,
+    required this.diemTrungBinh,
+  });
 }
 
 class _StatCard extends StatelessWidget {

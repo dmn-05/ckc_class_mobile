@@ -1132,10 +1132,24 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           title: Text(baiTap == null ? 'Giao bài tập' : 'Cập nhật bài tập'),
-          content: SizedBox(
-            width: 520,
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 520,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.70,
+            ),
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                4,
+                16,
+                4,
+                MediaQuery.viewInsetsOf(ctx).bottom + 24,
+              ),
               child: Form(
                 key: formKey,
                 child: Column(
@@ -1168,6 +1182,9 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                     const SizedBox(height: 14),
                     TextFormField(
                       controller: tieuDeCtrl,
+                      scrollPadding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(ctx).bottom + 160,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Tiêu đề *',
                         prefixIcon: Icon(Icons.title),
@@ -1181,6 +1198,9 @@ class _QuanLyBaiTapState extends State<QuanLyBaiTap> {
                     TextFormField(
                       controller: moTaCtrl,
                       maxLines: 4,
+                      scrollPadding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(ctx).bottom + 180,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Mô tả / Yêu cầu',
                         prefixIcon: Icon(Icons.description),

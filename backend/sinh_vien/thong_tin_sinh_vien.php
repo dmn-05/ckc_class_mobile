@@ -17,6 +17,17 @@ if ($sinhVienId <= 0) {
 }
 
 try {
+    // Một số CSDL cũ chưa có lop.nam_nhap_hoc. Khi đó suy ra từ
+    // lop.khoa_hoc để hồ sơ và dashboard vẫn tải được, nhưng CSDL host mới
+    // vẫn ưu tiên dùng đúng cột nam_nhap_hoc.
+    $columnStmt = $conn->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lop' AND COLUMN_NAME = 'nam_nhap_hoc'");
+    $columnStmt->execute();
+    $coNamNhapHoc = (int)$columnStmt->fetchColumn() > 0;
+    $namNhapHocExpr = $coNamNhapHoc
+        ? 'l.nam_nhap_hoc'
+        : "CASE WHEN l.khoa_hoc REGEXP '^[0-9]{4}' THEN CAST(LEFT(l.khoa_hoc, 4) AS UNSIGNED) ELSE NULL END";
+
     // Thông tin cơ bản
     $stmt = $conn->prepare("
         SELECT
@@ -40,7 +51,7 @@ try {
             l.id          AS lop_id,
             l.ma_lop,
             l.ten_lop,
-            l.nam_nhap_hoc,
+            {$namNhapHocExpr} AS nam_nhap_hoc,
             k.id          AS khoa_id,
             k.ma_khoa,
             k.ten_khoa
