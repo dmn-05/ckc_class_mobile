@@ -13,7 +13,7 @@ try {
     $namNhapHocExpr = xuat_excel_nam_nhap_hoc_expression($conn, 'l');
     $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds, $namNhapHocExpr);
     $count = xuat_excel_count($conn, $parts);
-    $sampleRaw = xuat_excel_fetch($conn, $parts, 5);
+    $sampleRaw = xuat_excel_fetch($conn, $parts);
 
     $sample = [];
     foreach ($sampleRaw as $row) {
@@ -34,6 +34,7 @@ try {
         'so_cot' => count($columns) + 1,
         'columns' => $columnInfo,
         'sample' => $sample,
+        'hien_thi_tat_ca' => true,
         'metadata' => xuat_excel_metadata($conn, $type, $filters, $scope, $count),
     ]);
 } catch (InvalidArgumentException $e) {

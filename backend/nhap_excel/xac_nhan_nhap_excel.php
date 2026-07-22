@@ -306,7 +306,7 @@ try {
 
     ckc_json_response(
         'error',
-        'Lỗi nhập thật: ' . $e->getMessage(),
+        'Lỗi nhập liệu: ' . $e->getMessage(),
         null,
         500
     );

@@ -776,7 +776,7 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
           if (preview.sample.isNotEmpty) ...[
             const SizedBox(height: 14),
             const Text(
-              'Một số dòng xem trước',
+              'Tất cả dòng xem trước',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
@@ -1043,7 +1043,6 @@ class _SampleRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleColumns = columns.take(4).toList();
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -1057,25 +1056,18 @@ class _SampleRowCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Dòng xem trước $index',
+            'Dòng $index',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
-          ...visibleColumns.map(
+          ...columns.map(
             (column) => Padding(
               padding: const EdgeInsets.only(bottom: 3),
               child: Text(
                 '${column.label}: ${values[column.key] ?? ''}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
-          if (columns.length > 4)
-            Text(
-              '... và ${columns.length - 4} cột khác',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
         ],
       ),
     );

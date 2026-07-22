@@ -315,8 +315,7 @@ function ckc_loai_nhap_configs(): array {
         'sinh_vien_theo_lop' => [
             'ten' => 'Sinh viên theo lớp hành chính',
             'template' => 'mau_nhap_sinh_vien_theo_lop.xlsx',
-            'can_dich' => true,
-            'key_dich' => 'ma_lop',
+            'can_dich' => false,
         ],
         'giang_vien' => ['ten' => 'Giảng viên', 'template' => 'mau_nhap_giang_vien.xlsx', 'can_dich' => false],
         'lop_hoc_phan' => ['ten' => 'Lớp học phần', 'template' => 'mau_nhap_lop_hoc_phan.xlsx', 'can_dich' => false],
@@ -548,42 +547,6 @@ function ckc_validate_row(
             break;
 
         case 'sinh_vien_theo_lop':
-            $maLopDich = ckc_upper($target['ma_lop'] ?? '');
-            if ($maLopDich === '') {
-                $messages[] = 'Chưa chọn mã lớp hành chính đích';
-            } else {
-                $namExpr = ckc_lop_nam_expr($conn, 'l');
-                $lop = ckc_one(
-                    $conn,
-                    "SELECT l.id, l.ma_lop, l.khoa_id, {$namExpr} AS nam_nhap_hoc,
-                            l.trang_thai, k.ma_khoa, k.trang_thai AS trang_thai_khoa
-                     FROM lop l
-                     INNER JOIN khoa k ON k.id = l.khoa_id
-                     WHERE l.ma_lop = :ma
-                     LIMIT 1",
-                    [':ma' => $maLopDich]
-                );
-                if (!$lop) {
-                    $messages[] = 'Lớp hành chính đích không tồn tại';
-                } else {
-                    $row['ma_lop'] = $lop['ma_lop'];
-                    $row['lop_id'] = (int)$lop['id'];
-                    $row['khoa_id'] = (int)$lop['khoa_id'];
-                    $row['ma_khoa'] = $lop['ma_khoa'];
-                    $row['khoa_hoc'] = ckc_lop_khoa_hoc($conn, (int)$lop['id']);
-                    if ($lop['trang_thai'] !== 'dang_hoc') {
-                        $messages[] = 'Lớp hành chính đích không ở trạng thái Đang học';
-                    }
-                    if ($lop['trang_thai_khoa'] !== 'dang_hoat_dong') {
-                        $messages[] = 'Khoa của lớp đang ngừng hoạt động';
-                    }
-                    if (!ckc_khoa_hoc_ok((string)$row['khoa_hoc'])) {
-                        $messages[] = 'Lớp chưa có khóa học hợp lệ';
-                    }
-                }
-            }
-            // Tiếp tục dùng chung logic sinh viên.
-
         case 'sinh_vien':
             $row['ma_sinh_vien'] = ckc_upper($row['ma_sinh_vien'] ?? '');
             $row['ho_ten'] = ckc_clean($row['ho_ten'] ?? '');

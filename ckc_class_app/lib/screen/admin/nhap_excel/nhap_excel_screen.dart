@@ -172,7 +172,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
             : MaterialStatePropertyAll(foregroundColor),
         minimumSize: const MaterialStatePropertyAll(Size(0, 44)),
         padding: const MaterialStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -190,6 +190,8 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
       );
     }
 
+    final dangXuLy = provider.isReading || provider.isChecking;
+
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Padding(
@@ -198,7 +200,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '2. Tải mẫu, chọn file và kiểm tra',
+              '2. Tải mẫu, chọn file và kiểm tra tự động',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 10),
@@ -207,13 +209,15 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
                 Expanded(
                   child: OutlinedButton.icon(
                     style: compactButtonStyle(null),
-                    onPressed: () async {
-                      try {
-                        await provider.taiFileMau();
-                      } catch (e) {
-                        _showSnack(e.toString(), Colors.red);
-                      }
-                    },
+                    onPressed: dangXuLy
+                        ? null
+                        : () async {
+                            try {
+                              await provider.taiFileMau();
+                            } catch (e) {
+                              _showSnack(e.toString(), Colors.red);
+                            }
+                          },
                     icon: const Icon(Icons.download, size: 18),
                     label: const FittedBox(
                       fit: BoxFit.scaleDown,
@@ -225,51 +229,44 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: compactButtonStyle(null),
-                    onPressed: provider.isReading
+                    onPressed: dangXuLy
                         ? null
                         : () async {
-                            final res = await provider.chonFileVaDoc();
-                            _showSnack(
-                              res['message']?.toString() ?? '',
-                              res['success'] == true
-                                  ? Colors.green
-                                  : Colors.red,
-                            );
-                          },
-                    icon: provider.isReading
-                        ? loadingIcon()
-                        : const Icon(Icons.upload_file, size: 18),
-                    label: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Chọn file'),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: compactButtonStyle(null),
-                    onPressed: provider.isChecking
-                        ? null
-                        : () async {
-                            final res = await provider.kiemTra(
+                            final readResult = await provider.chonFileVaDoc();
+                            if (readResult['success'] != true) {
+                              _showSnack(
+                                readResult['message']?.toString() ?? '',
+                                Colors.red,
+                              );
+                              return;
+                            }
+
+                            final checkResult = await provider.kiemTra(
                               doiTuongDich: _layDoiTuongDich(
                                 provider.loaiDangChon,
                               ),
                             );
                             _showSnack(
-                              res['message']?.toString() ?? '',
-                              res['success'] == true
+                              checkResult['success'] == true
+                                  ? 'Đã chọn file và kiểm tra dữ liệu thành công'
+                                  : checkResult['message']?.toString() ?? '',
+                              checkResult['success'] == true
                                   ? Colors.green
                                   : Colors.red,
                             );
                           },
-                    icon: provider.isChecking
+                    icon: dangXuLy
                         ? loadingIcon()
-                        : const Icon(Icons.fact_check, size: 18),
-                    label: const FittedBox(
+                        : const Icon(Icons.upload_file, size: 18),
+                    label: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text('Kiểm tra'),
+                      child: Text(
+                        provider.isChecking
+                            ? 'Đang kiểm tra...'
+                            : provider.isReading
+                                ? 'Đang đọc file...'
+                                : 'Chọn file',
+                      ),
                     ),
                   ),
                 ),
@@ -284,7 +281,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
             ],
             const SizedBox(height: 8),
             const Text(
-              'Hệ thống chỉ kiểm tra trước, chưa ghi vào CSDL. Chỉ khi bấm “Xác nhận nhập thật” thì dữ liệu mới được thêm.',
+              'Sau khi chọn file, hệ thống tự động kiểm tra dữ liệu. Dữ liệu chỉ được ghi vào CSDL khi bấm “Xác nhận nhập liệu”.',
               style: TextStyle(color: Colors.black54),
             ),
           ],
@@ -430,7 +427,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${result.soHopLe} dòng hợp lệ. Các dòng này sẽ được thêm khi bạn xác nhận nhập thật.',
+                      '${result.soHopLe} dòng hợp lệ. Các dòng này sẽ được thêm khi bạn xác nhận nhập liệu.',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -590,7 +587,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
         ? result.soCanhBao > 0
             ? '${result.soHopLe} dòng hợp lệ sẽ được thêm; ${result.soCanhBao} dòng cảnh báo sẽ được xử lý theo nội dung bên trên.'
             : '${result.soHopLe} dòng hợp lệ đã sẵn sàng để nhập vào CSDL.'
-        : 'Còn ${result.soLoi} dòng lỗi. Hãy sửa đúng các dòng được liệt kê rồi chọn file và kiểm tra lại.';
+        : 'Còn ${result.soLoi} dòng lỗi. Hãy sửa đúng các dòng được liệt kê rồi chọn lại file để hệ thống kiểm tra tự động.';
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -605,7 +602,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          title: const Text('Xác nhận nhập thật?'),
+                          title: const Text('Xác nhận nhập liệu?'),
                           content: Text(
                             '${result.soHopLe} dòng hợp lệ sẽ được ghi vào CSDL. '
                             '${result.soCanhBao > 0 ? '${result.soCanhBao} dòng cảnh báo sẽ được xử lý theo kết quả kiểm tra.' : ''}',
@@ -641,7 +638,7 @@ class _NhapExcelViewState extends State<_NhapExcelView> {
               label: Text(
                 provider.isConfirming
                     ? 'Đang nhập...'
-                    : 'Xác nhận nhập thật',
+                    : 'Xác nhận nhập liệu',
               ),
             );
 

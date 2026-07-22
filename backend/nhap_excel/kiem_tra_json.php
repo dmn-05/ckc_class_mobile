@@ -78,7 +78,7 @@ try {
     /*
      * Không tạo nhap_excel_dot và nhap_excel_dong ở bước kiểm tra.
      * Kết quả chỉ được trả về Flutter để xem trước.
-     * Chỉ khi người dùng xác nhận nhập thật thì backend mới ghi lịch sử.
+     * Chỉ khi người dùng xác nhận nhập liệu thì backend mới ghi lịch sử.
      */
     ckc_json_response('success', 'Kiểm tra dữ liệu Excel thành công', [
         'dot_nhap_id' => 0,

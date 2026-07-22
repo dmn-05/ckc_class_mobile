@@ -114,7 +114,7 @@ class NhapExcelProvider extends ChangeNotifier {
     if (_ketQuaKiemTra?.coTheXacNhan != true) {
       return {
         'success': false,
-        'message': 'Dữ liệu còn lỗi, chưa thể nhập thật',
+        'message': 'Dữ liệu còn lỗi, chưa thể xác nhận nhập liệu',
       };
     }
 
