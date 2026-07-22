@@ -290,12 +290,18 @@ class NguoiDungProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> xoaNguoiDung(int id) async {
+  Future<Map<String, dynamic>> capNhatTrangThaiNguoiDung({
+    required int id,
+    required String trangThai,
+  }) async {
     _error = null;
     _setProcessing(true);
 
     try {
-      final message = await _nguoiDungService.xoaNguoiDung(id);
+      final message = await _nguoiDungService.capNhatTrangThaiNguoiDung(
+        id: id,
+        trangThai: trangThai,
+      );
 
       await layDanhSachNguoiDung();
 
@@ -311,8 +317,16 @@ class NguoiDungProvider extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> xoaNguoiDung(int id) async {
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'bi_khoa');
+  }
+
   Future<Map<String, dynamic>> khoaNguoiDung(int id) async {
-    return xoaNguoiDung(id);
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'bi_khoa');
+  }
+
+  Future<Map<String, dynamic>> moKhoaNguoiDung(int id) async {
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'dang_hoat_dong');
   }
 
   void xoaLoi() {

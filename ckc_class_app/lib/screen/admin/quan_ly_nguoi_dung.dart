@@ -418,7 +418,7 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
                               child: Text(vaiTro.tenHienThi),
                             );
                           }).toList(),
-                          onChanged: dangLuu
+                          onChanged: (dangLuu || nguoiDung != null)
                               ? null
                               : (value) {
                                   if (value == null) return;
@@ -713,14 +713,17 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
     maGiangVienController.dispose();
   }
 
-  Future<void> _xacNhanKhoa(NguoiDung nguoiDung) async {
+  Future<void> _xacNhanTrangThai(NguoiDung nguoiDung) async {
+    final dangKhoa = nguoiDung.isHoatDong;
+    final hanhDong = dangKhoa ? 'khóa' : 'mở khóa';
+
     final dongY = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Xác nhận khóa người dùng'),
+          title: Text('Xác nhận $hanhDong người dùng'),
           content: Text(
-            'Bạn có chắc muốn khóa tài khoản "${nguoiDung.hoTen}" không?',
+            'Bạn có chắc muốn $hanhDong tài khoản "${nguoiDung.hoTen}" không?',
           ),
           actions: [
             TextButton(
@@ -729,12 +732,12 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: dangKhoa ? Colors.red : Colors.green,
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.lock),
-              label: const Text('Khóa tài khoản'),
+              icon: Icon(dangKhoa ? Icons.lock : Icons.lock_open),
+              label: Text(dangKhoa ? 'Khóa tài khoản' : 'Mở khóa tài khoản'),
             ),
           ],
         );
@@ -743,16 +746,17 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
 
     if (dongY != true) return;
 
-    final result = await context.read<NguoiDungProvider>().khoaNguoiDung(
-      nguoiDung.id,
-    );
+    final provider = context.read<NguoiDungProvider>();
+    final result = dangKhoa
+        ? await provider.khoaNguoiDung(nguoiDung.id)
+        : await provider.moKhoaNguoiDung(nguoiDung.id);
 
     if (!mounted) return;
 
     final success = result['success'] == true;
     final message =
         result['message']?.toString() ??
-        (success ? 'Khóa người dùng thành công' : 'Thao tác thất bại');
+        (success ? '${hanhDong[0].toUpperCase()}${hanhDong.substring(1)} người dùng thành công' : 'Thao tác thất bại');
 
     _showSnackBar(message, success ? Colors.green : Colors.red);
   }
@@ -1139,22 +1143,22 @@ class _QuanLyNguoiDungState extends State<QuanLyNguoiDung> {
                         IconButton(
                           tooltip: nguoiDung.isHoatDong
                               ? 'Khóa tài khoản'
-                              : 'Tài khoản đã bị khóa',
+                              : 'Mở khóa tài khoản',
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints(
                             minWidth: 36,
                             minHeight: 36,
                           ),
                           icon: Icon(
-                            Icons.lock,
+                            nguoiDung.isHoatDong
+                                ? Icons.lock
+                                : Icons.lock_open,
                             size: 22,
                             color: nguoiDung.isHoatDong
                                 ? Colors.red
-                                : Colors.grey,
+                                : Colors.green,
                           ),
-                          onPressed: nguoiDung.isHoatDong
-                              ? () => _xacNhanKhoa(nguoiDung)
-                              : null,
+                          onPressed: () => _xacNhanTrangThai(nguoiDung),
                         ),
                       ],
                     ),

@@ -249,10 +249,41 @@ function ckc_nam_bat_dau_khoa(string $value): ?int {
     return ckc_khoa_hoc_ok($value) ? (int)substr($value, 0, 4) : null;
 }
 
+function ckc_nam_nhap_hoc_normalize($value): ?int {
+    $raw = ckc_clean($value);
+    if ($raw === '') return null;
+
+    if (preg_match('/^(\d{4})$/', $raw, $m) === 1) {
+        $year = (int)$m[1];
+    } elseif (preg_match('/^(\d{4})\s*[-\/]\s*\d{4}$/', $raw, $m) === 1) {
+        // Cho phép người dùng nhập 2025-2026 trong Excel và chuẩn hóa về năm nhập học 2025.
+        $year = (int)$m[1];
+    } else {
+        return null;
+    }
+
+    return ($year >= 2000 && $year <= ((int)date('Y') + 5)) ? $year : null;
+}
+
 function ckc_nam_nhap_hoc_ok($value): bool {
-    if (!preg_match('/^\d{4}$/', trim((string)$value))) return false;
-    $year = (int)$value;
-    return $year >= 2000 && $year <= ((int)date('Y') + 5);
+    return ckc_nam_nhap_hoc_normalize($value) !== null;
+}
+
+function ckc_lop_nam_expr(PDO $conn, string $alias = ''): string {
+    $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
+    if (ckc_column_exists($conn, 'lop', 'nam_nhap_hoc')) {
+        return $prefix . 'nam_nhap_hoc';
+    }
+    if (ckc_column_exists($conn, 'lop', 'khoa_hoc')) {
+        return "CASE
+            WHEN {$prefix}khoa_hoc REGEXP '^[0-9]{4}'
+                THEN CAST(SUBSTRING({$prefix}khoa_hoc, 1, 4) AS UNSIGNED)
+            WHEN {$prefix}khoa_hoc REGEXP '^[Kk][0-9]{2}'
+                THEN 2000 + CAST(SUBSTRING({$prefix}khoa_hoc, 2, 2) AS UNSIGNED)
+            ELSE NULL
+        END";
+    }
+    return 'NULL';
 }
 
 function ckc_nam_hoc_ok(string $value): bool {
@@ -263,13 +294,14 @@ function ckc_nam_hoc_ok(string $value): bool {
 }
 
 function ckc_lop_khoa_hoc(PDO $conn, int $lopId): ?string {
+    $namExpr = ckc_lop_nam_expr($conn);
     $row = ckc_one(
         $conn,
-        'SELECT nam_nhap_hoc FROM lop WHERE id = :id LIMIT 1',
+        "SELECT {$namExpr} AS nam_nhap_hoc FROM lop WHERE id = :id LIMIT 1",
         [':id' => $lopId]
     );
-    if (!$row || !ckc_nam_nhap_hoc_ok($row['nam_nhap_hoc'] ?? null)) return null;
-    $start = (int)$row['nam_nhap_hoc'];
+    $start = ckc_nam_nhap_hoc_normalize($row['nam_nhap_hoc'] ?? null);
+    if ($start === null) return null;
     return $start . '-' . ($start + 3);
 }
 
@@ -474,14 +506,16 @@ function ckc_validate_row(
             $row['ma_lop'] = ckc_upper($row['ma_lop'] ?? '');
             $row['ten_lop'] = ckc_clean($row['ten_lop'] ?? '');
             $row['ma_khoa'] = ckc_upper($row['ma_khoa'] ?? '');
-            $row['nam_nhap_hoc'] = ckc_clean($row['nam_nhap_hoc'] ?? '');
+            $namNhapHocRaw = ckc_clean($row['nam_nhap_hoc'] ?? '');
+            $namNhapHoc = ckc_nam_nhap_hoc_normalize($namNhapHocRaw);
+            $row['nam_nhap_hoc'] = $namNhapHoc ?? $namNhapHocRaw;
             $row['trang_thai'] = ckc_status_lop($row['trang_thai'] ?? '');
 
             ckc_require_max($row['ma_lop'], 'mã lớp', 20, $messages);
             ckc_require_max($row['ten_lop'], 'tên lớp', 100, $messages);
             ckc_require_max($row['ma_khoa'], 'mã khoa', 20, $messages);
-            if (!ckc_nam_nhap_hoc_ok($row['nam_nhap_hoc'])) {
-                $messages[] = 'Năm nhập học phải gồm 4 chữ số hợp lệ, ví dụ 2026';
+            if ($namNhapHoc === null) {
+                $messages[] = 'Năm nhập học không hợp lệ. Nhập 2026 hoặc 2026-2027';
             }
             if (!in_array($row['trang_thai'], ['dang_hoc', 'da_tot_nghiep', 'tam_khoa'], true)) {
                 $messages[] = 'Trạng thái lớp không hợp lệ';
@@ -518,9 +552,10 @@ function ckc_validate_row(
             if ($maLopDich === '') {
                 $messages[] = 'Chưa chọn mã lớp hành chính đích';
             } else {
+                $namExpr = ckc_lop_nam_expr($conn, 'l');
                 $lop = ckc_one(
                     $conn,
-                    "SELECT l.id, l.ma_lop, l.khoa_id, l.nam_nhap_hoc,
+                    "SELECT l.id, l.ma_lop, l.khoa_id, {$namExpr} AS nam_nhap_hoc,
                             l.trang_thai, k.ma_khoa, k.trang_thai AS trang_thai_khoa
                      FROM lop l
                      INNER JOIN khoa k ON k.id = l.khoa_id
@@ -607,9 +642,10 @@ function ckc_validate_row(
                 $row['ma_lop'] = ckc_upper($row['ma_lop'] ?? '');
                 ckc_require_max($row['ma_lop'], 'mã lớp', 20, $messages);
 
+                $namExpr = ckc_lop_nam_expr($conn, 'l');
                 $lop = $row['ma_lop'] === '' ? null : ckc_one(
                     $conn,
-                    "SELECT l.id, l.ma_lop, l.khoa_id, l.nam_nhap_hoc,
+                    "SELECT l.id, l.ma_lop, l.khoa_id, {$namExpr} AS nam_nhap_hoc,
                             l.trang_thai, k.ma_khoa, k.trang_thai AS trang_thai_khoa
                      FROM lop l
                      INNER JOIN khoa k ON k.id = l.khoa_id

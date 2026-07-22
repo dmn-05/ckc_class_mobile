@@ -427,32 +427,56 @@ class NguoiDungService {
     }
   }
 
-  Future<String> xoaNguoiDung(int id) async {
+  Future<String> capNhatTrangThaiNguoiDung({
+    required int id,
+    required String trangThai,
+  }) async {
     try {
       if (id <= 0) {
         throw Exception('ID người dùng không hợp lệ');
       }
 
+      _kiemTraTrangThaiNguoiDung(trangThai);
+
       final response = await _apiService.post(
         '/nguoi_dung/xoa_nguoi_dung.php',
-        data: {'id': id},
+        data: {'id': id, 'trang_thai': trangThai},
       );
 
       final body = _layBody(response);
 
       if (!_laThanhCong(body)) {
         throw Exception(
-          _layThongBao(body, macDinh: 'Không thể khóa người dùng'),
+          _layThongBao(
+            body,
+            macDinh: trangThai == 'bi_khoa'
+                ? 'Không thể khóa người dùng'
+                : 'Không thể mở khóa người dùng',
+          ),
         );
       }
 
-      return _layThongBao(body, macDinh: 'Đã khóa người dùng thành công');
+      return _layThongBao(
+        body,
+        macDinh: trangThai == 'bi_khoa'
+            ? 'Khóa người dùng thành công'
+            : 'Mở khóa người dùng thành công',
+      );
     } catch (error) {
       throw Exception(_xuLyLoi(error));
     }
   }
 
+  Future<String> xoaNguoiDung(int id) async {
+    // Giữ tên hàm cũ để tương thích. Hệ thống chỉ khóa mềm, không xóa cứng.
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'bi_khoa');
+  }
+
   Future<String> khoaNguoiDung(int id) async {
-    return xoaNguoiDung(id);
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'bi_khoa');
+  }
+
+  Future<String> moKhoaNguoiDung(int id) async {
+    return capNhatTrangThaiNguoiDung(id: id, trangThai: 'dang_hoat_dong');
   }
 }

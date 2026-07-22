@@ -37,17 +37,47 @@ function ckc_confirm_one(PDO $conn, string $loai, array $r, string $action): str
         case 'mon_hoc':
             $stmt=$conn->prepare("INSERT INTO mon_hoc (ma_mon,ten_mon,tin_chi,khoa_id,bo_mon_id,trang_thai) VALUES (:ma,:ten,:tin,:khoa,:bm,:tt)"); $stmt->execute([':ma'=>$r['ma_mon'],':ten'=>$r['ten_mon'],':tin'=>$r['tin_chi'],':khoa'=>$r['khoa_id'],':bm'=>$r['bo_mon_id'],':tt'=>$r['trang_thai']]); return 'them_moi';
         case 'lop_hanh_chinh':
-            $cols=['ma_lop','ten_lop','khoa_id','trang_thai']; $vals=[':ma',':ten',':khoa',':tt']; $params=[':ma'=>$r['ma_lop'],':ten'=>$r['ten_lop'],':khoa'=>$r['khoa_id'],':tt'=>$r['trang_thai']];
-            $cols[]='nam_nhap_hoc';
-            $vals[]=':nam_nhap_hoc';
-            $params[':nam_nhap_hoc']=(int)$r['nam_nhap_hoc'];
-            $sql="INSERT INTO lop (".implode(',',$cols).") VALUES (".implode(',',$vals).")"; $stmt=$conn->prepare($sql); $stmt->execute($params); return 'them_moi';
+            $namNhapHoc = ckc_nam_nhap_hoc_normalize($r['nam_nhap_hoc'] ?? null);
+            if ($namNhapHoc === null) {
+                throw new Exception('Năm nhập học không hợp lệ');
+            }
+
+            $cols = ['ma_lop', 'ten_lop', 'khoa_id', 'trang_thai'];
+            $vals = [':ma', ':ten', ':khoa', ':tt'];
+            $params = [
+                ':ma' => $r['ma_lop'],
+                ':ten' => $r['ten_lop'],
+                ':khoa' => $r['khoa_id'],
+                ':tt' => $r['trang_thai'],
+            ];
+
+            $coCotNamNhapHoc = ckc_column_exists($conn, 'lop', 'nam_nhap_hoc');
+            $coCotKhoaHoc = ckc_column_exists($conn, 'lop', 'khoa_hoc');
+            if (!$coCotNamNhapHoc && !$coCotKhoaHoc) {
+                throw new Exception('Bảng lop chưa có cột nam_nhap_hoc hoặc khoa_hoc');
+            }
+            if ($coCotNamNhapHoc) {
+                $cols[] = 'nam_nhap_hoc';
+                $vals[] = ':nam_nhap_hoc';
+                $params[':nam_nhap_hoc'] = $namNhapHoc;
+            }
+            if ($coCotKhoaHoc) {
+                $cols[] = 'khoa_hoc';
+                $vals[] = ':khoa_hoc';
+                $params[':khoa_hoc'] = $namNhapHoc . '-' . ($namNhapHoc + 3);
+            }
+
+            $sql = 'INSERT INTO lop (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+            $stmt = $conn->prepare($sql);
+            $stmt->execute($params);
+            return 'them_moi';
         case 'sinh_vien':
         case 'sinh_vien_theo_lop':
             $lopId = (int)($r['lop_id'] ?? 0);
+            $namExpr = ckc_lop_nam_expr($conn);
             $lop = ckc_one(
                 $conn,
-                "SELECT id, khoa_id, nam_nhap_hoc, trang_thai
+                "SELECT id, khoa_id, {$namExpr} AS nam_nhap_hoc, trang_thai
                  FROM lop
                  WHERE id = :id
                  LIMIT 1",
