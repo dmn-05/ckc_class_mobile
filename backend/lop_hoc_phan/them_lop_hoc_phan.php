@@ -179,7 +179,9 @@ try {
 
     $lopHanhChinh = null;
     if ($lopId > 0) {
-        $checkLopSql = "SELECT id, ma_lop, ten_lop, khoa_id, nam_nhap_hoc, trang_thai
+        // Chỉ lấy các cột thực sự được dùng. Database Railway cũ có thể chưa có
+        // lop.nam_nhap_hoc, vì vậy không truy vấn cứng cột này.
+        $checkLopSql = "SELECT id, ma_lop, ten_lop, khoa_id, trang_thai
                         FROM lop
                         WHERE id = :lop_id
                         LIMIT 1";

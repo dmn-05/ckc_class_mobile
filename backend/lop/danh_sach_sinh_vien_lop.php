@@ -42,6 +42,23 @@ function bind_keyword(PDOStatement $stmt, string $keyword): void {
     $stmt->bindValue(":tu_khoa_email", $like, PDO::PARAM_STR);
 }
 
+function ckc_lop_sv_has_column(PDO $conn, string $table, string $column): bool {
+    $db = (string)$conn->query("SELECT DATABASE()")?->fetchColumn();
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?");
+    $stmt->execute([$db, $table, $column]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function ckc_lop_sv_nam_expr(PDO $conn): string {
+    if (ckc_lop_sv_has_column($conn, "lop", "nam_nhap_hoc")) {
+        return "nam_nhap_hoc";
+    }
+    if (ckc_lop_sv_has_column($conn, "lop", "khoa_hoc")) {
+        return "CASE WHEN khoa_hoc REGEXP '^[0-9]{4}' THEN CAST(SUBSTRING(khoa_hoc,1,4) AS UNSIGNED) WHEN khoa_hoc REGEXP '^[Kk][0-9]{2}' THEN 2000 + CAST(SUBSTRING(khoa_hoc,2,2) AS UNSIGNED) ELSE NULL END";
+    }
+    return "NULL";
+}
+
 $trangThaiHopLe = ["dang_hoc", "tam_nghi", "da_tot_nghiep"];
 
 try {
@@ -151,7 +168,12 @@ try {
             $lopId = require_id($data, "lop_id", "ID lớp không hợp lệ");
             $sinhVienId = require_id($data, "sinh_vien_id", "ID sinh viên không hợp lệ");
 
-            $lopStmt = $conn->prepare("SELECT id, khoa_id, nam_nhap_hoc, trang_thai FROM lop WHERE id = :id AND deleted_at IS NULL LIMIT 1");
+            $namExpr = ckc_lop_sv_nam_expr($conn);
+            $coDeletedAt = ckc_lop_sv_has_column($conn, "lop", "deleted_at");
+            $sqlLop = "SELECT id, khoa_id, {$namExpr} AS nam_nhap_hoc, trang_thai FROM lop WHERE id = :id";
+            if ($coDeletedAt) $sqlLop .= " AND deleted_at IS NULL";
+            $sqlLop .= " LIMIT 1";
+            $lopStmt = $conn->prepare($sqlLop);
             $lopStmt->bindValue(":id", $lopId, PDO::PARAM_INT);
             $lopStmt->execute();
             $lop = $lopStmt->fetch(PDO::FETCH_ASSOC);
