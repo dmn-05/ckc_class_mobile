@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:excel/excel.dart' as ex;
 import 'package:file_picker/file_picker.dart' as fp;
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../model/nhap_excel_model.dart';
@@ -356,10 +357,16 @@ class NhapExcelService {
 
     ex.Excel workbook;
     try {
+      // File .xlsx hợp lệ phải bắt đầu bằng chữ ký ZIP: PK.
+      if (bytes.length < 4 || bytes[0] != 0x50 || bytes[1] != 0x4B) {
+        throw const FormatException('File không có chữ ký ZIP/XLSX hợp lệ');
+      }
       workbook = ex.Excel.decodeBytes(bytes);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('EXCEL DECODE ERROR (${file.name}): $error');
+      debugPrintStack(stackTrace: stackTrace);
       throw Exception(
-        'Không thể đọc file Excel. File phải đúng định dạng .xlsx và không bị hỏng hoặc đặt mật khẩu.',
+        'Không thể đọc file Excel. Hãy tải lại file mẫu mới sau khi Railway triển khai xong, nhập dữ liệu rồi chọn lại file.',
       );
     }
 
