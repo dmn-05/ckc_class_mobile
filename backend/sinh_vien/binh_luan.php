@@ -17,66 +17,43 @@ function respond($status, $message, $extra = []) {
     exit();
 }
 
-function ensure_thong_bao_schema_bl(PDO $conn) {
-    $db = $conn->query("SELECT DATABASE()")->fetchColumn();
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='thong_bao' AND COLUMN_NAME='bai_viet_id'");
+function ensure_binh_luan_thong_bao_schema(PDO $conn): void {
+    $db = (string)$conn->query("SELECT DATABASE()")->fetchColumn();
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='binh_luan' AND COLUMN_NAME='thong_bao_id'");
     $stmt->execute([$db]);
+
     if ((int)$stmt->fetchColumn() === 0) {
-        $conn->exec("ALTER TABLE thong_bao ADD COLUMN bai_viet_id INT NULL AFTER nguoi_tao_id");
-        try { $conn->exec("ALTER TABLE thong_bao ADD INDEX idx_thong_bao_bai_viet (bai_viet_id)"); } catch (Throwable $e) {}
+        $conn->exec("ALTER TABLE binh_luan ADD COLUMN thong_bao_id INT NULL AFTER bai_viet_id");
+        try { $conn->exec("ALTER TABLE binh_luan ADD INDEX idx_binh_luan_thong_bao (thong_bao_id)"); } catch (Throwable $e) {}
+        try {
+            $conn->exec("ALTER TABLE binh_luan ADD CONSTRAINT fk_binh_luan_thong_bao FOREIGN KEY (thong_bao_id) REFERENCES thong_bao(id) ON DELETE CASCADE");
+        } catch (Throwable $e) {
+            // Một số CSDL cũ có thể đã tồn tại khóa/index tương đương.
+        }
     }
+
+    // Gắn các bình luận cũ với thông báo tương ứng nếu trước đây chúng được lưu qua bai_viet_id.
+    $conn->exec("UPDATE binh_luan bl
+        JOIN thong_bao tb ON tb.bai_viet_id = bl.bai_viet_id
+        SET bl.thong_bao_id = tb.id
+        WHERE bl.thong_bao_id IS NULL");
 }
 
-function tao_bai_viet_cho_thong_bao(PDO $conn, int $thongBaoId): array {
-    $stmt = $conn->prepare("SELECT * FROM thong_bao WHERE id=?");
-    $stmt->execute([$thongBaoId]);
-    $tb = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$tb) throw new RuntimeException('Thông báo không tồn tại');
-    if (!empty($tb['bai_viet_id'])) return ['bai_viet_id' => (int)$tb['bai_viet_id'], 'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id']];
-
-    $stmt = $conn->prepare("INSERT INTO bai_viet
-        (tieu_de, noi_dung, lop_hoc_phan_id, nguoi_tao_id, loai_bai_viet, loai_tai_nguyen, trang_thai)
-        VALUES (?, ?, ?, ?, 'thong_bao', 'document', ?)");
-    $stmt->execute([$tb['tieu_de'], $tb['noi_dung'], (int)$tb['lop_hoc_phan_id'], (int)$tb['nguoi_tao_id'], $tb['trang_thai']]);
-    $baiVietId = (int)$conn->lastInsertId();
-    $conn->prepare("UPDATE thong_bao SET bai_viet_id=? WHERE id=?")->execute([$baiVietId, $thongBaoId]);
-    return ['bai_viet_id' => $baiVietId, 'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id']];
-}
-
-function resolve_target(PDO $conn, array $data, bool $createIfMissing = false): array {
-    ensure_thong_bao_schema_bl($conn);
+function resolve_target(PDO $conn, array $data): array {
     $thongBaoId = (int)($data['thong_bao_id'] ?? 0);
     $baiVietId = (int)($data['bai_viet_id'] ?? 0);
     $lopHocPhanId = (int)($data['lop_hoc_phan_id'] ?? 0);
 
     if ($thongBaoId > 0) {
-        $stmt = $conn->prepare("SELECT bai_viet_id, lop_hoc_phan_id FROM thong_bao WHERE id=? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, bai_viet_id, lop_hoc_phan_id FROM thong_bao WHERE id=? LIMIT 1");
         $stmt->execute([$thongBaoId]);
         $tb = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$tb) throw new RuntimeException('Thông báo không tồn tại');
 
-        if (!empty($tb['bai_viet_id'])) {
-            return [
-                'mode' => 'thong_bao',
-                'bai_viet_id' => (int)$tb['bai_viet_id'],
-                'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id'],
-            ];
-        }
-
-        // Chỉ tạo bài viết liên kết khi người dùng thật sự đăng bình luận.
-        // Việc chỉ mở/xem lớp đã lưu tuyệt đối không làm phát sinh dữ liệu mới.
-        if ($createIfMissing) {
-            $r = tao_bai_viet_cho_thong_bao($conn, $thongBaoId);
-            return [
-                'mode' => 'thong_bao',
-                'bai_viet_id' => $r['bai_viet_id'],
-                'lop_hoc_phan_id' => $r['lop_hoc_phan_id'],
-            ];
-        }
-
         return [
             'mode' => 'thong_bao',
-            'bai_viet_id' => null,
+            'thong_bao_id' => (int)$tb['id'],
+            'bai_viet_id' => !empty($tb['bai_viet_id']) ? (int)$tb['bai_viet_id'] : null,
             'lop_hoc_phan_id' => (int)$tb['lop_hoc_phan_id'],
         ];
     }
@@ -85,13 +62,25 @@ function resolve_target(PDO $conn, array $data, bool $createIfMissing = false): 
         $stmt = $conn->prepare("SELECT lop_hoc_phan_id FROM bai_viet WHERE id=?");
         $stmt->execute([$baiVietId]);
         $lhp = $stmt->fetchColumn();
-        return ['mode' => 'bai_viet', 'bai_viet_id' => $baiVietId, 'lop_hoc_phan_id' => $lhp ? (int)$lhp : $lopHocPhanId];
+        return [
+            'mode' => 'bai_viet',
+            'thong_bao_id' => null,
+            'bai_viet_id' => $baiVietId,
+            'lop_hoc_phan_id' => $lhp ? (int)$lhp : $lopHocPhanId,
+        ];
     }
 
-    return ['mode' => 'lop', 'bai_viet_id' => null, 'lop_hoc_phan_id' => $lopHocPhanId];
+    return [
+        'mode' => 'lop',
+        'thong_bao_id' => null,
+        'bai_viet_id' => null,
+        'lop_hoc_phan_id' => $lopHocPhanId,
+    ];
 }
 
 try {
+    ensure_binh_luan_thong_bao_schema($conn);
+
     if ($action === 'dang') {
         $thongBaoIdGuard = (int)($data['thong_bao_id'] ?? 0);
         $baiVietIdGuard = (int)($data['bai_viet_id'] ?? 0);
@@ -116,13 +105,27 @@ try {
                 FROM binh_luan bl
                 JOIN nguoi_dung nd ON bl.nguoi_dung_id = nd.id
                 LEFT JOIN vai_tro vt ON nd.vai_tro_id = vt.id
-                WHERE bl.lop_hoc_phan_id = ? AND bl.bai_viet_id IS NULL AND bl.trang_thai = 'hien_thi'
+                WHERE bl.lop_hoc_phan_id = ?
+                  AND bl.bai_viet_id IS NULL
+                  AND bl.thong_bao_id IS NULL
+                  AND bl.trang_thai = 'hien_thi'
                 ORDER BY bl.ngay_tao ASC");
             $stmt->execute([$target['lop_hoc_phan_id']]);
-        } elseif (empty($target['bai_viet_id'])) {
-            // Thông báo chưa từng có bình luận: chỉ trả danh sách rỗng,
-            // không tự tạo bài viết trong lúc người dùng đang xem.
-            $rows = [];
+        } elseif ($target['mode'] === 'thong_bao') {
+            $stmt = $conn->prepare("SELECT DISTINCT bl.id, bl.noi_dung, bl.trang_thai, bl.ngay_tao, bl.ngay_cap_nhat,
+                       bl.nguoi_dung_id, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
+                FROM binh_luan bl
+                JOIN nguoi_dung nd ON bl.nguoi_dung_id = nd.id
+                LEFT JOIN vai_tro vt ON nd.vai_tro_id = vt.id
+                WHERE bl.trang_thai = 'hien_thi'
+                  AND (
+                    bl.thong_bao_id = :thong_bao_id
+                    OR (:bai_viet_id > 0 AND bl.bai_viet_id = :bai_viet_id)
+                  )
+                ORDER BY bl.ngay_tao ASC");
+            $stmt->bindValue(':thong_bao_id', (int)$target['thong_bao_id'], PDO::PARAM_INT);
+            $stmt->bindValue(':bai_viet_id', (int)($target['bai_viet_id'] ?? 0), PDO::PARAM_INT);
+            $stmt->execute();
         } else {
             $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.trang_thai, bl.ngay_tao, bl.ngay_cap_nhat,
                        bl.nguoi_dung_id, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
@@ -132,7 +135,6 @@ try {
                 WHERE bl.bai_viet_id = ? AND bl.trang_thai = 'hien_thi'
                 ORDER BY bl.ngay_tao ASC");
             $stmt->execute([$target['bai_viet_id']]);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         if (!isset($rows)) $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $result = array_map(fn($r) => [
@@ -148,15 +150,23 @@ try {
     }
 
     if ($action === "dang") {
-        $target = resolve_target($conn, $data, true);
+        $target = resolve_target($conn, $data);
         $noiDung = trim($data["noi_dung"] ?? "");
         if ($nguoiDungId <= 0) respond("error", "ID người dùng không hợp lệ");
         if ($noiDung === "") respond("error", "Nội dung bình luận không được trống");
         if (mb_strlen($noiDung) > 2000) respond("error", "Nội dung quá dài (tối đa 2000 ký tự)");
         if ($target['mode'] === 'lop' && $target['lop_hoc_phan_id'] <= 0) respond("error", "ID lớp học phần không hợp lệ");
 
-        $stmt = $conn->prepare("INSERT INTO binh_luan (noi_dung, nguoi_dung_id, lop_hoc_phan_id, bai_viet_id, trang_thai) VALUES (?,?,?,?, 'hien_thi')");
-        $stmt->execute([$noiDung, $nguoiDungId, $target['lop_hoc_phan_id'] ?: null, $target['bai_viet_id']]);
+        $stmt = $conn->prepare("INSERT INTO binh_luan
+            (noi_dung, nguoi_dung_id, lop_hoc_phan_id, bai_viet_id, thong_bao_id, trang_thai)
+            VALUES (?,?,?,?,?, 'hien_thi')");
+        $stmt->execute([
+            $noiDung,
+            $nguoiDungId,
+            $target['lop_hoc_phan_id'] ?: null,
+            $target['bai_viet_id'],
+            $target['thong_bao_id'],
+        ]);
         $newId = (int)$conn->lastInsertId();
 
         $stmt2 = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.nguoi_dung_id, bl.ngay_tao, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
