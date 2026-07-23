@@ -44,7 +44,7 @@ class _ChiTietThongBaoGiangVienState
       if (!mounted) return;
       context
           .read<GiangVienProvider>()
-          .layDanhSachBinhLuanThongBao(widget.thongBao.id);
+          .layDanhSachBinhLuanThongBao(widget.thongBao.baiVietId ?? 0);
     });
   }
 
@@ -59,7 +59,7 @@ class _ChiTietThongBaoGiangVienState
     if (noiDung.isEmpty) return;
 
     final result = await provider.dangBinhLuanThongBao(
-      thongBaoId: widget.thongBao.id,
+      baiVietId: widget.thongBao.baiVietId ?? 0,
       noiDung: noiDung,
     );
     if (!mounted) return;
@@ -200,7 +200,7 @@ class _ChiTietThongBaoGiangVienState
                 ),
           body: RefreshIndicator(
             onRefresh: () =>
-                provider.layDanhSachBinhLuanThongBao(thongBao.id),
+                provider.layDanhSachBinhLuanThongBao(thongBao.baiVietId ?? 0),
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),

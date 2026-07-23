@@ -8,6 +8,7 @@ import '../services/ket_noi_api_service.dart';
 class AuthProvider with ChangeNotifier {
   NguoiDung? _user;
   bool _isLoading = false;
+  int _sessionRevision = 0;
   final ApiService _apiService = ApiService();
 
   NguoiDung? get user => _user;
@@ -19,6 +20,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> _loadUser() async {
+    final revision = _sessionRevision;
     final prefs = await SharedPreferences.getInstance();
     final userStr = prefs.getString('user');
 
@@ -27,6 +29,9 @@ class AuthProvider with ChangeNotifier {
         final decoded = jsonDecode(userStr);
 
         if (decoded is Map) {
+          // Không cho phiên đăng nhập cũ trong SharedPreferences ghi đè tài
+          // khoản vừa đăng nhập trong lúc _loadUser đang chạy bất đồng bộ.
+          if (revision != _sessionRevision || _user != null) return;
           _user = NguoiDung.fromJson(Map<String, dynamic>.from(decoded));
           notifyListeners();
         } else {
@@ -59,6 +64,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
+    final revision = ++_sessionRevision;
     _isLoading = true;
     notifyListeners();
 
@@ -78,6 +84,10 @@ class AuthProvider with ChangeNotifier {
       }
 
       if (response.statusCode == 200 && data['status'] == 'success') {
+        if (revision != _sessionRevision) {
+          return {'success': false, 'message': 'Phiên đăng nhập đã thay đổi'};
+        }
+
         final userData = data['user'];
 
         if (userData is! Map) {
@@ -123,6 +133,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _sessionRevision++;
     _user = null;
 
     final prefs = await SharedPreferences.getInstance();

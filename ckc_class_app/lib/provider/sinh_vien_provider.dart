@@ -364,12 +364,19 @@ class SinhVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> layDanhSachBinhLuanThongBao(int thongBaoId) async {
+  Future<void> layDanhSachBinhLuanThongBao(int baiVietId) async {
+    if (baiVietId <= 0) {
+      _dsBinhLuan = [];
+      _blError = 'Thông báo chưa được liên kết với bài viết';
+      notifyListeners();
+      return;
+    }
+
     _blLoading = true;
     _blError = null;
     notifyListeners();
     try {
-      _dsBinhLuan = await _service.layDanhSachBinhLuanThongBao(thongBaoId);
+      _dsBinhLuan = await _service.layDanhSachBinhLuanThongBao(baiVietId);
     } catch (e) {
       _blError = _err(e);
     } finally {
@@ -379,15 +386,22 @@ class SinhVienProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> dangBinhLuanThongBao({
-    required int thongBaoId,
+    required int baiVietId,
     required String noiDung,
   }) async {
+    if (baiVietId <= 0) {
+      return {
+        'success': false,
+        'message': 'Thông báo chưa được liên kết với bài viết',
+      };
+    }
+
     _blProcessing = true;
     notifyListeners();
     try {
       final bl = await _service.dangBinhLuanThongBao(
         nguoiDungId: _nguoiDungId,
-        thongBaoId: thongBaoId,
+        baiVietId: baiVietId,
         noiDung: noiDung,
       );
       _dsBinhLuan.add(bl);

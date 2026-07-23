@@ -112,7 +112,7 @@ class MyApp extends StatelessWidget {
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {
-            return const MainScaffold();
+            return MainScaffold(key: ValueKey(auth.user!.id));
           }
           return const LoginScreen();
         },

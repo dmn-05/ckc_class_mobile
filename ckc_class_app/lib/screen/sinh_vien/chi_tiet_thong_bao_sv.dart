@@ -33,7 +33,7 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<SinhVienProvider>().layDanhSachBinhLuanThongBao(widget.thongBao.id);
+      context.read<SinhVienProvider>().layDanhSachBinhLuanThongBao(widget.thongBao.baiVietId ?? 0);
     });
   }
 
@@ -55,7 +55,7 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
     final noiDung = _commentCtrl.text.trim();
     if (noiDung.isEmpty) return;
     final rs = await p.dangBinhLuanThongBao(
-      thongBaoId: widget.thongBao.id,
+      baiVietId: widget.thongBao.baiVietId ?? 0,
       noiDung: noiDung,
     );
     if (!mounted) return;
@@ -84,7 +84,7 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
       body: Consumer<SinhVienProvider>(
         builder: (context, provider, _) {
           return RefreshIndicator(
-            onRefresh: () => provider.layDanhSachBinhLuanThongBao(tb.id),
+            onRefresh: () => provider.layDanhSachBinhLuanThongBao(tb.baiVietId ?? 0),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: [

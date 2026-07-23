@@ -736,13 +736,20 @@ class GiangVienProvider extends ChangeNotifier {
   bool get blThongBaoProcessing => _blThongBaoProcessing;
   String? get blThongBaoError => _blThongBaoError;
 
-  Future<void> layDanhSachBinhLuanThongBao(int thongBaoId) async {
+  Future<void> layDanhSachBinhLuanThongBao(int baiVietId) async {
+    if (baiVietId <= 0) {
+      _dsBinhLuanThongBao = [];
+      _blThongBaoError = 'Thông báo chưa được liên kết với bài viết';
+      notifyListeners();
+      return;
+    }
+
     _blThongBaoLoading = true;
     _blThongBaoError = null;
     notifyListeners();
     try {
       _dsBinhLuanThongBao =
-          await _service.layDanhSachBinhLuanThongBao(thongBaoId);
+          await _service.layDanhSachBinhLuanThongBao(baiVietId);
     } catch (e) {
       _blThongBaoError = _xuLyLoi(e);
     } finally {
@@ -752,11 +759,17 @@ class GiangVienProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> dangBinhLuanThongBao({
-    required int thongBaoId,
+    required int baiVietId,
     required String noiDung,
   }) async {
     if (_nguoiDungId <= 0) {
       return {'success': false, 'message': 'Chưa xác định tài khoản giảng viên'};
+    }
+    if (baiVietId <= 0) {
+      return {
+        'success': false,
+        'message': 'Thông báo chưa được liên kết với bài viết',
+      };
     }
 
     _blThongBaoProcessing = true;
@@ -764,7 +777,7 @@ class GiangVienProvider extends ChangeNotifier {
     try {
       final binhLuan = await _service.dangBinhLuanThongBao(
         nguoiDungId: _nguoiDungId,
-        thongBaoId: thongBaoId,
+        baiVietId: baiVietId,
         noiDung: noiDung,
       );
       _dsBinhLuanThongBao.add(binhLuan);

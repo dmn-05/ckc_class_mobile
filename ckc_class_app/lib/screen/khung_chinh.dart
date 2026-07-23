@@ -35,6 +35,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   static const _textMuted = Color(0xFF64748B);
 
   int _selectedIndex = 0;
+  int _providerUserId = 0;
 
   void _chonMenu(int index) {
     setState(() {
@@ -49,6 +50,40 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (!mounted || _selectedIndex == index) return;
     setState(() {
       _selectedIndex = index;
+    });
+  }
+
+  void _dongBoProviderTheoTaiKhoan(dynamic user) {
+    if (_providerUserId == user.id) return;
+    _providerUserId = user.id;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final sinhVienProvider = context.read<SinhVienProvider>();
+      final giangVienProvider = context.read<GiangVienProvider>();
+
+      // Provider được khai báo ở cấp ứng dụng nên vẫn tồn tại sau khi đổi tài
+      // khoản. Phải xóa ID và dữ liệu của tài khoản trước trước khi nạp tài
+      // khoản hiện tại, nếu không dashboard sẽ tiếp tục gọi API bằng ID cũ.
+      sinhVienProvider.reset();
+      giangVienProvider.reset();
+
+      if (user.isSinhVien) {
+        if (user.sinhVienId != null && user.sinhVienId! > 0) {
+          sinhVienProvider.khoiTao(user.sinhVienId!, user.id);
+          await sinhVienProvider.khoiTaoDuLieu();
+        } else {
+          await sinhVienProvider.khoiTaoTuNguoiDungId(user.id);
+        }
+      } else if (user.isGiangVien) {
+        if (user.giangVienId != null && user.giangVienId! > 0) {
+          giangVienProvider.khoiTaoGiangVien(user.giangVienId!, user.id);
+          await giangVienProvider.khoiTaoDuLieu();
+        } else {
+          await giangVienProvider.khoiTaoTuNguoiDungId(user.id);
+        }
+      }
     });
   }
 
@@ -143,7 +178,9 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (dongY != true) return;
     if (!mounted) return;
 
-    context.read<AuthProvider>().logout();
+    context.read<SinhVienProvider>().reset();
+    context.read<GiangVienProvider>().reset();
+    await context.read<AuthProvider>().logout();
   }
 
   String _roleName(dynamic user) {
@@ -175,32 +212,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       );
     }
 
-    // ── Khởi tạo GiangVienProvider khi user là giảng viên ──
-    if (user.isGiangVien) {
-      final gvProvider = context.read<GiangVienProvider>();
-
-      if (gvProvider.giangVienId <= 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (user.giangVienId != null && user.giangVienId! > 0) {
-            gvProvider.khoiTaoGiangVien(user.giangVienId!, user.id);
-            gvProvider.khoiTaoDuLieu();
-          } else {
-            gvProvider.khoiTaoTuNguoiDungId(user.id);
-          }
-        });
-      }
-    }
-
-    // ── Khởi tạo SinhVienProvider khi user là sinh viên ──
-    if (user.isSinhVien) {
-      final svProvider = context.read<SinhVienProvider>();
-
-      if (svProvider.sinhVienId == 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          svProvider.khoiTaoTuNguoiDungId(user.id);
-        });
-      }
-    }
+    _dongBoProviderTheoTaiKhoan(user);
 
     Widget body;
     String title;

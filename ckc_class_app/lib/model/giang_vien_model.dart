@@ -548,6 +548,7 @@ class BaiNop {
 // ─── THÔNG BÁO ────────────────────────────────────────────
 class ThongBao {
   final int id;
+  final int? baiVietId;
   final String tieuDe;
   final String? noiDung;
   final int lopHocPhanId;
@@ -562,6 +563,7 @@ class ThongBao {
 
   const ThongBao({
     required this.id,
+    this.baiVietId,
     required this.tieuDe,
     this.noiDung,
     required this.lopHocPhanId,
@@ -577,6 +579,7 @@ class ThongBao {
 
   factory ThongBao.fromJson(Map<String, dynamic> j) => ThongBao(
     id: _toInt(j['id']) ?? 0,
+    baiVietId: _toInt(j['bai_viet_id']),
     tieuDe: j['tieu_de']?.toString() ?? '',
     noiDung: _toStr(j['noi_dung']),
     lopHocPhanId: _toInt(j['lop_hoc_phan_id']) ?? 0,

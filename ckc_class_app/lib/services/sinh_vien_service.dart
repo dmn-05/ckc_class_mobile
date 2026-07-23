@@ -310,14 +310,14 @@ class SinhVienService {
   }
 
   Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(
-    int thongBaoId,
+    int baiVietId,
   ) async {
     try {
       final res = await _api.post(
         '/sinh_vien/binh_luan.php',
         data: {
           'action': 'danh_sach',
-          'thong_bao_id': thongBaoId,
+          'bai_viet_id': baiVietId,
           'nguoi_dung_id': 0,
         },
       );
@@ -339,7 +339,7 @@ class SinhVienService {
 
   Future<BinhLuanModel> dangBinhLuanThongBao({
     required int nguoiDungId,
-    required int thongBaoId,
+    required int baiVietId,
     required String noiDung,
   }) async {
     try {
@@ -351,7 +351,7 @@ class SinhVienService {
         data: {
           'action': 'dang',
           'nguoi_dung_id': nguoiDungId,
-          'thong_bao_id': thongBaoId,
+          'bai_viet_id': baiVietId,
           'noi_dung': noiDung.trim(),
         },
       );

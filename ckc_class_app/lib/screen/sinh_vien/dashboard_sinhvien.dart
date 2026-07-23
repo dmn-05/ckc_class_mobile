@@ -29,9 +29,15 @@ class _DashboardSinhVienState extends State<DashboardSinhVien> {
 
       if (nguoiDungId <= 0) return;
 
-      final result = sv.sinhVienId > 0
-          ? await _taiLaiDuLieuSinhVien(sv)
-          : await sv.khoiTaoTuNguoiDungId(nguoiDungId);
+      final Map<String, dynamic> result;
+      if (sv.nguoiDungId != nguoiDungId) {
+        sv.reset();
+        result = await sv.khoiTaoTuNguoiDungId(nguoiDungId);
+      } else if (sv.sinhVienId > 0) {
+        result = await _taiLaiDuLieuSinhVien(sv);
+      } else {
+        result = await sv.khoiTaoTuNguoiDungId(nguoiDungId);
+      }
 
       if (!mounted) return;
 

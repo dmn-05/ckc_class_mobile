@@ -41,7 +41,19 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
         return;
       }
 
-      final result = await gv.khoiTaoTuNguoiDungId(nguoiDungId);
+      final Map<String, dynamic> result;
+      if (gv.nguoiDungId != nguoiDungId) {
+        gv.reset();
+        result = await gv.khoiTaoTuNguoiDungId(nguoiDungId);
+      } else if (gv.giangVienId > 0) {
+        await gv.khoiTaoDuLieu();
+        result = {
+          'success': true,
+          'message': 'Đã cập nhật dữ liệu giảng viên',
+        };
+      } else {
+        result = await gv.khoiTaoTuNguoiDungId(nguoiDungId);
+      }
 
       if (!mounted) return;
 

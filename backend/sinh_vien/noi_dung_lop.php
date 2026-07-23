@@ -17,29 +17,6 @@ function respond($status, $message, $extra = []) {
     exit();
 }
 
-function ensure_thong_bao_schema_sv(PDO $conn) {
-    $db = (string)$conn->query("SELECT DATABASE()")->fetchColumn();
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='thong_bao' AND COLUMN_NAME='bai_viet_id'");
-    $stmt->execute([$db]);
-    if ((int)$stmt->fetchColumn() === 0) {
-        $conn->exec("ALTER TABLE thong_bao ADD COLUMN bai_viet_id INT NULL AFTER nguoi_tao_id");
-        try { $conn->exec("ALTER TABLE thong_bao ADD INDEX idx_thong_bao_bai_viet (bai_viet_id)"); } catch (Throwable $e) {}
-    }
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='binh_luan' AND COLUMN_NAME='thong_bao_id'");
-    $stmt->execute([$db]);
-    if ((int)$stmt->fetchColumn() === 0) {
-        $conn->exec("ALTER TABLE binh_luan ADD COLUMN thong_bao_id INT NULL AFTER bai_viet_id");
-        try { $conn->exec("ALTER TABLE binh_luan ADD INDEX idx_binh_luan_thong_bao (thong_bao_id)"); } catch (Throwable $e) {}
-    }
-
-    $conn->exec("UPDATE binh_luan bl
-        JOIN thong_bao tb ON tb.bai_viet_id = bl.bai_viet_id
-        SET bl.thong_bao_id = tb.id
-        WHERE bl.thong_bao_id IS NULL");
-}
-
 function lay_files_thong_bao_sv(PDO $conn, ?int $baiVietId): array {
     if (!$baiVietId) return [];
     $stmt = $conn->prepare("SELECT tt.id, tt.ten_file, tt.ten_file_luu, tt.duong_dan, tt.loai_file, tt.kich_thuoc, tt.ngay_tao
@@ -63,8 +40,6 @@ function lay_files_thong_bao_sv(PDO $conn, ?int $baiVietId): array {
 if ($lopHocPhanId <= 0) { http_response_code(400); respond("error", "ID lớp học phần không hợp lệ"); }
 
 try {
-    ensure_thong_bao_schema_sv($conn);
-
     if ($action === "tai_lieu") {
         $sql = "SELECT tl.*, nd.ho_ten AS ten_nguoi_tao
                 FROM tai_lieu tl
@@ -96,10 +71,8 @@ try {
         $sql = "SELECT tb.*, nd.ho_ten AS ten_nguoi_tao,
                     (SELECT COUNT(*) FROM binh_luan bl
                      WHERE bl.trang_thai = 'hien_thi'
-                       AND (
-                         bl.thong_bao_id = tb.id
-                         OR (tb.bai_viet_id IS NOT NULL AND bl.bai_viet_id = tb.bai_viet_id)
-                       )) AS so_binh_luan
+                       AND tb.bai_viet_id IS NOT NULL
+                       AND bl.bai_viet_id = tb.bai_viet_id) AS so_binh_luan
                 FROM thong_bao tb
                 LEFT JOIN nguoi_dung nd ON tb.nguoi_tao_id = nd.id
                 WHERE tb.lop_hoc_phan_id = :lhp
