@@ -18,21 +18,72 @@ function xuat_excel_cors_json(): void
 
 function xuat_excel_column_exists(PDO $conn, string $table, string $column): bool
 {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
     $stmt = $conn->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
     $stmt->execute([$table, $column]);
-    return (int)$stmt->fetchColumn() > 0;
+    $cache[$key] = (int)$stmt->fetchColumn() > 0;
+    return $cache[$key];
+}
+
+function xuat_excel_nam_tu_khoa_hoc_expression(string $expression): string
+{
+    return "CASE
+        WHEN {$expression} REGEXP '^[0-9]{4}'
+            THEN CAST(LEFT({$expression}, 4) AS UNSIGNED)
+        WHEN {$expression} REGEXP '^[Kk][0-9]{2}'
+            THEN 2000 + CAST(SUBSTRING({$expression}, 2, 2) AS UNSIGNED)
+        ELSE NULL
+    END";
 }
 
 function xuat_excel_nam_nhap_hoc_expression(PDO $conn, string $alias = 'l'): string
 {
-    if (xuat_excel_column_exists($conn, 'lop', 'nam_nhap_hoc')) {
-        return $alias . '.nam_nhap_hoc';
+    $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
+    $hasNamNhapHoc = xuat_excel_column_exists($conn, 'lop', 'nam_nhap_hoc');
+    $hasKhoaHoc = xuat_excel_column_exists($conn, 'lop', 'khoa_hoc');
+
+    if ($hasNamNhapHoc && $hasKhoaHoc) {
+        $fallback = xuat_excel_nam_tu_khoa_hoc_expression($prefix . 'khoa_hoc');
+        return "COALESCE(NULLIF({$prefix}nam_nhap_hoc, 0), {$fallback})";
+    }
+    if ($hasNamNhapHoc) {
+        return "NULLIF({$prefix}nam_nhap_hoc, 0)";
+    }
+    if ($hasKhoaHoc) {
+        return xuat_excel_nam_tu_khoa_hoc_expression($prefix . 'khoa_hoc');
     }
 
-    // Tương thích CSDL cũ: khóa học thường có dạng 2023-2026.
-    return "CASE WHEN {$alias}.khoa_hoc REGEXP '^[0-9]{4}' "
-        . "THEN CAST(LEFT({$alias}.khoa_hoc, 4) AS UNSIGNED) ELSE NULL END";
+    return 'NULL';
+}
+
+function xuat_excel_khoa_hoc_expression(
+    PDO $conn,
+    string $sinhVienAlias = 'sv',
+    string $lopAlias = 'l'
+): string {
+    $namExpression = xuat_excel_nam_nhap_hoc_expression($conn, $lopAlias);
+    $prefix = $sinhVienAlias !== '' ? rtrim($sinhVienAlias, '.') . '.' : '';
+
+    if (xuat_excel_column_exists($conn, 'sinh_vien', 'khoa_hoc')) {
+        return "COALESCE(
+            NULLIF({$prefix}khoa_hoc, ''),
+            CASE WHEN {$namExpression} IS NOT NULL
+                THEN CONCAT({$namExpression}, '-', {$namExpression} + 3)
+                ELSE ''
+            END
+        )";
+    }
+
+    return "CASE WHEN {$namExpression} IS NOT NULL
+        THEN CONCAT({$namExpression}, '-', {$namExpression} + 3)
+        ELSE ''
+    END";
 }
 
 function xuat_excel_json_input(): array
@@ -298,7 +349,8 @@ function xuat_excel_query_parts(
     string $scope,
     array $filters,
     array $selectedIds,
-    string $namNhapHocExpression = 'l.nam_nhap_hoc'
+    string $namNhapHocExpression = 'l.nam_nhap_hoc',
+    string $khoaHocExpression = 'sv.khoa_hoc'
 ): array
 {
     $where = ['1 = 1'];
@@ -321,6 +373,7 @@ function xuat_excel_query_parts(
                 LEFT JOIN khoa k ON k.id = bm.khoa_id";
             $idExpression = 'gv.id';
             $order = 'ORDER BY gv.ma_giang_vien ASC';
+            $where[] = 'gv.deleted_at IS NULL';
             if ($scope !== 'toan_bo') {
                 xuat_excel_add_like($where, $params, (string)($filters['tu_khoa'] ?? ''), ['gv.ma_giang_vien', 'nd.ho_ten', 'nd.email', 'bm.ten_bo_mon', 'k.ten_khoa'], 'gv_keyword');
                 xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'k.id', 'gv_khoa_id');
@@ -334,7 +387,7 @@ function xuat_excel_query_parts(
             $select = "sv.id, sv.ma_sinh_vien, nd.ho_ten, nd.email, sv.ngay_sinh,
                 sv.gioi_tinh, sv.so_dien_thoai, sv.cccd, sv.dia_chi,
                 l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa,
-                sv.khoa_hoc AS khoa_hoc,
+                {$khoaHocExpression} AS khoa_hoc,
                 sv.trang_thai AS trang_thai_sinh_vien,
                 nd.trang_thai AS trang_thai_tai_khoan, sv.ngay_tao";
             $from = "FROM sinh_vien sv
@@ -343,6 +396,9 @@ function xuat_excel_query_parts(
                 INNER JOIN khoa k ON k.id = sv.khoa_id";
             $idExpression = 'sv.id';
             $order = 'ORDER BY sv.ma_sinh_vien ASC';
+            $where[] = 'sv.deleted_at IS NULL';
+            $where[] = 'l.deleted_at IS NULL';
+            $where[] = 'k.deleted_at IS NULL';
 
             if ($type === 'sinh_vien_lop_hanh_chinh') {
                 xuat_excel_add_int_filter($where, $params, $filters['lop_id'] ?? 0, 'sv.lop_id', 'sv_lop_bat_buoc');
@@ -352,7 +408,7 @@ function xuat_excel_query_parts(
                 if ($type === 'sinh_vien') {
                     xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'sv.khoa_id', 'sv_khoa_id');
                     xuat_excel_add_int_filter($where, $params, $filters['lop_id'] ?? 0, 'sv.lop_id', 'sv_lop_id');
-                    xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', 'sv.khoa_hoc', 'sv_khoa_hoc');
+                    xuat_excel_add_string_filter($where, $params, $filters['khoa_hoc'] ?? '', $khoaHocExpression, 'sv_khoa_hoc');
                 }
                 xuat_excel_add_string_filter($where, $params, $filters['trang_thai'] ?? '', 'sv.trang_thai', 'sv_trang_thai');
             }
@@ -360,11 +416,14 @@ function xuat_excel_query_parts(
 
         case 'lop_hanh_chinh':
             $select = "l.id, l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa, {$namNhapHocExpression} AS nam_nhap_hoc,
-                (SELECT COUNT(*) FROM sinh_vien sv WHERE sv.lop_id = l.id) AS so_luong_sinh_vien,
+                (SELECT COUNT(*) FROM sinh_vien sv
+                    WHERE sv.lop_id = l.id AND sv.deleted_at IS NULL) AS so_luong_sinh_vien,
                 l.trang_thai, l.ngay_tao";
             $from = "FROM lop l INNER JOIN khoa k ON k.id = l.khoa_id";
             $idExpression = 'l.id';
             $order = 'ORDER BY l.ma_lop ASC';
+            $where[] = 'l.deleted_at IS NULL';
+            $where[] = 'k.deleted_at IS NULL';
             if ($scope !== 'toan_bo') {
                 xuat_excel_add_like($where, $params, (string)($filters['tu_khoa'] ?? ''), ['l.ma_lop', 'l.ten_lop', 'k.ma_khoa', 'k.ten_khoa'], 'lop_keyword');
                 xuat_excel_add_int_filter($where, $params, $filters['khoa_id'] ?? 0, 'l.khoa_id', 'lop_khoa_id');
@@ -402,7 +461,7 @@ function xuat_excel_query_parts(
         case 'sinh_vien_lop_hoc_phan':
             $select = "svlhp.id, sv.ma_sinh_vien, nd.ho_ten, nd.email,
                 l.ma_lop, l.ten_lop, k.ma_khoa, k.ten_khoa,
-                sv.khoa_hoc AS khoa_hoc,
+                {$khoaHocExpression} AS khoa_hoc,
                 svlhp.trang_thai AS trang_thai_lop_hoc_phan, svlhp.ngay_dang_ky";
             $from = "FROM sinh_vien_lop_hoc_phan svlhp
                 INNER JOIN sinh_vien sv ON sv.id = svlhp.sinh_vien_id
@@ -411,6 +470,9 @@ function xuat_excel_query_parts(
                 INNER JOIN khoa k ON k.id = sv.khoa_id";
             $idExpression = 'svlhp.id';
             $order = 'ORDER BY sv.ma_sinh_vien ASC';
+            $where[] = 'sv.deleted_at IS NULL';
+            $where[] = 'l.deleted_at IS NULL';
+            $where[] = 'k.deleted_at IS NULL';
             xuat_excel_add_int_filter($where, $params, $filters['lop_hoc_phan_id'] ?? 0, 'svlhp.lop_hoc_phan_id', 'svlhp_bat_buoc');
             if ($scope !== 'toan_bo') {
                 xuat_excel_add_like($where, $params, (string)($filters['tu_khoa'] ?? ''), ['sv.ma_sinh_vien', 'nd.ho_ten', 'nd.email', 'l.ma_lop', 'l.ten_lop'], 'svlhp_keyword');
@@ -525,13 +587,21 @@ function xuat_excel_metadata(PDO $conn, string $type, array $filters, string $sc
     ];
 
     if ($type === 'sinh_vien_lop_hanh_chinh' && (int)($filters['lop_id'] ?? 0) > 0) {
-        $stmt = $conn->prepare("SELECT l.ma_lop, l.ten_lop, l.nam_nhap_hoc, k.ma_khoa, k.ten_khoa
-            FROM lop l INNER JOIN khoa k ON k.id = l.khoa_id WHERE l.id = :id LIMIT 1");
+        $namNhapHocExpression = xuat_excel_nam_nhap_hoc_expression($conn, 'l');
+        $stmt = $conn->prepare("SELECT l.ma_lop, l.ten_lop,
+                {$namNhapHocExpression} AS nam_nhap_hoc,
+                k.ma_khoa, k.ten_khoa
+            FROM lop l
+            INNER JOIN khoa k ON k.id = l.khoa_id
+            WHERE l.id = :id
+              AND l.deleted_at IS NULL
+              AND k.deleted_at IS NULL
+            LIMIT 1");
         $stmt->execute([':id' => (int)$filters['lop_id']]);
         if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $metadata['Lớp hành chính'] = $row['ma_lop'] . ' - ' . $row['ten_lop'];
             $metadata['Khoa'] = $row['ma_khoa'] . ' - ' . $row['ten_khoa'];
-            $metadata['Năm nhập học'] = (string)$row['nam_nhap_hoc'];
+            $metadata['Năm nhập học'] = (string)($row['nam_nhap_hoc'] ?? '');
         }
     }
 

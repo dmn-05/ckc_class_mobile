@@ -48,7 +48,6 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
     super.dispose();
   }
 
-
   String _defaultExportFileName() {
     final now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -70,10 +69,15 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
           builder: (context, setDialogState) {
             void submit() {
               var value = controller.text.trim();
-              value = value.replaceFirst(RegExp(r'\.xlsx$', caseSensitive: false), '');
+              value = value.replaceFirst(
+                RegExp(r'\.xlsx$', caseSensitive: false),
+                '',
+              );
 
               if (value.isEmpty) {
-                setDialogState(() => errorText = 'Tên file không được để trống');
+                setDialogState(
+                  () => errorText = 'Tên file không được để trống',
+                );
                 return;
               }
 
@@ -84,7 +88,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
 
               if (RegExp(r'[<>:"/\\|?*\x00-\x1F]').hasMatch(value)) {
                 setDialogState(
-                  () => errorText = 'Tên file không được chứa: < > : " / \\ | ? *',
+                  () => errorText =
+                      'Tên file không được chứa: < > : " / \\ | ? *',
                 );
                 return;
               }
@@ -327,7 +332,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
       child: _provider.scope == 'toan_bo' && type.requiredFilters.isEmpty
           ? const _InfoMessage(
               icon: Icons.info_outline_rounded,
-              message: 'Đang chọn xuất toàn bộ nên các điều kiện lọc sẽ không được áp dụng.',
+              message:
+                  'Đang chọn xuất toàn bộ nên các điều kiện lọc sẽ không được áp dụng.',
             )
           : LayoutBuilder(
               builder: (context, constraints) {
@@ -345,9 +351,7 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                         decoration: _decoration(
                           'Từ khóa',
                           Icons.search_rounded,
-                        ).copyWith(
-                          hintText: 'Mã, tên hoặc email',
-                        ),
+                        ).copyWith(hintText: 'Mã, tên hoặc email'),
                         onChanged: (value) {
                           _provider.setFilter('tu_khoa', value.trim());
                         },
@@ -364,7 +368,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                       icon: Icons.account_balance_rounded,
                       value: _intFilter('khoa_id'),
                       items: _provider.catalog.khoa,
-                      onChanged: (value) => _provider.setFilter('khoa_id', value),
+                      onChanged: (value) =>
+                          _provider.setFilter('khoa_id', value),
                     ),
                   );
                 }
@@ -373,8 +378,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                   final khoaId = _intFilter('khoa_id');
                   final boMon = khoaId > 0
                       ? _provider.catalog.boMon
-                          .where((item) => item.parentId == khoaId)
-                          .toList()
+                            .where((item) => item.parentId == khoaId)
+                            .toList()
                       : _provider.catalog.boMon;
                   widgets.add(
                     _dropdownDanhMuc(
@@ -383,7 +388,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                       icon: Icons.menu_book_rounded,
                       value: _intFilter('bo_mon_id'),
                       items: boMon,
-                      onChanged: (value) => _provider.setFilter('bo_mon_id', value),
+                      onChanged: (value) =>
+                          _provider.setFilter('bo_mon_id', value),
                     ),
                   );
                 }
@@ -392,8 +398,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                   final khoaId = _intFilter('khoa_id');
                   final lop = khoaId > 0
                       ? _provider.catalog.lop
-                          .where((item) => item.parentId == khoaId)
-                          .toList()
+                            .where((item) => item.parentId == khoaId)
+                            .toList()
                       : _provider.catalog.lop;
                   widgets.add(
                     _dropdownDanhMuc(
@@ -404,7 +410,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                       icon: Icons.groups_rounded,
                       value: _intFilter('lop_id'),
                       items: lop,
-                      onChanged: (value) => _provider.setFilter('lop_id', value),
+                      onChanged: (value) =>
+                          _provider.setFilter('lop_id', value),
                     ),
                   );
                 }
@@ -417,7 +424,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                       icon: Icons.auto_stories_rounded,
                       value: _intFilter('mon_hoc_id'),
                       items: _provider.catalog.monHoc,
-                      onChanged: (value) => _provider.setFilter('mon_hoc_id', value),
+                      onChanged: (value) =>
+                          _provider.setFilter('mon_hoc_id', value),
                     ),
                   );
                 }
@@ -430,7 +438,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                       icon: Icons.school_rounded,
                       value: _intFilter('giang_vien_id'),
                       items: _provider.catalog.giangVien,
-                      onChanged: (value) => _provider.setFilter('giang_vien_id', value),
+                      onChanged: (value) =>
+                          _provider.setFilter('giang_vien_id', value),
                     ),
                   );
                 }
@@ -595,11 +604,7 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                   );
                 }
 
-                return Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: widgets,
-                );
+                return Wrap(spacing: 10, runSpacing: 10, children: widgets);
               },
             ),
     );
@@ -639,11 +644,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
           return FilterChip(
             selected: selected,
             label: Text(column.label),
-            avatar: selected
-                ? const Icon(Icons.check_rounded, size: 16)
-                : null,
-            onSelected: (value) =>
-                _provider.toggleColumn(column.key, value),
+            avatar: selected ? const Icon(Icons.check_rounded, size: 16) : null,
+            onSelected: (value) => _provider.toggleColumn(column.key, value),
           );
         }).toList(),
       ),
@@ -662,7 +664,9 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
                 : () async {
                     final success = await _provider.previewData();
                     if (!mounted || success) return;
-                    _showMessage(_provider.error ?? 'Không thể xem trước dữ liệu');
+                    _showMessage(
+                      _provider.error ?? 'Không thể xem trước dữ liệu',
+                    );
                   },
             icon: _provider.previewing
                 ? const SizedBox(
@@ -714,7 +718,11 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
           if (narrow) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [previewButton, const SizedBox(height: 8), exportButton],
+              children: [
+                previewButton,
+                const SizedBox(height: 8),
+                exportButton,
+              ],
             );
           }
           return Row(
@@ -837,10 +845,7 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
           ...items.map(
             (item) => DropdownMenuItem(
               value: item.id,
-              child: Text(
-                item.tenHienThi,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(item.tenHienThi, overflow: TextOverflow.ellipsis),
             ),
           ),
         ],
@@ -905,10 +910,8 @@ class _XuatExcelScreenState extends State<XuatExcelScreen> {
     }
     return values.entries
         .map(
-          (entry) => DropdownMenuItem(
-            value: entry.key,
-            child: Text(entry.value),
-          ),
+          (entry) =>
+              DropdownMenuItem(value: entry.key, child: Text(entry.value)),
         )
         .toList();
   }
@@ -937,11 +940,7 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _SectionCard({required this.title, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -1063,9 +1062,7 @@ class _SampleRowCard extends StatelessWidget {
           ...columns.map(
             (column) => Padding(
               padding: const EdgeInsets.only(bottom: 3),
-              child: Text(
-                '${column.label}: ${values[column.key] ?? ''}',
-              ),
+              child: Text('${column.label}: ${values[column.key] ?? ''}'),
             ),
           ),
         ],

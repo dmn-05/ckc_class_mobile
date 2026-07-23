@@ -11,7 +11,15 @@ try {
     $data = xuat_excel_json_input();
     [$type, $config, $scope, $filters, $selectedIds, $columns] = xuat_excel_validate_request($data);
     $namNhapHocExpr = xuat_excel_nam_nhap_hoc_expression($conn, 'l');
-    $parts = xuat_excel_query_parts($type, $scope, $filters, $selectedIds, $namNhapHocExpr);
+    $khoaHocExpr = xuat_excel_khoa_hoc_expression($conn, 'sv', 'l');
+    $parts = xuat_excel_query_parts(
+        $type,
+        $scope,
+        $filters,
+        $selectedIds,
+        $namNhapHocExpr,
+        $khoaHocExpr
+    );
     $count = xuat_excel_count($conn, $parts);
     $sampleRaw = xuat_excel_fetch($conn, $parts);
 

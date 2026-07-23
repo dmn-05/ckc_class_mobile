@@ -248,21 +248,61 @@ class NhapExcelService {
     if (!ok) throw Exception('Không thể mở link tải file mẫu');
   }
 
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  String _textSpanToString(ex.TextSpan span) {
+    final buffer = StringBuffer(span.text ?? '');
+    final children = span.children;
+    if (children != null) {
+      for (final child in children) {
+        buffer.write(_textSpanToString(child));
+      }
+    }
+    return buffer.toString();
+  }
+
   String _cellText(dynamic cell) {
     final value = cell?.value;
     if (value == null) return '';
-    var text = value.toString().trim();
-    final match = RegExp(
-      r'^(TextCellValue|IntCellValue|DoubleCellValue|DateCellValue)\((.*)\)$',
-    ).firstMatch(text);
-    if (match != null) {
-      text = match.group(2) ?? text;
+
+    if (value is ex.TextCellValue) {
+      return _textSpanToString(value.value).trim();
     }
-    return text.trim();
+    if (value is ex.IntCellValue) {
+      return value.value.toString();
+    }
+    if (value is ex.DoubleCellValue) {
+      final number = value.value;
+      if (number.isFinite && number == number.truncateToDouble()) {
+        return number.toInt().toString();
+      }
+      return number.toString();
+    }
+    if (value is ex.DateCellValue) {
+      return '${_twoDigits(value.day)}/${_twoDigits(value.month)}/${value.year}';
+    }
+    if (value is ex.DateTimeCellValue) {
+      return '${_twoDigits(value.day)}/${_twoDigits(value.month)}/${value.year}';
+    }
+    if (value is ex.BoolCellValue) {
+      return value.value ? '1' : '0';
+    }
+    if (value is ex.TimeCellValue) {
+      return '${_twoDigits(value.hour)}:${_twoDigits(value.minute)}:${_twoDigits(value.second)}';
+    }
+    if (value is ex.FormulaCellValue) {
+      return value.formula.trim();
+    }
+
+    return value.toString().trim();
   }
 
-  String _normalizeHeader(String value) =>
-      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  String _normalizeHeader(String value) => value
+      .replaceAll('\uFEFF', '')
+      .replaceAll('\u00A0', ' ')
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'\s+'), ' ');
 
   ({int rowIndex, bool hasStt}) _timDongHeader(
     List<List<dynamic>> rows,
@@ -314,8 +354,23 @@ class NhapExcelService {
       );
     }
 
-    final workbook = ex.Excel.decodeBytes(bytes);
-    final sheet = workbook.tables['Dữ liệu'] ?? workbook.tables.values.firstOrNull;
+    ex.Excel workbook;
+    try {
+      workbook = ex.Excel.decodeBytes(bytes);
+    } catch (_) {
+      throw Exception(
+        'Không thể đọc file Excel. File phải đúng định dạng .xlsx và không bị hỏng hoặc đặt mật khẩu.',
+      );
+    }
+
+    ex.Sheet? sheet;
+    for (final entry in workbook.tables.entries) {
+      if (_normalizeHeader(entry.key) == _normalizeHeader('Dữ liệu')) {
+        sheet = entry.value;
+        break;
+      }
+    }
+    sheet ??= workbook.tables.values.firstOrNull;
 
     if (sheet == null) {
       throw Exception('File Excel không có sheet Dữ liệu');

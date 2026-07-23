@@ -77,9 +77,16 @@ function ckc_one(PDO $conn, string $sql, array $params = []) {
 }
 
 function ckc_column_exists(PDO $conn, string $table, string $column): bool {
+    static $cache = [];
+
     if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)
         || !preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
         return false;
+    }
+
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
     }
 
     $stmt = $conn->prepare(
@@ -94,7 +101,16 @@ function ckc_column_exists(PDO $conn, string $table, string $column): bool {
         ':column_name' => $column,
     ]);
 
-    return (int)$stmt->fetchColumn() > 0;
+    $cache[$key] = (int)$stmt->fetchColumn() > 0;
+    return $cache[$key];
+}
+
+function ckc_not_deleted_condition(PDO $conn, string $table, string $alias = ''): string {
+    if (!ckc_column_exists($conn, $table, 'deleted_at')) {
+        return '1 = 1';
+    }
+    $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
+    return $prefix . 'deleted_at IS NULL';
 }
 
 function ckc_role_id(PDO $conn, string $roleName): int {
@@ -120,6 +136,9 @@ function ckc_status_khoa($value): string {
         'ngừng hoạt động' => 'ngung_hoat_dong',
         'ngung hoat dong' => 'ngung_hoat_dong',
         'ngung_hoat_dong' => 'ngung_hoat_dong',
+        'chờ phê duyệt' => 'cho_phe_duyet',
+        'cho phe duyet' => 'cho_phe_duyet',
+        'cho_phe_duyet' => 'cho_phe_duyet',
     ], 'dang_hoat_dong');
 }
 
@@ -218,6 +237,14 @@ function ckc_date($value): ?string {
         $date = DateTime::createFromFormat('!Y-m-d', $raw);
     } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $raw)) {
         $date = DateTime::createFromFormat('!d/m/Y', $raw);
+    } elseif (preg_match('/^\d+(?:\.0+)?$/', $raw)) {
+        $serial = (int)$raw;
+        if ($serial > 0 && $serial < 100000) {
+            $base = new DateTimeImmutable('1899-12-30');
+            $date = DateTime::createFromImmutable(
+                $base->modify('+' . $serial . ' days')
+            );
+        }
     }
 
     if (!$date) return null;
@@ -255,9 +282,12 @@ function ckc_nam_nhap_hoc_normalize($value): ?int {
 
     if (preg_match('/^(\d{4})$/', $raw, $m) === 1) {
         $year = (int)$m[1];
-    } elseif (preg_match('/^(\d{4})\s*[-\/]\s*\d{4}$/', $raw, $m) === 1) {
-        // Cho phép người dùng nhập 2025-2026 trong Excel và chuẩn hóa về năm nhập học 2025.
+    } elseif (preg_match('/^(\d{4})\s*[-\/]\s*(\d{4})$/', $raw, $m) === 1) {
         $year = (int)$m[1];
+        $end = (int)$m[2];
+        if ($end !== $year + 1) {
+            return null;
+        }
     } else {
         return null;
     }
@@ -271,17 +301,25 @@ function ckc_nam_nhap_hoc_ok($value): bool {
 
 function ckc_lop_nam_expr(PDO $conn, string $alias = ''): string {
     $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
-    if (ckc_column_exists($conn, 'lop', 'nam_nhap_hoc')) {
-        return $prefix . 'nam_nhap_hoc';
+    $hasNam = ckc_column_exists($conn, 'lop', 'nam_nhap_hoc');
+    $hasKhoaHoc = ckc_column_exists($conn, 'lop', 'khoa_hoc');
+
+    $fallback = "CASE
+        WHEN {$prefix}khoa_hoc REGEXP '^[0-9]{4}'
+            THEN CAST(SUBSTRING({$prefix}khoa_hoc, 1, 4) AS UNSIGNED)
+        WHEN {$prefix}khoa_hoc REGEXP '^[Kk][0-9]{2}'
+            THEN 2000 + CAST(SUBSTRING({$prefix}khoa_hoc, 2, 2) AS UNSIGNED)
+        ELSE NULL
+    END";
+
+    if ($hasNam && $hasKhoaHoc) {
+        return "COALESCE(NULLIF({$prefix}nam_nhap_hoc, 0), {$fallback})";
     }
-    if (ckc_column_exists($conn, 'lop', 'khoa_hoc')) {
-        return "CASE
-            WHEN {$prefix}khoa_hoc REGEXP '^[0-9]{4}'
-                THEN CAST(SUBSTRING({$prefix}khoa_hoc, 1, 4) AS UNSIGNED)
-            WHEN {$prefix}khoa_hoc REGEXP '^[Kk][0-9]{2}'
-                THEN 2000 + CAST(SUBSTRING({$prefix}khoa_hoc, 2, 2) AS UNSIGNED)
-            ELSE NULL
-        END";
+    if ($hasNam) {
+        return "NULLIF({$prefix}nam_nhap_hoc, 0)";
+    }
+    if ($hasKhoaHoc) {
+        return $fallback;
     }
     return 'NULL';
 }
@@ -383,7 +421,7 @@ function ckc_validate_row(
             if ($row['ma_khoa'] !== '' && !ckc_code_ok($row['ma_khoa'])) {
                 $messages[] = 'Mã khoa chứa ký tự không hợp lệ';
             }
-            if (!in_array($row['trang_thai'], ['dang_hoat_dong', 'ngung_hoat_dong'], true)) {
+            if (!in_array($row['trang_thai'], ['dang_hoat_dong', 'ngung_hoat_dong', 'cho_phe_duyet'], true)) {
                 $messages[] = 'Trạng thái khoa không hợp lệ';
             }
             ckc_mark_seen($seen, 'khoa', $row['ma_khoa'], 'Mã khoa bị trùng trong file', $messages);
@@ -406,15 +444,15 @@ function ckc_validate_row(
             $row['trang_thai'] = ckc_status_khoa($row['trang_thai'] ?? '');
 
             ckc_require_max($row['ma_bo_mon'], 'mã bộ môn', 20, $messages);
-            ckc_require_max($row['ten_bo_mon'], 'tên bộ môn', 100, $messages);
+            ckc_require_max($row['ten_bo_mon'], 'tên bộ môn', 150, $messages);
             ckc_require_max($row['ma_khoa'], 'mã khoa', 20, $messages);
-            if (!in_array($row['trang_thai'], ['dang_hoat_dong', 'ngung_hoat_dong'], true)) {
+            if (!in_array($row['trang_thai'], ['dang_hoat_dong', 'ngung_hoat_dong', 'cho_phe_duyet'], true)) {
                 $messages[] = 'Trạng thái bộ môn không hợp lệ';
             }
 
             $khoa = $row['ma_khoa'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma LIMIT 1',
+                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_khoa']]
             );
             if (!$khoa) {
@@ -460,7 +498,7 @@ function ckc_validate_row(
 
             $khoa = $row['ma_khoa'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma LIMIT 1',
+                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_khoa']]
             );
             if (!$khoa) {
@@ -474,7 +512,7 @@ function ckc_validate_row(
 
             $boMon = $row['ma_bo_mon'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, khoa_id, trang_thai FROM bo_mon WHERE ma_bo_mon = :ma LIMIT 1',
+                'SELECT id, khoa_id, trang_thai FROM bo_mon WHERE ma_bo_mon = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_bo_mon']]
             );
             if (!$boMon) {
@@ -522,7 +560,7 @@ function ckc_validate_row(
 
             $khoa = $row['ma_khoa'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma LIMIT 1',
+                'SELECT id, trang_thai FROM khoa WHERE ma_khoa = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_khoa']]
             );
             if (!$khoa) {
@@ -613,6 +651,8 @@ function ckc_validate_row(
                      FROM lop l
                      INNER JOIN khoa k ON k.id = l.khoa_id
                      WHERE l.ma_lop = :ma
+                       AND l.deleted_at IS NULL
+                       AND k.deleted_at IS NULL
                      LIMIT 1",
                     [':ma' => $row['ma_lop']]
                 );
@@ -721,7 +761,7 @@ function ckc_validate_row(
 
             $boMon = $row['ma_bo_mon'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, trang_thai FROM bo_mon WHERE ma_bo_mon = :ma LIMIT 1',
+                'SELECT id, trang_thai FROM bo_mon WHERE ma_bo_mon = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_bo_mon']]
             );
             if (!$boMon) {
@@ -791,7 +831,7 @@ function ckc_validate_row(
 
             $mon = $row['ma_mon'] === '' ? null : ckc_one(
                 $conn,
-                'SELECT id, trang_thai FROM mon_hoc WHERE ma_mon = :ma LIMIT 1',
+                'SELECT id, trang_thai FROM mon_hoc WHERE ma_mon = :ma AND deleted_at IS NULL LIMIT 1',
                 [':ma' => $row['ma_mon']]
             );
             if (!$mon) {
@@ -809,6 +849,7 @@ function ckc_validate_row(
                  FROM giang_vien gv
                  INNER JOIN nguoi_dung nd ON nd.id = gv.nguoi_dung_id
                  WHERE gv.ma_giang_vien = :ma
+                   AND gv.deleted_at IS NULL
                  LIMIT 1",
                 [':ma' => $row['ma_giang_vien']]
             );

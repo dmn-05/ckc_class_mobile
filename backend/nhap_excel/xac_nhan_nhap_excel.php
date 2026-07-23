@@ -231,12 +231,21 @@ try {
             continue;
         }
 
-        $res = ckc_confirm_one(
-            $conn,
-            $loai,
-            $r,
-            $line['hanh_dong'] ?? 'them_moi'
-        );
+        try {
+            $res = ckc_confirm_one(
+                $conn,
+                $loai,
+                $r,
+                $line['hanh_dong'] ?? 'them_moi'
+            );
+        } catch (Throwable $rowError) {
+            throw new RuntimeException(
+                'Dòng ' . (int)($line['so_dong'] ?? 0) . ': ' .
+                $rowError->getMessage(),
+                0,
+                $rowError
+            );
+        }
 
         if ($res === 'them_moi') {
             $them++;
