@@ -17,27 +17,7 @@ function respond($status, $message, $extra = []) {
     exit();
 }
 
-/**
- * Bản vá cũ từng thêm binh_luan.thong_bao_id. CSDL chuẩn Ckc_host dùng
- * binh_luan.bai_viet_id, nên chỉ chuyển dữ liệu cũ về bai_viet_id rồi bỏ qua
- * hoàn toàn thong_bao_id trong các thao tác mới.
- */
-function migrate_legacy_thong_bao_comments(PDO $conn): void {
-    $db = (string)$conn->query("SELECT DATABASE()")->fetchColumn();
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA=? AND TABLE_NAME='binh_luan' AND COLUMN_NAME='thong_bao_id'");
-    $stmt->execute([$db]);
-    if ((int)$stmt->fetchColumn() === 0) return;
-
-    $conn->exec("UPDATE binh_luan bl
-        JOIN thong_bao tb ON tb.id = bl.thong_bao_id
-        SET bl.bai_viet_id = tb.bai_viet_id,
-            bl.lop_hoc_phan_id = COALESCE(bl.lop_hoc_phan_id, tb.lop_hoc_phan_id)
-        WHERE bl.thong_bao_id IS NOT NULL
-          AND tb.bai_viet_id IS NOT NULL
-          AND (bl.bai_viet_id IS NULL OR bl.bai_viet_id = 0)");
-}
-
+/** Bình luận của bảng tin luôn gắn trực tiếp bằng binh_luan.bai_viet_id. */
 function lay_bai_viet(PDO $conn, int $baiVietId): array {
     if ($baiVietId <= 0) {
         throw new RuntimeException('ID bài viết không hợp lệ');
@@ -70,18 +50,10 @@ function map_binh_luan(array $r): array {
 }
 
 try {
-    migrate_legacy_thong_bao_comments($conn);
-
     if ($action === 'dang') {
         $baiVietId = (int)($data['bai_viet_id'] ?? 0);
-        $lopHocPhanId = (int)($data['lop_hoc_phan_id'] ?? 0);
-
-        if ($baiVietId > 0) {
-            $baiViet = lay_bai_viet($conn, $baiVietId);
-            $lopHocPhanId = (int)$baiViet['lop_hoc_phan_id'];
-        }
-
-        ckc_require_lhp_mutable($conn, $lopHocPhanId);
+        $baiViet = lay_bai_viet($conn, $baiVietId);
+        ckc_require_lhp_mutable($conn, (int)$baiViet['lop_hoc_phan_id']);
     } elseif (in_array($action, ['sua', 'xoa'], true)) {
         ckc_require_lhp_mutable(
             $conn,
@@ -89,78 +61,56 @@ try {
         );
     }
 
-    if ($action === "danh_sach") {
+    if ($action === 'danh_sach') {
         $baiVietId = (int)($data['bai_viet_id'] ?? 0);
-        $lopHocPhanId = (int)($data['lop_hoc_phan_id'] ?? 0);
+        lay_bai_viet($conn, $baiVietId);
 
-        if ($baiVietId > 0) {
-            lay_bai_viet($conn, $baiVietId);
-            $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.trang_thai, bl.ngay_tao, bl.ngay_cap_nhat,
-                       bl.nguoi_dung_id, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
-                FROM binh_luan bl
-                JOIN nguoi_dung nd ON bl.nguoi_dung_id = nd.id
-                LEFT JOIN vai_tro vt ON nd.vai_tro_id = vt.id
-                WHERE bl.bai_viet_id = ?
-                  AND bl.trang_thai = 'hien_thi'
-                ORDER BY bl.ngay_tao ASC, bl.id ASC");
-            $stmt->execute([$baiVietId]);
-        } else {
-            if ($lopHocPhanId <= 0) respond("error", "ID lớp học phần không hợp lệ");
-            $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.trang_thai, bl.ngay_tao, bl.ngay_cap_nhat,
-                       bl.nguoi_dung_id, nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
-                FROM binh_luan bl
-                JOIN nguoi_dung nd ON bl.nguoi_dung_id = nd.id
-                LEFT JOIN vai_tro vt ON nd.vai_tro_id = vt.id
-                WHERE bl.lop_hoc_phan_id = ?
-                  AND bl.bai_viet_id IS NULL
-                  AND bl.trang_thai = 'hien_thi'
-                ORDER BY bl.ngay_tao ASC, bl.id ASC");
-            $stmt->execute([$lopHocPhanId]);
-        }
+        $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.trang_thai,
+                   bl.ngay_tao, bl.ngay_cap_nhat, bl.nguoi_dung_id,
+                   nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
+            FROM binh_luan bl
+            JOIN nguoi_dung nd ON nd.id = bl.nguoi_dung_id
+            LEFT JOIN vai_tro vt ON vt.id = nd.vai_tro_id
+            WHERE bl.bai_viet_id = ?
+              AND bl.trang_thai = 'hien_thi'
+            ORDER BY bl.ngay_tao ASC, bl.id ASC");
+        $stmt->execute([$baiVietId]);
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        respond("success", "Lấy bình luận thành công", [
-            "data" => array_map('map_binh_luan', $rows),
+        respond('success', 'Lấy bình luận bài viết thành công', [
+            'data' => array_map('map_binh_luan', $stmt->fetchAll(PDO::FETCH_ASSOC)),
         ]);
     }
 
-    if ($action === "dang") {
+    if ($action === 'dang') {
         $baiVietId = (int)($data['bai_viet_id'] ?? 0);
-        $lopHocPhanId = (int)($data['lop_hoc_phan_id'] ?? 0);
-        $noiDung = trim((string)($data["noi_dung"] ?? ""));
+        $baiViet = lay_bai_viet($conn, $baiVietId);
+        $lopHocPhanId = (int)$baiViet['lop_hoc_phan_id'];
+        $noiDung = trim((string)($data['noi_dung'] ?? ''));
 
-        if ($nguoiDungId <= 0) respond("error", "ID người dùng không hợp lệ");
-        if ($noiDung === "") respond("error", "Nội dung bình luận không được trống");
-        if (mb_strlen($noiDung) > 2000) respond("error", "Nội dung quá dài (tối đa 2000 ký tự)");
-
-        if ($baiVietId > 0) {
-            $baiViet = lay_bai_viet($conn, $baiVietId);
-            $lopHocPhanId = (int)$baiViet['lop_hoc_phan_id'];
-        } elseif ($lopHocPhanId <= 0) {
-            respond("error", "Phải truyền bai_viet_id hoặc lop_hoc_phan_id");
+        if ($nguoiDungId <= 0) respond('error', 'ID người dùng không hợp lệ');
+        if ($noiDung === '') respond('error', 'Nội dung bình luận không được trống');
+        if (mb_strlen($noiDung) > 2000) {
+            respond('error', 'Nội dung quá dài (tối đa 2000 ký tự)');
         }
 
         $stmt = $conn->prepare("INSERT INTO binh_luan
             (noi_dung, nguoi_dung_id, lop_hoc_phan_id, bai_viet_id, trang_thai)
             VALUES (?, ?, ?, ?, 'hien_thi')");
-        $stmt->execute([
-            $noiDung,
-            $nguoiDungId,
-            $lopHocPhanId,
-            $baiVietId > 0 ? $baiVietId : null,
-        ]);
+        $stmt->execute([$noiDung, $nguoiDungId, $lopHocPhanId, $baiVietId]);
         $newId = (int)$conn->lastInsertId();
 
-        $stmt2 = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.nguoi_dung_id, bl.ngay_tao, bl.ngay_cap_nhat,
-                    nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
+        $stmt = $conn->prepare("SELECT bl.id, bl.noi_dung, bl.nguoi_dung_id,
+                   bl.ngay_tao, bl.ngay_cap_nhat,
+                   nd.ho_ten AS ten_nguoi_dung, vt.ten_vai_tro
             FROM binh_luan bl
-            JOIN nguoi_dung nd ON bl.nguoi_dung_id = nd.id
-            LEFT JOIN vai_tro vt ON nd.vai_tro_id = vt.id
+            JOIN nguoi_dung nd ON nd.id = bl.nguoi_dung_id
+            LEFT JOIN vai_tro vt ON vt.id = nd.vai_tro_id
             WHERE bl.id = ?");
-        $stmt2->execute([$newId]);
-        $bl = $stmt2->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute([$newId]);
 
-        respond("success", "Đăng bình luận thành công", ["data" => map_binh_luan($bl)]);
+        respond('success', 'Đăng bình luận bài viết thành công', [
+            'data' => map_binh_luan($stmt->fetch(PDO::FETCH_ASSOC)),
+        ]);
     }
 
     if ($action === "sua") {

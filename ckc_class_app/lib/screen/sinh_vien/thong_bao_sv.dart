@@ -19,24 +19,24 @@ class ThongBaoSVPage extends StatelessWidget {
           if (p.tbError != null) {
             return TrangLoi(
               loi: p.tbError!,
-              onTaiLai: () => p.layDanhSachThongBao(lopHocPhanId),
+              onTaiLai: () => p.layDanhSachBaiViet(lopHocPhanId),
             );
           }
-          if (p.dsThongBao.isEmpty) {
+          if (p.dsBaiViet.isEmpty) {
             return const TrangRong(
-              thongDiep: 'Chưa có thông báo',
+              thongDiep: 'Chưa có bài viết',
               icon: Icons.campaign_outlined,
             );
           }
 
           return RefreshIndicator(
-            onRefresh: () => p.layDanhSachThongBao(lopHocPhanId),
+            onRefresh: () => p.layDanhSachBaiViet(lopHocPhanId),
             child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-              itemCount: p.dsThongBao.length,
+              itemCount: p.dsBaiViet.length,
               itemBuilder: (_, i) {
-                final tb = p.dsThongBao[i];
+                final tb = p.dsBaiViet[i];
                 final first = i == 0;
                 return Material(
                   color: Colors.transparent,

@@ -34,7 +34,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<GiangVienProvider>().layDanhSachThongBao(widget.lop.id);
+      context.read<GiangVienProvider>().layDanhSachBaiViet(widget.lop.id);
     });
   }
 
@@ -56,8 +56,6 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
   }
 
   Widget _buildHeader(GiangVienProvider provider) {
-    final soHenGio = provider.dsThongBao.where((tb) => tb.daHenGio).length;
-
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       padding: const EdgeInsets.all(14),
@@ -82,7 +80,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
               color: const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.campaign_rounded, color: _primary),
+            child: const Icon(Icons.article_rounded, color: _primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -90,14 +88,12 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Bảng tin & thông báo',
+                  'Bảng tin & bài viết',
                   style: TextStyle(fontWeight: FontWeight.w900, color: _text),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  soHenGio > 0
-                      ? '${provider.dsThongBao.length} thông báo · $soHenGio hẹn gửi'
-                      : '${provider.dsThongBao.length} thông báo',
+                  '${provider.dsBaiViet.length} bài viết',
                   style: const TextStyle(
                     color: _muted,
                     fontSize: 12,
@@ -109,20 +105,20 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
           ),
           if (!widget.chiDoc)
             FilledButton.icon(
-            onPressed: provider.tbProcessing
+              onPressed: provider.tbProcessing
                 ? null
                 : () => _hienThiForm(provider),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Đăng'),
-            style: FilledButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Đăng'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -136,26 +132,26 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
     if (provider.tbError != null) {
       return TrangThaiLoi(
         loi: provider.tbError!,
-        onTaiLai: () => provider.layDanhSachThongBao(widget.lop.id),
+        onTaiLai: () => provider.layDanhSachBaiViet(widget.lop.id),
       );
     }
 
-    if (provider.dsThongBao.isEmpty) {
+    if (provider.dsBaiViet.isEmpty) {
       return TrangThaiRong(
-        thongDiep: 'Chưa có thông báo nào',
-        icon: Icons.campaign_outlined,
-        nhanNut: widget.chiDoc ? null : 'Đăng thông báo',
+        thongDiep: 'Chưa có bài viết nào',
+        icon: Icons.article_outlined,
+        nhanNut: widget.chiDoc ? null : 'Đăng bài viết',
         onNutNhan: widget.chiDoc ? null : () => _hienThiForm(provider),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => provider.layDanhSachThongBao(widget.lop.id),
+      onRefresh: () => provider.layDanhSachBaiViet(widget.lop.id),
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-        itemCount: provider.dsThongBao.length,
+        itemCount: provider.dsBaiViet.length,
         itemBuilder: (_, i) =>
-            _buildTheThongBao(provider.dsThongBao[i], provider),
+            _buildTheThongBao(provider.dsBaiViet[i], provider),
       ),
     );
   }
@@ -182,12 +178,8 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
   }
 
   Widget _buildTheThongBao(ThongBao tb, GiangVienProvider provider) {
-    final mauGui = tb.daHenGio
-        ? const Color(0xFFF97316)
-        : const Color(0xFF16A34A);
-    final iconGui = tb.daHenGio
-        ? Icons.schedule_send_rounded
-        : Icons.visibility_rounded;
+    const mauGui = Color(0xFF16A34A);
+    const iconGui = Icons.public_rounded;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -216,7 +208,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: const Icon(
-                      Icons.campaign_rounded,
+                      Icons.article_rounded,
                       color: Color(0xFF0D9488),
                     ),
                   ),
@@ -251,9 +243,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
-                                tb.thoiGianGui == null
-                                    ? 'Gửi ngay'
-                                    : '${tb.tenTrangThaiGui}: ${dinhDangNgayGio(tb.thoiGianGui)}',
+                                'Đã đăng lên bảng tin',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -269,7 +259,8 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (!widget.chiDoc) PopupMenuButton<String>(
+                  if (!widget.chiDoc)
+                    PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert_rounded),
                     onSelected: (v) {
                       if (v == 'sua') _hienThiForm(provider, thongBao: tb);
@@ -340,11 +331,6 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
                         : Icons.visibility_off_rounded,
                   ),
                   _TrangThaiBadge(
-                    text: tb.tenTrangThaiGui,
-                    color: mauGui,
-                    icon: iconGui,
-                  ),
-                  _TrangThaiBadge(
                     text: '${tb.soBinhLuan} bình luận',
                     color: _primary,
                     icon: Icons.comment_outlined,
@@ -370,25 +356,19 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
 
     if (data == null || !mounted) return;
 
-    final thoiGianGui = data['thoi_gian_gui'] is DateTime
-        ? data['thoi_gian_gui'] as DateTime
-        : null;
-
     final result = thongBao == null
-        ? await provider.themThongBao(
+        ? await provider.themBaiViet(
             tieuDe: data['tieu_de']?.toString() ?? '',
             lopHocPhanId: widget.lop.id,
             noiDung: data['noi_dung']?.toString() ?? '',
-            thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
             tepTinMoi: List<PlatformFile>.from(data['tep_tin_moi'] as List? ?? const []),
           )
-        : await provider.suaThongBao(
+        : await provider.suaBaiViet(
             id: thongBao.id,
             tieuDe: data['tieu_de']?.toString() ?? '',
             lopHocPhanId: widget.lop.id,
             noiDung: data['noi_dung']?.toString() ?? '',
-            thoiGianGui: thoiGianGui,
             trangThai: data['trang_thai']?.toString() ?? 'hien_thi',
             tepTinMoi: List<PlatformFile>.from(data['tep_tin_moi'] as List? ?? const []),
             tepTinXoa: List<int>.from(data['tep_tin_xoa'] as List? ?? const []),
@@ -412,11 +392,11 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         title: const Text(
-          'Xóa thông báo',
+          'Xóa bài viết',
           style: TextStyle(fontWeight: FontWeight.w900, color: _text),
         ),
         content: Text(
-          'Bạn có chắc muốn xóa thông báo "${tb.tieuDe}" không?\n\nThông báo sẽ được ẩn khỏi sinh viên nhưng dữ liệu vẫn được giữ lại.',
+          'Bạn có chắc muốn xóa bài viết "${tb.tieuDe}" không?\n\nBài viết sẽ được ẩn khỏi sinh viên nhưng dữ liệu vẫn được giữ lại.',
           style: const TextStyle(color: _muted, height: 1.4),
         ),
         actions: [
@@ -441,7 +421,7 @@ class _QuanLyThongBaoState extends State<QuanLyThongBao> {
 
     if (dongY != true || !mounted) return;
 
-    final result = await provider.xoaThongBao(tb.id, widget.lop.id);
+    final result = await provider.xoaBaiViet(tb.id, widget.lop.id);
 
     if (!mounted) return;
 
@@ -472,7 +452,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
   late final TextEditingController _noiDungCtrl;
 
   String _trangThai = 'hien_thi';
-  DateTime? _thoiGianGui;
   final List<PlatformFile> _tepTinMoi = [];
   final Set<int> _tepTinXoa = <int>{};
 
@@ -482,7 +461,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
     _tieuDeCtrl = TextEditingController(text: widget.thongBao?.tieuDe ?? '');
     _noiDungCtrl = TextEditingController(text: widget.thongBao?.noiDung ?? '');
     _trangThai = widget.thongBao?.trangThai ?? 'hien_thi';
-    _thoiGianGui = widget.thongBao?.thoiGianGui;
   }
 
   @override
@@ -490,28 +468,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
     _tieuDeCtrl.dispose();
     _noiDungCtrl.dispose();
     super.dispose();
-  }
-
-  Future<DateTime?> _chonNgayGio(DateTime? current) async {
-    final now = DateTime.now();
-    final initial = current ?? now.add(const Duration(minutes: 10));
-
-    final ngay = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
-    );
-
-    if (ngay == null || !mounted) return null;
-
-    final gio = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    if (gio == null) return null;
-
-    return DateTime(ngay.year, ngay.month, ngay.day, gio.hour, gio.minute);
   }
 
   Future<void> _chonTepTin() async {
@@ -638,7 +594,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
       'tieu_de': _tieuDeCtrl.text.trim(),
       'noi_dung': _noiDungCtrl.text.trim(),
       'trang_thai': _trangThai,
-      'thoi_gian_gui': _thoiGianGui,
       'tep_tin_moi': List<PlatformFile>.from(_tepTinMoi),
       'tep_tin_xoa': _tepTinXoa.toList(),
     });
@@ -668,8 +623,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
   @override
   Widget build(BuildContext context) {
     final laSua = widget.thongBao != null;
-    final dangHenGio =
-        _thoiGianGui != null && DateTime.now().isBefore(_thoiGianGui!);
 
     return AlertDialog(
       elevation: 0,
@@ -689,12 +642,12 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
               color: const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.campaign_rounded, color: _primary),
+            child: const Icon(Icons.article_rounded, color: _primary),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              laSua ? 'Cập nhật thông báo' : 'Đăng thông báo',
+              laSua ? 'Cập nhật bài viết' : 'Đăng bài viết',
               style: const TextStyle(fontWeight: FontWeight.w900, color: _text),
             ),
           ),
@@ -743,65 +696,12 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                         'Nội dung',
                         Icons.article_rounded,
                       ).copyWith(
-                        hintText: 'Nhập nội dung thông báo...',
+                        hintText: 'Nhập nội dung bài viết...',
                         alignLabelWithHint: true,
                       ),
                 ),
                 const SizedBox(height: 14),
                 _buildTepTinBox(),
-                const SizedBox(height: 14),
-                InputDecorator(
-                  decoration: _inputDecoration(
-                    'Thời gian gửi',
-                    Icons.schedule_send_rounded,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _thoiGianGui == null
-                            ? 'Gửi ngay'
-                            : '${dangHenGio ? 'Hẹn gửi' : 'Đã gửi'}: ${dinhDangNgayGio(_thoiGianGui)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: _thoiGianGui == null
-                              ? Colors.green.shade700
-                              : (dangHenGio
-                                    ? Colors.orange.shade700
-                                    : Colors.green.shade700),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () =>
-                                setState(() => _thoiGianGui = null),
-                            icon: const Icon(Icons.flash_on_rounded, size: 16),
-                            label: const Text('Gửi ngay'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              final picked = await _chonNgayGio(_thoiGianGui);
-                              if (picked != null && mounted) {
-                                setState(() => _thoiGianGui = picked);
-                              }
-                            },
-                            icon: const Icon(
-                              Icons.calendar_month_rounded,
-                              size: 16,
-                            ),
-                            label: Text(
-                              _thoiGianGui == null ? 'Hẹn giờ' : 'Đổi giờ',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   value: _trangThai,
@@ -818,11 +718,6 @@ class _ThongBaoFormDialogState extends State<_ThongBaoFormDialog> {
                   ],
                   onChanged: (v) =>
                       setState(() => _trangThai = v ?? 'hien_thi'),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Nếu chọn thời gian trong tương lai, sinh viên chỉ thấy thông báo khi đến giờ gửi.',
-                  style: TextStyle(fontSize: 12, color: _muted, height: 1.35),
                 ),
               ],
             ),

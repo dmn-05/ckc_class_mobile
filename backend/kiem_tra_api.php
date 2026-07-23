@@ -26,7 +26,7 @@ try {
     )->fetch(PDO::FETCH_ASSOC);
 
     $counts = [];
-    foreach (['nguoi_dung', 'lop_hoc_phan', 'bai_tap', 'thong_bao'] as $table) {
+    foreach (['nguoi_dung', 'lop_hoc_phan', 'bai_tap', 'bai_viet'] as $table) {
         $stmt = $conn->prepare(
             'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES '
             . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'

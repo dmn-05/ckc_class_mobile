@@ -69,10 +69,10 @@ try {
         JOIN lop_hoc_phan lhp ON tl.lop_hoc_phan_id=lhp.id
         WHERE $cond AND lhp.trang_thai='dang_mo' AND tl.trang_thai <> 'an'", $giangVienId, $hasMap);
 
-    $tongThongBao = (int)scalar_query($conn, "SELECT COUNT(*)
-        FROM thong_bao tb
-        JOIN lop_hoc_phan lhp ON tb.lop_hoc_phan_id=lhp.id
-        WHERE $cond AND lhp.trang_thai='dang_mo' AND tb.trang_thai <> 'an'", $giangVienId, $hasMap);
+    $tongBaiViet = (int)scalar_query($conn, "SELECT COUNT(*)
+        FROM bai_viet bv
+        JOIN lop_hoc_phan lhp ON bv.lop_hoc_phan_id=lhp.id
+        WHERE $cond AND lhp.trang_thai='dang_mo' AND bv.trang_thai <> 'an'", $giangVienId, $hasMap);
 
     $binhLuanMoi = (int)scalar_query($conn, "SELECT COUNT(*)
         FROM binh_luan bl
@@ -95,7 +95,7 @@ try {
             "tong_bai_tap"       => $tongBaiTap,
             "cho_cham"           => $chooCham,
             "tong_tai_lieu"      => $tongTaiLieu,
-            "tong_thong_bao"     => $tongThongBao,
+            "tong_bai_viet"       => $tongBaiViet,
             "binh_luan_moi"      => $binhLuanMoi,
             "diem_trung_binh"    => $diemTrungBinh !== false && $diemTrungBinh !== null ? (float)$diemTrungBinh : null,
         ]

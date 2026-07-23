@@ -44,10 +44,9 @@ try {
              WHERE bt.lop_hoc_phan_id = lhp.id
                AND bt.trang_thai = 'hien_thi'
                AND (bt.thoi_gian_gui IS NULL OR bt.thoi_gian_gui <= NOW())) AS so_bai_tap,
-            (SELECT COUNT(*) FROM thong_bao tb
-             WHERE tb.lop_hoc_phan_id = lhp.id
-               AND tb.trang_thai = 'hien_thi'
-               AND (tb.thoi_gian_gui IS NULL OR tb.thoi_gian_gui <= NOW())) AS so_thong_bao,
+            (SELECT COUNT(*) FROM bai_viet bv
+             WHERE bv.lop_hoc_phan_id = lhp.id
+               AND bv.trang_thai = 'hien_thi') AS so_bai_viet,
             (SELECT COUNT(*) FROM bai_nop bn
              JOIN bai_tap bt2 ON bn.bai_tap_id = bt2.id
              WHERE bt2.lop_hoc_phan_id = lhp.id
@@ -101,7 +100,7 @@ try {
         "ma_giang_vien"       => $r["ma_giang_vien"],
         "so_tai_lieu"         => (int)$r["so_tai_lieu"],
         "so_bai_tap"          => (int)$r["so_bai_tap"],
-        "so_thong_bao"        => (int)$r["so_thong_bao"],
+        "so_bai_viet"         => (int)$r["so_bai_viet"],
         "so_bai_da_nop"       => (int)$r["so_bai_da_nop"],
     ], $rows);
 

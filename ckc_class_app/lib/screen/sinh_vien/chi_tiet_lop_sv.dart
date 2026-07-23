@@ -45,7 +45,7 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final provider = context.read<SinhVienProvider>();
-      provider.layDanhSachThongBao(widget.lop.id);
+      provider.layDanhSachBaiViet(widget.lop.id);
       provider.layDanhSachBaiTap(widget.lop.id);
       provider.layThanhVienLop(widget.lop.id);
     });
@@ -60,7 +60,7 @@ class _ChiTietLopSVState extends State<ChiTietLopSV>
   Future<void> _taiLaiDuLieu() async {
     final provider = context.read<SinhVienProvider>();
     await Future.wait([
-      provider.layDanhSachThongBao(widget.lop.id),
+      provider.layDanhSachBaiViet(widget.lop.id),
       provider.layDanhSachBaiTap(widget.lop.id),
       provider.layThanhVienLop(widget.lop.id),
     ]);

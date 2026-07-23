@@ -326,8 +326,8 @@ class _DashboardGiangVienState extends State<DashboardGiangVien> {
               color: const Color(0xFF9333EA),
             ),
             _StatCard(
-              label: 'Thông báo',
-              value: '${tk.tongThongBao}',
+              label: 'Bài viết',
+              value: '${tk.tongBaiViet}',
               icon: Icons.campaign_rounded,
               color: const Color(0xFF0D9488),
             ),

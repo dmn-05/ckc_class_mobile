@@ -177,7 +177,7 @@ class LopHocPhanSVModel {
   final String? maGiangVien;
   final int soTaiLieu;
   final int soBaiTap;
-  final int soThongBao;
+  final int soBaiViet;
   final int soBaiDaNop;
 
   const LopHocPhanSVModel({
@@ -197,7 +197,7 @@ class LopHocPhanSVModel {
     this.maGiangVien,
     this.soTaiLieu = 0,
     this.soBaiTap = 0,
-    this.soThongBao = 0,
+    this.soBaiViet = 0,
     this.soBaiDaNop = 0,
   });
 
@@ -219,7 +219,7 @@ class LopHocPhanSVModel {
         maGiangVien: _toStr(j['ma_giang_vien']),
         soTaiLieu: _toInt(j['so_tai_lieu']) ?? 0,
         soBaiTap: _toInt(j['so_bai_tap']) ?? 0,
-        soThongBao: _toInt(j['so_thong_bao']) ?? 0,
+        soBaiViet: _toInt(j['so_bai_viet']) ?? 0,
         soBaiDaNop: _toInt(j['so_bai_da_nop']) ?? 0,
       );
 
@@ -228,6 +228,7 @@ class LopHocPhanSVModel {
   bool get isDaLuu => trangThai == 'da_khoa' || trangThai == 'da_ket_thuc';
   String get namHocHienThi => namHoc ?? 'Chưa cập nhật';
 }
+
 
 // ─── TÀI LIỆU (góc nhìn sinh viên) ───────────────────────────
 class TaiLieuSVModel {
@@ -318,48 +319,142 @@ class ThongBaoFileSVModel {
 }
 
 class ThongBaoSVModel {
+  // Model này đại diện trực tiếp cho một dòng trong bảng bai_viet.
   final int id;
-  final int? baiVietId;
+  final int baiVietId;
   final String tieuDe;
   final String? noiDung;
+  final String? hinhAnh;
+  final String? externalUrl;
+  final int? lopHocPhanId;
+  final int? chuDeId;
+  final String? tenChuDe;
+  final int? baiTapId;
+  final int? nguoiTaoId;
   final String? tenNguoiTao;
+  final String? avatarNguoiTao;
+  final String? tenVaiTro;
+  final String loaiBaiViet;
+  final String loaiTaiNguyen;
+  final String trangThai;
   final DateTime? ngayTao;
   final DateTime? ngayCapNhat;
+  final double? diemToiDa;
+  final DateTime? hanNop;
+  final bool choPhepNopTre;
+  final int tylePhatTre;
+  final int luotXem;
+  final String? loaiBaiTap;
+  final String? huongDanBaiTap;
+  final String? moTaBaiTap;
+  final int? soFileToiDa;
+  final int? dungLuongToiDaMb;
   final int soBinhLuan;
   final List<ThongBaoFileSVModel> files;
 
   const ThongBaoSVModel({
     required this.id,
-    this.baiVietId,
+    required this.baiVietId,
     required this.tieuDe,
     this.noiDung,
+    this.hinhAnh,
+    this.externalUrl,
+    this.lopHocPhanId,
+    this.chuDeId,
+    this.tenChuDe,
+    this.baiTapId,
+    this.nguoiTaoId,
     this.tenNguoiTao,
+    this.avatarNguoiTao,
+    this.tenVaiTro,
+    this.loaiBaiViet = 'bai_viet',
+    this.loaiTaiNguyen = 'document',
+    this.trangThai = 'hien_thi',
     this.ngayTao,
     this.ngayCapNhat,
+    this.diemToiDa,
+    this.hanNop,
+    this.choPhepNopTre = false,
+    this.tylePhatTre = 10,
+    this.luotXem = 0,
+    this.loaiBaiTap,
+    this.huongDanBaiTap,
+    this.moTaBaiTap,
+    this.soFileToiDa,
+    this.dungLuongToiDaMb,
     this.soBinhLuan = 0,
     this.files = const [],
   });
 
-  factory ThongBaoSVModel.fromJson(Map<String, dynamic> j) => ThongBaoSVModel(
-    id: _toInt(j['id']) ?? 0,
-    baiVietId: _toInt(j['bai_viet_id']),
-    tieuDe: j['tieu_de']?.toString() ?? '',
-    noiDung: _toStr(j['noi_dung']),
-    tenNguoiTao: _toStr(j['ten_nguoi_tao']),
-    ngayTao: _toDateTime(j['ngay_tao']),
-    ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
-    soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
-    files: (j['files'] is List)
-        ? (j['files'] as List)
-              .map(
-                (e) => ThongBaoFileSVModel.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
-              )
-              .where((e) => e.duongDan.trim().isNotEmpty)
-              .toList()
-        : const [],
-  );
+  factory ThongBaoSVModel.fromJson(Map<String, dynamic> j) {
+    final id = _toInt(j['id']) ?? _toInt(j['bai_viet_id']) ?? 0;
+    return ThongBaoSVModel(
+      id: id,
+      baiVietId: _toInt(j['bai_viet_id']) ?? id,
+      tieuDe: j['tieu_de']?.toString() ?? '',
+      noiDung: _toStr(j['noi_dung']),
+      hinhAnh: _toStr(j['hinh_anh']),
+      externalUrl: _toStr(j['external_url']),
+      lopHocPhanId: _toInt(j['lop_hoc_phan_id']),
+      chuDeId: _toInt(j['chu_de_id']),
+      tenChuDe: _toStr(j['ten_chu_de']),
+      baiTapId: _toInt(j['bai_tap_id']),
+      nguoiTaoId: _toInt(j['nguoi_tao_id']),
+      tenNguoiTao: _toStr(j['ten_nguoi_tao']),
+      avatarNguoiTao: _toStr(j['avatar_nguoi_tao']),
+      tenVaiTro: _toStr(j['ten_vai_tro']),
+      loaiBaiViet: _toStr(j['loai_bai_viet']) ?? 'bai_viet',
+      loaiTaiNguyen: _toStr(j['loai_tai_nguyen']) ?? 'document',
+      trangThai: _toStr(j['trang_thai']) ?? 'hien_thi',
+      ngayTao: _toDateTime(j['ngay_tao']),
+      ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
+      diemToiDa: _toDouble(j['diem_toi_da']),
+      hanNop: _toDateTime(j['han_nop']),
+      choPhepNopTre: _toBool(j['cho_phep_nop_tre']),
+      tylePhatTre: _toInt(j['tyle_phat_tre']) ?? 10,
+      luotXem: _toInt(j['luot_xem']) ?? 0,
+      loaiBaiTap: _toStr(j['loai_bai_tap']),
+      huongDanBaiTap: _toStr(j['huong_dan_bai_tap']),
+      moTaBaiTap: _toStr(j['mo_ta_bai_tap']),
+      soFileToiDa: _toInt(j['so_file_toi_da']),
+      dungLuongToiDaMb: _toInt(j['dung_luong_toi_da_mb']),
+      soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
+      files: (j['files'] is List)
+          ? (j['files'] as List)
+                .map(
+                  (e) => ThongBaoFileSVModel.fromJson(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
+                .where((e) => e.duongDan.trim().isNotEmpty)
+                .toList()
+          : const [],
+    );
+  }
+
+  bool get laBaiTap => loaiBaiViet == 'bai_tap';
+  bool get laTaiLieu => loaiBaiViet == 'tai_lieu';
+
+  String get tenLoaiBaiViet => switch (loaiBaiViet) {
+    'bai_tap' => 'Bài tập',
+    'tai_lieu' => 'Tài liệu',
+    'thong_bao' => 'Bài viết',
+    _ => 'Bài viết',
+  };
+
+  String get tenLoaiTaiNguyen => switch (loaiTaiNguyen) {
+    'video' => 'Video',
+    'link' => 'Liên kết',
+    'image' => 'Hình ảnh',
+    'other' => 'Khác',
+    _ => 'Tài liệu',
+  };
+
+  String get tenLoaiBaiTap => switch (loaiBaiTap ?? '') {
+    'quiz' => 'Trắc nghiệm',
+    'nop_file' => 'Nộp file',
+    _ => loaiBaiTap?.trim().isNotEmpty == true ? loaiBaiTap! : 'Bài tập',
+  };
 }
 
 // ─── FILE ĐÃ NỘP CỦA SINH VIÊN ─────────────────────────────

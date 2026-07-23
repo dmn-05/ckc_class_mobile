@@ -39,7 +39,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
           );
         }
 
-        final thongBao = [...provider.dsThongBao]
+        final baiViet = [...provider.dsBaiViet]
           ..sort((a, b) {
             final da = a.ngayTao ?? DateTime(2000);
             final db = b.ngayTao ?? DateTime(2000);
@@ -51,7 +51,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
           child: RefreshIndicator(
             onRefresh:
                 widget.onRefresh ??
-                () => provider.layDanhSachThongBao(widget.lop.id),
+                () => provider.layDanhSachBaiViet(widget.lop.id),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 26),
               children: [
@@ -63,7 +63,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Thông báo mới nhất',
+                        'Bài viết mới nhất',
                         style: TextStyle(
                           color: _text,
                           fontSize: 18,
@@ -82,7 +82,7 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
-                        '${thongBao.length} thông báo',
+                        '${baiViet.length} bài viết',
                         style: const TextStyle(
                           color: _primary,
                           fontWeight: FontWeight.w800,
@@ -93,13 +93,13 @@ class _BangTinSVPageState extends State<BangTinSVPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                if (thongBao.isEmpty)
+                if (baiViet.isEmpty)
                   const TrangRong(
-                    thongDiep: 'Chưa có thông báo nào',
+                    thongDiep: 'Chưa có bài viết nào',
                     icon: Icons.forum_outlined,
                   )
                 else
-                  ...thongBao.map(
+                  ...baiViet.map(
                     (item) => _CardThongBaoBangTin(
                       thongBao: item,
                       chiDoc: widget.chiDoc,
@@ -145,7 +145,7 @@ class _OThongBaoMoi extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Theo dõi các thông báo mới từ giảng viên trong lớp học.',
+              'Theo dõi bài viết, tài liệu và bài tập mới trong lớp học.',
               style: TextStyle(color: Colors.grey.shade700, height: 1.35),
             ),
           ),
@@ -158,7 +158,7 @@ class _OThongBaoMoi extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
-              Icons.notifications_active_rounded,
+              Icons.dynamic_feed_rounded,
               color: _primary,
               size: 20,
             ),
@@ -234,9 +234,15 @@ class _CardThongBaoBangTin extends StatelessWidget {
                     ),
                   ),
                   _TypeBadge(
-                    label: 'Thông báo',
-                    icon: Icons.campaign_rounded,
-                    color: Colors.green,
+                    label: thongBao.tenLoaiBaiViet,
+                    icon: thongBao.laBaiTap
+                        ? Icons.assignment_rounded
+                        : (thongBao.laTaiLieu
+                              ? Icons.folder_copy_rounded
+                              : Icons.article_rounded),
+                    color: thongBao.laBaiTap
+                        ? Colors.orange
+                        : (thongBao.laTaiLieu ? Colors.purple : Colors.blue),
                   ),
                 ],
               ),
@@ -254,9 +260,54 @@ class _CardThongBaoBangTin extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   thongBao.noiDung!,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Color(0xFF334155), height: 1.4),
                 ),
               ],
+              if ((thongBao.hinhAnh ?? '').isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      thongBao.hinhAnh!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: const Color(0xFFF1F5F9),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          color: _muted,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                children: [
+                  _MetaBaiViet(
+                    icon: Icons.comment_outlined,
+                    text: '${thongBao.soBinhLuan} bình luận',
+                  ),
+                  if (thongBao.files.isNotEmpty)
+                    _MetaBaiViet(
+                      icon: Icons.attach_file_rounded,
+                      text: '${thongBao.files.length} file',
+                    ),
+                  if (thongBao.hanNop != null)
+                    _MetaBaiViet(
+                      icon: Icons.event_rounded,
+                      text: 'Hạn ${dinhDangNgayGio(thongBao.hanNop)}',
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -266,6 +317,32 @@ class _CardThongBaoBangTin extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
+
+class _MetaBaiViet extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MetaBaiViet({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: _muted),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            color: _muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _TypeBadge extends StatelessWidget {
   final String label;

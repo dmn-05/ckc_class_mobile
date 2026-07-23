@@ -413,7 +413,6 @@ class GiangVienProvider extends ChangeNotifier {
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
   }) async {
     _btProcessing = true;
@@ -437,7 +436,6 @@ class GiangVienProvider extends ChangeNotifier {
         choPhepNopMuon: choPhepNopMuon,
         diemToiDa: diemToiDa,
         trangThai: trangThai,
-        thoiGianGui: thoiGianGui,
         tepTinMoi: tepTinMoi,
       );
 
@@ -469,7 +467,6 @@ class GiangVienProvider extends ChangeNotifier {
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
     List<int> tepTinXoa = const [],
   }) async {
@@ -493,7 +490,6 @@ class GiangVienProvider extends ChangeNotifier {
         choPhepNopMuon: choPhepNopMuon,
         diemToiDa: diemToiDa,
         trangThai: trangThai,
-        thoiGianGui: thoiGianGui,
         tepTinMoi: tepTinMoi,
         tepTinXoa: tepTinXoa,
         nguoiTaoId: _nguoiDungId,
@@ -616,18 +612,18 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
-  // ─── THÔNG BÁO ────────────────────────────────────────────
-  List<ThongBao> _dsThongBao = [];
+  // ─── BÀI VIẾT BẢNG TIN ─────────────────────────────────────
+  List<ThongBao> _dsBaiViet = [];
   bool _tbLoading = false;
   bool _tbProcessing = false;
   String? _tbError;
 
-  List<ThongBao> get dsThongBao => _dsThongBao;
+  List<ThongBao> get dsBaiViet => _dsBaiViet;
   bool get tbLoading => _tbLoading;
   bool get tbProcessing => _tbProcessing;
   String? get tbError => _tbError;
 
-  Future<void> layDanhSachThongBao(
+  Future<void> layDanhSachBaiViet(
     int lopHocPhanId, {
     String trangThai = '',
   }) async {
@@ -635,7 +631,7 @@ class GiangVienProvider extends ChangeNotifier {
     _tbError = null;
     notifyListeners();
     try {
-      _dsThongBao = await _service.layDanhSachThongBao(
+      _dsBaiViet = await _service.layDanhSachBaiViet(
         lopHocPhanId: lopHocPhanId,
         trangThai: trangThai,
       );
@@ -647,27 +643,25 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> themThongBao({
+  Future<Map<String, dynamic>> themBaiViet({
     required String tieuDe,
     required int lopHocPhanId,
     String noiDung = '',
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
     try {
-      final msg = await _service.themThongBao(
+      final msg = await _service.themBaiViet(
         tieuDe: tieuDe,
         lopHocPhanId: lopHocPhanId,
         nguoiTaoId: _nguoiDungId,
         noiDung: noiDung,
         trangThai: trangThai,
-        thoiGianGui: thoiGianGui,
         tepTinMoi: tepTinMoi,
       );
-      await layDanhSachThongBao(lopHocPhanId);
+      await layDanhSachBaiViet(lopHocPhanId);
       return {'success': true, 'message': msg};
     } catch (e) {
       return {'success': false, 'message': _xuLyLoi(e)};
@@ -677,30 +671,28 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> suaThongBao({
+  Future<Map<String, dynamic>> suaBaiViet({
     required int id,
     required String tieuDe,
     required int lopHocPhanId,
     String noiDung = '',
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
     List<int> tepTinXoa = const [],
   }) async {
     _tbProcessing = true;
     notifyListeners();
     try {
-      final msg = await _service.suaThongBao(
+      final msg = await _service.suaBaiViet(
         id: id,
         tieuDe: tieuDe,
         noiDung: noiDung,
         trangThai: trangThai,
-        thoiGianGui: thoiGianGui,
         tepTinMoi: tepTinMoi,
         tepTinXoa: tepTinXoa,
         nguoiTaoId: _nguoiDungId,
       );
-      await layDanhSachThongBao(lopHocPhanId);
+      await layDanhSachBaiViet(lopHocPhanId);
       return {'success': true, 'message': msg};
     } catch (e) {
       return {'success': false, 'message': _xuLyLoi(e)};
@@ -710,12 +702,12 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> xoaThongBao(int id, int lopHocPhanId) async {
+  Future<Map<String, dynamic>> xoaBaiViet(int id, int lopHocPhanId) async {
     _tbProcessing = true;
     notifyListeners();
     try {
-      final msg = await _service.xoaThongBao(id);
-      await layDanhSachThongBao(lopHocPhanId);
+      final msg = await _service.xoaBaiViet(id);
+      await layDanhSachBaiViet(lopHocPhanId);
       return {'success': true, 'message': msg};
     } catch (e) {
       return {'success': false, 'message': _xuLyLoi(e)};
@@ -725,40 +717,40 @@ class GiangVienProvider extends ChangeNotifier {
     }
   }
 
-  // ─── BÌNH LUẬN THÔNG BÁO ─────────────────────────────────
-  List<BinhLuanModel> _dsBinhLuanThongBao = [];
-  bool _blThongBaoLoading = false;
-  bool _blThongBaoProcessing = false;
-  String? _blThongBaoError;
+  // ─── BÌNH LUẬN BÀI VIẾT ───────────────────────────────────
+  List<BinhLuanModel> _dsBinhLuanBaiViet = [];
+  bool _blBaiVietLoading = false;
+  bool _blBaiVietProcessing = false;
+  String? _blBaiVietError;
 
-  List<BinhLuanModel> get dsBinhLuanThongBao => _dsBinhLuanThongBao;
-  bool get blThongBaoLoading => _blThongBaoLoading;
-  bool get blThongBaoProcessing => _blThongBaoProcessing;
-  String? get blThongBaoError => _blThongBaoError;
+  List<BinhLuanModel> get dsBinhLuanBaiViet => _dsBinhLuanBaiViet;
+  bool get blBaiVietLoading => _blBaiVietLoading;
+  bool get blBaiVietProcessing => _blBaiVietProcessing;
+  String? get blBaiVietError => _blBaiVietError;
 
-  Future<void> layDanhSachBinhLuanThongBao(int baiVietId) async {
+  Future<void> layDanhSachBinhLuanBaiViet(int baiVietId) async {
     if (baiVietId <= 0) {
-      _dsBinhLuanThongBao = [];
-      _blThongBaoError = 'Thông báo chưa được liên kết với bài viết';
+      _dsBinhLuanBaiViet = [];
+      _blBaiVietError = 'ID bài viết không hợp lệ';
       notifyListeners();
       return;
     }
 
-    _blThongBaoLoading = true;
-    _blThongBaoError = null;
+    _blBaiVietLoading = true;
+    _blBaiVietError = null;
     notifyListeners();
     try {
-      _dsBinhLuanThongBao =
-          await _service.layDanhSachBinhLuanThongBao(baiVietId);
+      _dsBinhLuanBaiViet =
+          await _service.layDanhSachBinhLuanBaiViet(baiVietId);
     } catch (e) {
-      _blThongBaoError = _xuLyLoi(e);
+      _blBaiVietError = _xuLyLoi(e);
     } finally {
-      _blThongBaoLoading = false;
+      _blBaiVietLoading = false;
       notifyListeners();
     }
   }
 
-  Future<Map<String, dynamic>> dangBinhLuanThongBao({
+  Future<Map<String, dynamic>> dangBinhLuanBaiViet({
     required int baiVietId,
     required String noiDung,
   }) async {
@@ -768,25 +760,25 @@ class GiangVienProvider extends ChangeNotifier {
     if (baiVietId <= 0) {
       return {
         'success': false,
-        'message': 'Thông báo chưa được liên kết với bài viết',
+        'message': 'ID bài viết không hợp lệ',
       };
     }
 
-    _blThongBaoProcessing = true;
+    _blBaiVietProcessing = true;
     notifyListeners();
     try {
-      final binhLuan = await _service.dangBinhLuanThongBao(
+      final binhLuan = await _service.dangBinhLuanBaiViet(
         nguoiDungId: _nguoiDungId,
         baiVietId: baiVietId,
         noiDung: noiDung,
       );
-      _dsBinhLuanThongBao.add(binhLuan);
+      _dsBinhLuanBaiViet.add(binhLuan);
       notifyListeners();
       return {'success': true, 'message': 'Đăng bình luận thành công'};
     } catch (e) {
       return {'success': false, 'message': _xuLyLoi(e)};
     } finally {
-      _blThongBaoProcessing = false;
+      _blBaiVietProcessing = false;
       notifyListeners();
     }
   }
@@ -948,15 +940,15 @@ class GiangVienProvider extends ChangeNotifier {
     _bnError = null;
     _baiTapDangXem = null;
 
-    _dsThongBao = [];
+    _dsBaiViet = [];
     _tbLoading = false;
     _tbProcessing = false;
     _tbError = null;
 
-    _dsBinhLuanThongBao = [];
-    _blThongBaoLoading = false;
-    _blThongBaoProcessing = false;
-    _blThongBaoError = null;
+    _dsBinhLuanBaiViet = [];
+    _blBaiVietLoading = false;
+    _blBaiVietProcessing = false;
+    _blBaiVietError = null;
 
     _thongKe = null;
     _tkLoading = false;

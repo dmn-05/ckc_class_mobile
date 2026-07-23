@@ -353,7 +353,7 @@ class BaiTap {
     soCauHoi: _toInt(j['so_cau_hoi']) ?? 0,
     chuDeId: _toInt(j["chu_de_id"]),
     tenChuDe: _toStr(j["ten_chu_de"]),
-    thoiGianGui: _toDateTime(j['thoi_gian_gui']),
+    thoiGianGui: null,
   );
 
   bool get isDangMo => trangThai == 'hien_thi';
@@ -400,17 +400,9 @@ class BaiTap {
     return DateTime.now().isAfter(hanNop!);
   }
 
-  bool get daHenGio {
-    if (thoiGianGui == null) return false;
-    return DateTime.now().isBefore(thoiGianGui!);
-  }
-
-  bool get daGui {
-    if (thoiGianGui == null) return true;
-    return !DateTime.now().isBefore(thoiGianGui!);
-  }
-
-  String get tenTrangThaiGui => daHenGio ? 'Hẹn gửi' : 'Đã gửi';
+  bool get daHenGio => false;
+  bool get daGui => true;
+  String get tenTrangThaiGui => 'Đã đăng';
 }
 
 // ─── FILE BÀI NỘP ────────────────────────────────────────
@@ -545,7 +537,7 @@ class BaiNop {
   };
 }
 
-// ─── THÔNG BÁO ────────────────────────────────────────────
+// ─── BÀI VIẾT BẢNG TIN ─────────────────────────────────────
 class ThongBao {
   final int id;
   final int? baiVietId;
@@ -579,7 +571,7 @@ class ThongBao {
 
   factory ThongBao.fromJson(Map<String, dynamic> j) => ThongBao(
     id: _toInt(j['id']) ?? 0,
-    baiVietId: _toInt(j['bai_viet_id']),
+    baiVietId: _toInt(j['bai_viet_id']) ?? _toInt(j['id']),
     tieuDe: j['tieu_de']?.toString() ?? '',
     noiDung: _toStr(j['noi_dung']),
     lopHocPhanId: _toInt(j['lop_hoc_phan_id']) ?? 0,
@@ -589,7 +581,7 @@ class ThongBao {
     ngayTao: _toDateTime(j['ngay_tao']),
     ngayCapNhat: _toDateTime(j['ngay_cap_nhat']),
     soBinhLuan: _toInt(j['so_binh_luan']) ?? 0,
-    thoiGianGui: _toDateTime(j['thoi_gian_gui']),
+    thoiGianGui: null,
     files: (j['files'] is List)
         ? (j['files'] as List)
               .map((e) => TepTinDinhKem.fromJson(Map<String, dynamic>.from(e)))
@@ -599,17 +591,9 @@ class ThongBao {
   );
 
   bool get isHienThi => trangThai == 'hien_thi';
-  bool get daHenGio {
-    if (thoiGianGui == null) return false;
-    return DateTime.now().isBefore(thoiGianGui!);
-  }
-
-  bool get daGui {
-    if (thoiGianGui == null) return true;
-    return !DateTime.now().isBefore(thoiGianGui!);
-  }
-
-  String get tenTrangThaiGui => daHenGio ? 'Hẹn gửi' : 'Đã gửi';
+  bool get daHenGio => false;
+  bool get daGui => true;
+  String get tenTrangThaiGui => 'Đã đăng';
 }
 
 // ─── THỐNG KÊ ─────────────────────────────────────────────
@@ -620,7 +604,7 @@ class ThongKeGiangVien {
   final int tongBaiTap;
   final int chooCham;
   final int tongTaiLieu;
-  final int tongThongBao;
+  final int tongBaiViet;
   final int binhLuanMoi;
   final double? diemTrungBinh;
 
@@ -631,7 +615,7 @@ class ThongKeGiangVien {
     this.tongBaiTap = 0,
     this.chooCham = 0,
     this.tongTaiLieu = 0,
-    this.tongThongBao = 0,
+    this.tongBaiViet = 0,
     this.binhLuanMoi = 0,
     this.diemTrungBinh,
   });
@@ -643,7 +627,7 @@ class ThongKeGiangVien {
     tongBaiTap: _toInt(j['tong_bai_tap']) ?? 0,
     chooCham: _toInt(j['cho_cham']) ?? 0,
     tongTaiLieu: _toInt(j['tong_tai_lieu']) ?? 0,
-    tongThongBao: _toInt(j['tong_thong_bao']) ?? 0,
+    tongBaiViet: _toInt(j['tong_bai_viet']) ?? 0,
     binhLuanMoi: _toInt(j['binh_luan_moi']) ?? 0,
     diemTrungBinh: _toDouble(j['diem_trung_binh']),
   );

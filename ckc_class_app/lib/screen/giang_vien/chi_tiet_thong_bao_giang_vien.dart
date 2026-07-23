@@ -44,7 +44,7 @@ class _ChiTietThongBaoGiangVienState
       if (!mounted) return;
       context
           .read<GiangVienProvider>()
-          .layDanhSachBinhLuanThongBao(widget.thongBao.baiVietId ?? 0);
+          .layDanhSachBinhLuanBaiViet(widget.thongBao.id);
     });
   }
 
@@ -58,8 +58,8 @@ class _ChiTietThongBaoGiangVienState
     final noiDung = _commentCtrl.text.trim();
     if (noiDung.isEmpty) return;
 
-    final result = await provider.dangBinhLuanThongBao(
-      baiVietId: widget.thongBao.baiVietId ?? 0,
+    final result = await provider.dangBinhLuanBaiViet(
+      baiVietId: widget.thongBao.id,
       noiDung: noiDung,
     );
     if (!mounted) return;
@@ -82,18 +82,12 @@ class _ChiTietThongBaoGiangVienState
   Widget build(BuildContext context) {
     final lop = widget.lop;
     final thongBao = widget.thongBao;
-    final guiColor = thongBao.daHenGio
-        ? const Color(0xFFF97316)
-        : const Color(0xFF16A34A);
-    final guiIcon = thongBao.daHenGio
-        ? Icons.schedule_send_rounded
-        : Icons.visibility_rounded;
 
     return Consumer<GiangVienProvider>(
       builder: (context, provider, _) {
-        final soBinhLuan = provider.blThongBaoLoading
+        final soBinhLuan = provider.blBaiVietLoading
             ? thongBao.soBinhLuan
-            : provider.dsBinhLuanThongBao.length;
+            : provider.dsBinhLuanBaiViet.length;
 
         return Scaffold(
           backgroundColor: _bg,
@@ -104,7 +98,7 @@ class _ChiTietThongBaoGiangVienState
             surfaceTintColor: Colors.white,
             foregroundColor: _text,
             title: const Text(
-              'Chi tiết thông báo',
+              'Chi tiết bài viết',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
             actions: [
@@ -200,7 +194,7 @@ class _ChiTietThongBaoGiangVienState
                 ),
           body: RefreshIndicator(
             onRefresh: () =>
-                provider.layDanhSachBinhLuanThongBao(thongBao.baiVietId ?? 0),
+                provider.layDanhSachBinhLuanBaiViet(thongBao.id),
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -244,7 +238,7 @@ class _ChiTietThongBaoGiangVienState
                               ),
                             ),
                             child: const Icon(
-                              Icons.campaign_rounded,
+                              Icons.article_rounded,
                               color: Colors.white,
                               size: 30,
                             ),
@@ -289,8 +283,8 @@ class _ChiTietThongBaoGiangVienState
                             text: thongBao.isHienThi ? 'Hiển thị' : 'Ẩn',
                           ),
                           _WhiteChip(
-                            icon: guiIcon,
-                            text: thongBao.tenTrangThaiGui,
+                            icon: Icons.public_rounded,
+                            text: 'Đã đăng',
                           ),
                           _WhiteChip(
                             icon: Icons.comment_outlined,
@@ -303,13 +297,13 @@ class _ChiTietThongBaoGiangVienState
                 ),
                 const SizedBox(height: 14),
                 _SectionCard(
-                  title: 'Nội dung thông báo',
+                  title: 'Nội dung bài viết',
                   icon: Icons.article_rounded,
                   children: [
                     Text(
                       (thongBao.noiDung == null ||
                               thongBao.noiDung!.trim().isEmpty)
-                          ? 'Thông báo này chưa có nội dung chi tiết.'
+                          ? 'Bài viết này chưa có nội dung chi tiết.'
                           : thongBao.noiDung!,
                       style: const TextStyle(
                         color: _text,
@@ -366,17 +360,9 @@ class _ChiTietThongBaoGiangVienState
                 ],
                 const SizedBox(height: 14),
                 _SectionCard(
-                  title: 'Thông tin gửi',
-                  icon: Icons.schedule_rounded,
+                  title: 'Thông tin bài viết',
+                  icon: Icons.article_outlined,
                   children: [
-                    _InfoRow(
-                      icon: guiIcon,
-                      label: 'Trạng thái gửi',
-                      value: thongBao.thoiGianGui == null
-                          ? 'Gửi ngay'
-                          : '${thongBao.tenTrangThaiGui}: ${dinhDangNgayGio(thongBao.thoiGianGui)}',
-                      color: guiColor,
-                    ),
                     _InfoRow(
                       icon: thongBao.isHienThi
                           ? Icons.visibility_rounded
@@ -416,23 +402,23 @@ class _ChiTietThongBaoGiangVienState
                 ),
                 const SizedBox(height: 14),
                 _SectionCard(
-                  title: 'Bình luận về thông báo',
+                  title: 'Bình luận bài viết',
                   icon: Icons.forum_rounded,
                   children: [
-                    if (provider.blThongBaoLoading)
+                    if (provider.blBaiVietLoading)
                       const Padding(
                         padding: EdgeInsets.all(18),
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    else if (provider.blThongBaoError != null)
+                    else if (provider.blBaiVietError != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Text(
-                          provider.blThongBaoError!,
+                          provider.blBaiVietError!,
                           style: const TextStyle(color: Colors.red),
                         ),
                       )
-                    else if (provider.dsBinhLuanThongBao.isEmpty)
+                    else if (provider.dsBinhLuanBaiViet.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 10),
                         child: Text(
@@ -441,7 +427,7 @@ class _ChiTietThongBaoGiangVienState
                         ),
                       )
                     else
-                      ...provider.dsBinhLuanThongBao.map(
+                      ...provider.dsBinhLuanBaiViet.map(
                         (binhLuan) => _CommentTileGV(binhLuan: binhLuan),
                       ),
                     if (_chiDoc)
@@ -487,7 +473,7 @@ class _ChiTietThongBaoGiangVienState
                           ),
                           const SizedBox(width: 10),
                           FilledButton(
-                            onPressed: provider.blThongBaoProcessing
+                            onPressed: provider.blBaiVietProcessing
                                 ? null
                                 : () => _guiBinhLuan(provider),
                             style: FilledButton.styleFrom(
@@ -498,7 +484,7 @@ class _ChiTietThongBaoGiangVienState
                                 borderRadius: BorderRadius.circular(18),
                               ),
                             ),
-                            child: provider.blThongBaoProcessing
+                            child: provider.blBaiVietProcessing
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,

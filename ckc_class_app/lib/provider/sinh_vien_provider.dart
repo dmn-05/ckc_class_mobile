@@ -164,21 +164,21 @@ class SinhVienProvider extends ChangeNotifier {
     }
   }
 
-  // ─── THÔNG BÁO ────────────────────────────────────────────────
-  List<ThongBaoSVModel> _dsThongBao = [];
+  // ─── BÀI VIẾT BẢNG TIN ────────────────────────────────────────
+  List<ThongBaoSVModel> _dsBaiViet = [];
   bool _tbLoading = false;
   String? _tbError;
 
-  List<ThongBaoSVModel> get dsThongBao => _dsThongBao;
+  List<ThongBaoSVModel> get dsBaiViet => _dsBaiViet;
   bool get tbLoading => _tbLoading;
   String? get tbError => _tbError;
 
-  Future<void> layDanhSachThongBao(int lopHocPhanId) async {
+  Future<void> layDanhSachBaiViet(int lopHocPhanId) async {
     _tbLoading = true;
     _tbError = null;
     notifyListeners();
     try {
-      _dsThongBao = await _service.layDanhSachThongBao(lopHocPhanId);
+      _dsBaiViet = await _service.layDanhSachBaiViet(lopHocPhanId);
     } catch (e) {
       _tbError = _err(e);
     } finally {
@@ -186,6 +186,7 @@ class SinhVienProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   // ─── BÀI TẬP ─────────────────────────────────────────────────
   List<BaiTapSVModel> _dsBaiTap = [];
@@ -364,10 +365,10 @@ class SinhVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> layDanhSachBinhLuanThongBao(int baiVietId) async {
+  Future<void> layDanhSachBinhLuanBaiViet(int baiVietId) async {
     if (baiVietId <= 0) {
       _dsBinhLuan = [];
-      _blError = 'Thông báo chưa được liên kết với bài viết';
+      _blError = 'ID bài viết không hợp lệ';
       notifyListeners();
       return;
     }
@@ -376,7 +377,7 @@ class SinhVienProvider extends ChangeNotifier {
     _blError = null;
     notifyListeners();
     try {
-      _dsBinhLuan = await _service.layDanhSachBinhLuanThongBao(baiVietId);
+      _dsBinhLuan = await _service.layDanhSachBinhLuanBaiViet(baiVietId);
     } catch (e) {
       _blError = _err(e);
     } finally {
@@ -385,21 +386,21 @@ class SinhVienProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> dangBinhLuanThongBao({
+  Future<Map<String, dynamic>> dangBinhLuanBaiViet({
     required int baiVietId,
     required String noiDung,
   }) async {
     if (baiVietId <= 0) {
       return {
         'success': false,
-        'message': 'Thông báo chưa được liên kết với bài viết',
+        'message': 'ID bài viết không hợp lệ',
       };
     }
 
     _blProcessing = true;
     notifyListeners();
     try {
-      final bl = await _service.dangBinhLuanThongBao(
+      final bl = await _service.dangBinhLuanBaiViet(
         nguoiDungId: _nguoiDungId,
         baiVietId: baiVietId,
         noiDung: noiDung,
@@ -408,7 +409,7 @@ class SinhVienProvider extends ChangeNotifier {
       notifyListeners();
       return {
         'success': true,
-        'message': 'Đăng bình luận thông báo thành công',
+        'message': 'Đăng bình luận bài viết thành công',
       };
     } catch (e) {
       return {'success': false, 'message': _err(e)};
@@ -622,7 +623,7 @@ class SinhVienProvider extends ChangeNotifier {
     _tlLoading = false;
     _tlError = null;
 
-    _dsThongBao = [];
+    _dsBaiViet = [];
     _tbLoading = false;
     _tbError = null;
 

@@ -71,13 +71,6 @@ if (!function_exists('ckc_lhp_id_from_quiz')) {
     }
 }
 
-if (!function_exists('ckc_lhp_id_from_thong_bao')) {
-    function ckc_lhp_id_from_thong_bao(PDO $conn, int $id): int
-    {
-        return ckc_lhp_id_from_query($conn, 'SELECT lop_hoc_phan_id FROM thong_bao WHERE id = ? LIMIT 1', $id);
-    }
-}
-
 if (!function_exists('ckc_lhp_id_from_tai_lieu')) {
     function ckc_lhp_id_from_tai_lieu(PDO $conn, int $id): int
     {
@@ -103,25 +96,6 @@ if (!function_exists('ckc_lhp_id_from_bai_viet')) {
 if (!function_exists('ckc_lhp_id_from_binh_luan')) {
     function ckc_lhp_id_from_binh_luan(PDO $conn, int $id): int
     {
-        if ($id <= 0) return 0;
-
-        $db = (string)$conn->query('SELECT DATABASE()')->fetchColumn();
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='binh_luan' AND COLUMN_NAME='thong_bao_id'");
-        $stmt->execute([$db]);
-        $hasThongBaoId = (int)$stmt->fetchColumn() > 0;
-
-        if ($hasThongBaoId) {
-            return ckc_lhp_id_from_query(
-                $conn,
-                'SELECT COALESCE(bl.lop_hoc_phan_id, tb.lop_hoc_phan_id, bv.lop_hoc_phan_id)
-                 FROM binh_luan bl
-                 LEFT JOIN thong_bao tb ON tb.id = bl.thong_bao_id
-                 LEFT JOIN bai_viet bv ON bv.id = bl.bai_viet_id
-                 WHERE bl.id = ? LIMIT 1',
-                $id
-            );
-        }
-
         return ckc_lhp_id_from_query(
             $conn,
             'SELECT COALESCE(bl.lop_hoc_phan_id, bv.lop_hoc_phan_id)

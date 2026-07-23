@@ -126,16 +126,16 @@ class SinhVienService {
     }
   }
 
-  // ─── THÔNG BÁO ────────────────────────────────────────────────
-  Future<List<ThongBaoSVModel>> layDanhSachThongBao(int lopHocPhanId) async {
+  // ─── BÀI VIẾT BẢNG TIN ────────────────────────────────────────
+  Future<List<ThongBaoSVModel>> layDanhSachBaiViet(int lopHocPhanId) async {
     try {
       final res = await _api.post(
         '/sinh_vien/noi_dung_lop.php',
-        data: {'action': 'thong_bao', 'lop_hoc_phan_id': lopHocPhanId},
+        data: {'action': 'bai_viet', 'lop_hoc_phan_id': lopHocPhanId},
       );
       final body = _layBody(res);
       if (!_ok(body))
-        throw Exception(_msg(body, def: 'Không lấy được thông báo'));
+        throw Exception(_msg(body, def: 'Không lấy được bài viết'));
       final raw = body['data'];
       if (raw is! List) return [];
       return raw
@@ -145,6 +145,7 @@ class SinhVienService {
       throw Exception(_err(e));
     }
   }
+
 
   //-CHỦ ĐỀ
   Future<List<ChuDe>> layDanhSachChuDe(int lopHocPhanId) async {
@@ -309,7 +310,7 @@ class SinhVienService {
     }
   }
 
-  Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(
+  Future<List<BinhLuanModel>> layDanhSachBinhLuanBaiViet(
     int baiVietId,
   ) async {
     try {
@@ -324,7 +325,7 @@ class SinhVienService {
       final body = _layBody(res);
       if (!_ok(body)) {
         throw Exception(
-          _msg(body, def: 'Không lấy được bình luận thông báo'),
+          _msg(body, def: 'Không lấy được bình luận bài viết'),
         );
       }
       final raw = body['data'];
@@ -337,7 +338,7 @@ class SinhVienService {
     }
   }
 
-  Future<BinhLuanModel> dangBinhLuanThongBao({
+  Future<BinhLuanModel> dangBinhLuanBaiViet({
     required int nguoiDungId,
     required int baiVietId,
     required String noiDung,
@@ -358,7 +359,7 @@ class SinhVienService {
       final body = _layBody(res);
       if (!_ok(body)) {
         throw Exception(
-          _msg(body, def: 'Đăng bình luận thông báo thất bại'),
+          _msg(body, def: 'Đăng bình luận bài viết thất bại'),
         );
       }
       return BinhLuanModel.fromJson(

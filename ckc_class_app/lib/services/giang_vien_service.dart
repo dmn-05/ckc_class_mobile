@@ -305,7 +305,6 @@ class GiangVienService {
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
   }) async {
     try {
@@ -370,7 +369,6 @@ class GiangVienService {
     bool choPhepNopMuon = true,
     double diemToiDa = 10,
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
     List<int> tepTinXoa = const [],
     int nguoiTaoId = 0,
@@ -598,14 +596,14 @@ class GiangVienService {
     }
   }
 
-  // ─── THÔNG BÁO ────────────────────────────────────────────
-  Future<List<ThongBao>> layDanhSachThongBao({
+  // ─── BÀI VIẾT BẢNG TIN ─────────────────────────────────────
+  Future<List<ThongBao>> layDanhSachBaiViet({
     required int lopHocPhanId,
     String trangThai = '',
   }) async {
     try {
       final res = await _api.post(
-        '/giang_vien/thong_bao.php',
+        '/giang_vien/bai_viet.php',
         data: {
           'action': 'danh_sach',
           'lop_hoc_phan_id': lopHocPhanId,
@@ -615,7 +613,7 @@ class GiangVienService {
       final body = _layBody(res);
       if (!_laThanhCong(body))
         throw Exception(
-          _layThongBao(body, macDinh: 'Không lấy được thông báo'),
+          _layThongBao(body, macDinh: 'Không lấy được bài viết'),
         );
       final raw = body['data'];
       if (raw is! List) return [];
@@ -627,13 +625,12 @@ class GiangVienService {
     }
   }
 
-  Future<String> themThongBao({
+  Future<String> themBaiViet({
     required String tieuDe,
     required int lopHocPhanId,
     required int nguoiTaoId,
     String noiDung = '',
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
   }) async {
     try {
@@ -645,25 +642,23 @@ class GiangVienService {
           'lop_hoc_phan_id': lopHocPhanId,
           'nguoi_tao_id': nguoiTaoId,
           'trang_thai': trangThai,
-          'thoi_gian_gui': _fmtMysql(thoiGianGui),
           if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
       });
-      final res = await _api.post('/giang_vien/thong_bao.php', data: formData);
+      final res = await _api.post('/giang_vien/bai_viet.php', data: formData);
       final body = _layBody(res);
       if (!_laThanhCong(body))
-        throw Exception(_layThongBao(body, macDinh: 'Đăng thông báo thất bại'));
-      return _layThongBao(body, macDinh: 'Đăng thông báo thành công');
+        throw Exception(_layThongBao(body, macDinh: 'Đăng bài viết thất bại'));
+      return _layThongBao(body, macDinh: 'Đăng bài viết thành công');
     } catch (e) {
       throw Exception(_xuLyLoi(e));
     }
   }
 
-  Future<String> suaThongBao({
+  Future<String> suaBaiViet({
     required int id,
     required String tieuDe,
     String noiDung = '',
     String trangThai = 'hien_thi',
-    DateTime? thoiGianGui,
     List<PlatformFile> tepTinMoi = const [],
     List<int> tepTinXoa = const [],
     int nguoiTaoId = 0,
@@ -676,40 +671,39 @@ class GiangVienService {
           'tieu_de': tieuDe.trim(),
           'noi_dung': noiDung.trim(),
           'trang_thai': trangThai,
-          'thoi_gian_gui': _fmtMysql(thoiGianGui),
           'nguoi_tao_id': nguoiTaoId,
           'xoa_tep_tin_ids': jsonEncode(tepTinXoa),
           if (tepTinMoi.isNotEmpty) 'files[]': await _taoMultipartFiles(tepTinMoi),
       });
-      final res = await _api.post('/giang_vien/thong_bao.php', data: formData);
+      final res = await _api.post('/giang_vien/bai_viet.php', data: formData);
       final body = _layBody(res);
       if (!_laThanhCong(body))
         throw Exception(
-          _layThongBao(body, macDinh: 'Cập nhật thông báo thất bại'),
+          _layThongBao(body, macDinh: 'Cập nhật bài viết thất bại'),
         );
-      return _layThongBao(body, macDinh: 'Cập nhật thông báo thành công');
+      return _layThongBao(body, macDinh: 'Cập nhật bài viết thành công');
     } catch (e) {
       throw Exception(_xuLyLoi(e));
     }
   }
 
-  Future<String> xoaThongBao(int id) async {
+  Future<String> xoaBaiViet(int id) async {
     try {
       final res = await _api.post(
-        '/giang_vien/thong_bao.php',
+        '/giang_vien/bai_viet.php',
         data: {'action': 'xoa', 'id': id},
       );
       final body = _layBody(res);
       if (!_laThanhCong(body))
-        throw Exception(_layThongBao(body, macDinh: 'Xóa thông báo thất bại'));
-      return _layThongBao(body, macDinh: 'Xóa thông báo thành công');
+        throw Exception(_layThongBao(body, macDinh: 'Xóa bài viết thất bại'));
+      return _layThongBao(body, macDinh: 'Xóa bài viết thành công');
     } catch (e) {
       throw Exception(_xuLyLoi(e));
     }
   }
 
 
-  Future<List<BinhLuanModel>> layDanhSachBinhLuanThongBao(
+  Future<List<BinhLuanModel>> layDanhSachBinhLuanBaiViet(
     int baiVietId,
   ) async {
     try {
@@ -724,7 +718,7 @@ class GiangVienService {
       final body = _layBody(res);
       if (!_laThanhCong(body)) {
         throw Exception(
-          _layThongBao(body, macDinh: 'Không lấy được bình luận thông báo'),
+          _layThongBao(body, macDinh: 'Không lấy được bình luận bài viết'),
         );
       }
       final raw = body['data'];
@@ -737,7 +731,7 @@ class GiangVienService {
     }
   }
 
-  Future<BinhLuanModel> dangBinhLuanThongBao({
+  Future<BinhLuanModel> dangBinhLuanBaiViet({
     required int nguoiDungId,
     required int baiVietId,
     required String noiDung,

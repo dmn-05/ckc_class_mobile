@@ -691,7 +691,7 @@ class _LopHocPhanSVState extends State<LopHocPhanSV> {
                     Expanded(
                       child: _MetricBox(
                         icon: Icons.campaign_rounded,
-                        value: '${lop.soThongBao}',
+                        value: '${lop.soBaiViet}',
                         label: 'Tin',
                         color: const Color(0xFF0891B2),
                       ),

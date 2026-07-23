@@ -33,7 +33,7 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<SinhVienProvider>().layDanhSachBinhLuanThongBao(widget.thongBao.baiVietId ?? 0);
+      context.read<SinhVienProvider>().layDanhSachBinhLuanBaiViet(widget.thongBao.id);
     });
   }
 
@@ -54,8 +54,8 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
   Future<void> _guiBinhLuan(SinhVienProvider p) async {
     final noiDung = _commentCtrl.text.trim();
     if (noiDung.isEmpty) return;
-    final rs = await p.dangBinhLuanThongBao(
-      baiVietId: widget.thongBao.baiVietId ?? 0,
+    final rs = await p.dangBinhLuanBaiViet(
+      baiVietId: widget.thongBao.id,
       noiDung: noiDung,
     );
     if (!mounted) return;
@@ -79,27 +79,67 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         foregroundColor: _text,
-        title: const Text('Chi tiết thông báo', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text('Chi tiết bài viết', style: TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: Consumer<SinhVienProvider>(
         builder: (context, provider, _) {
           return RefreshIndicator(
-            onRefresh: () => provider.layDanhSachBinhLuanThongBao(tb.baiVietId ?? 0),
+            onRefresh: () => provider.layDanhSachBinhLuanBaiViet(tb.id),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: [
                 _HeaderThongBao(thongBao: tb, tenNguoiTao: tenNguoiTao),
+                if ((tb.hinhAnh ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Image.network(
+                        tb.hinhAnh!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFFE2E8F0),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: _muted,
+                            size: 42,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 _SectionCard(
-                  title: 'Nội dung thông báo',
+                  title: 'Nội dung bài viết',
                   icon: Icons.notes_rounded,
                   children: [
                     Text(
-                      noiDung.isEmpty ? 'Thông báo này chưa có nội dung chi tiết.' : noiDung,
+                      noiDung.isEmpty ? 'Bài viết này chưa có nội dung chi tiết.' : noiDung,
                       style: const TextStyle(color: Color(0xFF334155), fontSize: 15, height: 1.5, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
+                if ((tb.externalUrl ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Liên kết',
+                    icon: Icons.link_rounded,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => taiFileVeMay(
+                          context,
+                          duongDan: tb.externalUrl!,
+                          tenFile: tb.tieuDe,
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Mở liên kết'),
+                      ),
+                    ],
+                  ),
+                ],
                 if (tb.files.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _SectionCard(
@@ -113,15 +153,62 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
                   title: 'Thông tin',
                   icon: Icons.info_outline_rounded,
                   children: [
+                    _InfoRow(icon: Icons.category_rounded, label: 'Loại bài viết', value: tb.tenLoaiBaiViet, color: Colors.purple),
+                    _InfoRow(icon: Icons.folder_open_rounded, label: 'Loại tài nguyên', value: tb.tenLoaiTaiNguyen, color: Colors.deepPurple),
                     _InfoRow(icon: Icons.person_rounded, label: 'Người đăng', value: tenNguoiTao, color: Colors.blue),
+                    if ((tb.tenVaiTro ?? '').isNotEmpty)
+                      _InfoRow(icon: Icons.badge_outlined, label: 'Vai trò', value: tb.tenVaiTro!, color: Colors.cyan),
                     _InfoRow(icon: Icons.schedule_rounded, label: 'Ngày đăng', value: dinhDangNgayGio(tb.ngayTao), color: Colors.orange),
+                    _InfoRow(icon: Icons.visibility_outlined, label: 'Lượt xem', value: '${tb.luotXem}', color: Colors.green),
+                    if ((tb.tenChuDe ?? '').isNotEmpty)
+                      _InfoRow(icon: Icons.topic_rounded, label: 'Chủ đề', value: tb.tenChuDe!, color: Colors.indigo),
+                    if (tb.laBaiTap && (tb.loaiBaiTap ?? '').isNotEmpty)
+                      _InfoRow(icon: Icons.assignment_rounded, label: 'Dạng bài tập', value: tb.tenLoaiBaiTap, color: Colors.orange),
+                    if (tb.laBaiTap && tb.hanNop != null)
+                      _InfoRow(icon: Icons.event_rounded, label: 'Hạn nộp', value: dinhDangNgayGio(tb.hanNop), color: Colors.red),
+                    if (tb.laBaiTap && tb.diemToiDa != null)
+                      _InfoRow(icon: Icons.stars_rounded, label: 'Điểm tối đa', value: tb.diemToiDa!.toStringAsFixed(1), color: Colors.amber),
+                    if (tb.laBaiTap)
+                      _InfoRow(icon: Icons.more_time_rounded, label: 'Cho phép nộp trễ', value: tb.choPhepNopTre ? 'Có' : 'Không', color: Colors.redAccent),
+                    if (tb.laBaiTap && tb.choPhepNopTre)
+                      _InfoRow(icon: Icons.percent_rounded, label: 'Tỷ lệ phạt trễ', value: '${tb.tylePhatTre}%', color: Colors.red),
+                    if (tb.laBaiTap && tb.soFileToiDa != null)
+                      _InfoRow(icon: Icons.file_copy_outlined, label: 'Số file tối đa', value: '${tb.soFileToiDa}', color: Colors.blueGrey),
+                    if (tb.laBaiTap && tb.dungLuongToiDaMb != null)
+                      _InfoRow(icon: Icons.sd_storage_outlined, label: 'Dung lượng/file', value: '${tb.dungLuongToiDaMb} MB', color: Colors.blueGrey),
                     if (tb.ngayCapNhat != null)
                       _InfoRow(icon: Icons.update_rounded, label: 'Cập nhật', value: dinhDangNgayGio(tb.ngayCapNhat), color: Colors.teal),
                   ],
                 ),
+                if (tb.laBaiTap && (tb.moTaBaiTap ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Mô tả bài tập',
+                    icon: Icons.description_outlined,
+                    children: [
+                      Text(
+                        tb.moTaBaiTap!,
+                        style: const TextStyle(color: Color(0xFF334155), fontSize: 15, height: 1.5, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+                if (tb.laBaiTap && (tb.huongDanBaiTap ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Hướng dẫn bài tập',
+                    icon: Icons.menu_book_outlined,
+                    children: [
+                      Text(
+                        tb.huongDanBaiTap!,
+                        style: const TextStyle(color: Color(0xFF334155), fontSize: 15, height: 1.5, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _SectionCard(
-                  title: 'Bình luận về thông báo',
+                  title: 'Bình luận bài viết',
                   icon: Icons.forum_rounded,
                   children: [
                     if (provider.blLoading)
@@ -158,7 +245,7 @@ class _ChiTietThongBaoSVState extends State<ChiTietThongBaoSV> {
                               minLines: 1,
                               maxLines: 4,
                               decoration: InputDecoration(
-                                hintText: 'Viết bình luận về thông báo...',
+                                hintText: 'Viết bình luận về bài viết...',
                                 filled: true,
                                 fillColor: const Color(0xFFF8FAFC),
                                 border: OutlineInputBorder(
@@ -230,7 +317,7 @@ class _HeaderThongBao extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 54, height: 54, decoration: BoxDecoration(color: Colors.white.withOpacity(.20), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(.20))), child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 28)),
+          Container(width: 54, height: 54, decoration: BoxDecoration(color: Colors.white.withOpacity(.20), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(.20))), child: const Icon(Icons.article_rounded, color: Colors.white, size: 28)),
           const SizedBox(width: 12),
           Expanded(child: Text(thongBao.tieuDe, style: const TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900, height: 1.15))),
         ]),
