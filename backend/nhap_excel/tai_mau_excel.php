@@ -25,6 +25,7 @@ header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 header('Expires: 0');
 
+header('X-Content-Type-Options: nosniff');
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="' . basename($fileName) . '"');
 header('Content-Length: ' . filesize($path));

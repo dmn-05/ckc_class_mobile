@@ -242,8 +242,10 @@ class NhapExcelService {
   );
 
   Future<void> taiFileMau(NhapExcelLoai loai) async {
+    final phienBan = DateTime.now().millisecondsSinceEpoch;
     final url = Uri.parse(
-      '$_apiBaseUrl/nhap_excel/tai_mau_excel.php?loai_nhap=${Uri.encodeComponent(loai.ma)}',
+      '$_apiBaseUrl/nhap_excel/tai_mau_excel.php'
+      '?loai_nhap=${Uri.encodeComponent(loai.ma)}&v=$phienBan',
     );
     final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!ok) throw Exception('Không thể mở link tải file mẫu');
